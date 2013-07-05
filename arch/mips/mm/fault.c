@@ -242,6 +242,8 @@ no_context:
 	 * Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice.
 	 */
+	mips_hwtrigger_write(0);
+
 	bust_spinlocks(1);
 
 	printk(KERN_ALERT "CPU %d Unable to handle kernel paging request at "
