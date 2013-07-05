@@ -17,6 +17,7 @@
 /*
  * Break codes used internally to the kernel.
  */
+#define BRK_HWTRIGGER	511	/* Userland hwtrigger */
 #define BRK_KDB		513	/* Used in KDB_ENTER() */
 #define BRK_MEMU	514	/* Used by FPU emulator */
 #define BRK_KPROBE_BP	515	/* Kprobe break */
