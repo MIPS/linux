@@ -149,4 +149,14 @@ config MIPS_CPS_NS16550_SHIFT
 
 endif # MIPS_CPS_NS16550
 
+config MIPS_HARDWARE_TRIGGERS
+	bool "Enable hardware trigger support for veloce & logic analyser"
+	select DEBUG_SPINLOCK
+	help
+	  Enabling this will cause the kernel to perform an uncached write
+	  to 0x1fc00000, typically the address of the boot flash & boot
+	  exception vector on MIPS development systems. This uncached write is
+	  simple for debug tools to trigger on from the RTL level, since it
+	  will always go out to the system bus.
+
 endmenu
