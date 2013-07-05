@@ -96,6 +96,28 @@ do {									\
 	}								\
 } while (0)
 
+#ifdef CONFIG_MIPS_HARDWARE_TRIGGERS
+
+struct cpu_curr_info {
+	pid_t pid, tgid;
+	char comm[TASK_COMM_LEN];
+};
+
+DECLARE_PER_CPU(struct cpu_curr_info, curr_info);
+
+#define update_curr_info(next) do {					\
+	struct cpu_curr_info *i = this_cpu_ptr(&curr_info);		\
+	i->pid = next->pid;						\
+	i->tgid = next->tgid;						\
+	memcpy(&i->comm, &next->comm, sizeof(next->comm));		\
+} while (0)
+
+#else
+
+#define update_curr_info(next) do {} while (0)
+
+#endif
+
 /*
  * For newly created kernel threads switch_to() will return to
  * ret_from_kernel_thread, newly created user threads to ret_from_fork.
@@ -130,6 +152,7 @@ do {									\
 	if (cpu_has_userlocal)						\
 		write_c0_userlocal(task_thread_info(next)->tp_value);	\
 	__restore_watch(next);						\
+	update_curr_info(next);						\
 	(last) = resume(prev, next, task_thread_info(next));		\
 } while (0)
 
