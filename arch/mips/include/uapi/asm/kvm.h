@@ -21,6 +21,7 @@
  */
 
 #define __KVM_HAVE_READONLY_MEM
+#define __KVM_HAVE_GUEST_DEBUG
 
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 
@@ -205,6 +206,9 @@ struct kvm_fpu {
 struct kvm_debug_exit_arch {
 	__u64 epc;
 };
+
+#define KVM_GUESTDBG_USE_SW_BP		0x00010000
+#define KVM_GUESTDBG_USE_HW_BP		0x00020000
 
 /* for KVM_SET_GUEST_DEBUG */
 struct kvm_guest_debug_arch {
