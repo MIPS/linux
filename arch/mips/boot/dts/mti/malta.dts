@@ -12,6 +12,16 @@
 	#size-cells = <1>;
 	compatible = "mti,malta";
 
+	chosen {
+		stdout-path = "serial0:115200";
+	};
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+	};
+
 	cpu_intc: interrupt-controller {
 		compatible = "mti,cpu-interrupt-controller";
 
@@ -94,6 +104,19 @@
 		};
 	};
 
+	uart2: uart@1f000900 {
+		compatible = "ns16550a";
+
+		reg = <0x1f000900 0x40>;
+		reg-io-width = <4>;
+		reg-shift = <3>;
+
+		clock-frequency = <3686400>;
+
+		interrupt-parent = <&cpu_intc>;
+		interrupts = <4>;
+	};
+
 	isa {
 		compatible = "isa";
 		#address-cells = <2>;
@@ -106,6 +129,30 @@
 
 			interrupt-parent = <&i8259>;
 			interrupts = <8>;
+		};
+
+		uart0: uart@3f8 {
+			compatible = "ns16550a";
+			reg = <1 0x3f8 0x8>;
+
+			clock-frequency = <1843200>;
+
+			interrupt-parent = <&i8259>;
+			interrupts = <4>;
+
+			no-loopback-test;
+		};
+
+		uart1: uart@2f8 {
+			compatible = "ns16550a";
+			reg = <1 0x2f8 0x8>;
+
+			clock-frequency = <1843200>;
+
+			interrupt-parent = <&i8259>;
+			interrupts = <3>;
+
+			no-loopback-test;
 		};
 	};
 };
