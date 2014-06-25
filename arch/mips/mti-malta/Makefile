@@ -11,7 +11,6 @@ obj-y				+= malta-dtshim.o
 obj-y				+= malta-init.o
 obj-y				+= malta-int.o
 obj-y				+= malta-memory.o
-obj-y				+= malta-platform.o
 obj-y				+= malta-reset.o
 obj-y				+= malta-setup.o
 obj-y				+= malta-time.o
