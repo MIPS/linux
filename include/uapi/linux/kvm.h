@@ -694,6 +694,11 @@ struct kvm_ppc_smmu_info {
 #define KVM_VM_PPC_HV 1
 #define KVM_VM_PPC_PR 2
 
+/* on MIPS, 0 forces trap & emulate, 1 forces VZ ASE, 2 uses the default/best */
+#define KVM_VM_MIPS_TE		0
+#define KVM_VM_MIPS_VZ		1
+#define KVM_VM_MIPS_DEFAULT	2
+
 #define KVM_S390_SIE_PAGE_OFFSET 1
 
 /*
@@ -871,6 +876,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_S390_USER_INSTR0 130
 #define KVM_CAP_MSI_DEVID 131
 #define KVM_CAP_PPC_HTM 132
+#define KVM_CAP_MIPS_VZ 133
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
