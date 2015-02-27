@@ -98,9 +98,19 @@ static inline bool eva_kernel_access(void)
  *
  * __ua_size() is a trick to avoid runtime checking of positive constant
  * sizes; for those we already know at compile time that the size is ok.
+ *
+ * __ua_kvm_comm() is to prevent accesses below 32KiB in KVM guest kernels,
+ * where there is a risk KVM may have mapped the comm page within easy reach of
+ * the zero register.
  */
 #define __ua_size(size)							\
 	((__builtin_constant_p(size) && (signed long) (size) > 0) ? 0 : (size))
+
+#ifdef CONFIG_KVM_GUEST
+#define __ua_kvm_comm(addr)	((addr) - 0x8000)
+#else
+#define __ua_kvm_comm(addr)	0
+#endif
 
 /*
  * access_ok: - Checks if a user space pointer is valid
@@ -126,7 +136,8 @@ static inline bool eva_kernel_access(void)
 static inline int __access_ok(const void __user *p, unsigned long size)
 {
 	unsigned long addr = (unsigned long)p;
-	return (get_fs().seg & (addr | (addr + size) | __ua_size(size))) == 0;
+	return (get_fs().seg & (addr | (addr + size) | __ua_size(size) |
+				__ua_kvm_comm(addr))) == 0;
 }
 
 #define access_ok(type, addr, size)					\
