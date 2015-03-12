@@ -661,6 +661,7 @@ void kvm_vz_save_cur_tlb(struct kvm_vcpu *vcpu)
 	/* Invalidate saved cur_tlb */
 	vcpu->arch.cur_tlb_index = -1;
 
+	/* FIXME safe? what if registers are loaded? */
 	/* Only necessary if guest at exception level */
 	status = vcpu->arch.cop0->reg[MIPS_CP0_STATUS][0];
 	if (!(status & ST0_EXL))
