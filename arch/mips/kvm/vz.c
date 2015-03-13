@@ -3065,6 +3065,7 @@ static void kvm_vz_vcpu_load_tlb(struct kvm_vcpu *vcpu, int cpu)
 						asid_version_mask(cpu))
 			get_new_mmu_context(gpa_mm, cpu);
 	}
+
 }
 
 static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -3094,6 +3095,7 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		tlbw_use_hazard();
 		kvm_vz_vcpu_load_tlb(vcpu, cpu);
 		kvm_vz_vcpu_load_wired(vcpu);
+		kvm_vz_load_cur_tlb(vcpu);
 	}
 
 	/*
@@ -3235,8 +3237,10 @@ static int kvm_vz_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 
-	if (current->flags & PF_VCPU)
+	if (current->flags & PF_VCPU) {
+		kvm_vz_save_cur_tlb(vcpu);
 		kvm_vz_vcpu_save_wired(vcpu);
+	}
 
 	kvm_lose_fpu(vcpu);
 
@@ -3578,6 +3582,8 @@ static int kvm_vz_vcpu_init(struct kvm_vcpu *vcpu)
 	for_each_possible_cpu(i)
 		vcpu->arch.vzguestid[i] = 0;
 
+	vcpu->arch.cur_tlb_index = 0x80000000;
+
 	return 0;
 }
 
@@ -3772,13 +3778,17 @@ static void kvm_vz_vcpu_reenter(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	preserve_guest_tlb = kvm_vz_check_requests(vcpu, cpu);
 
-	if (preserve_guest_tlb)
+	if (preserve_guest_tlb) {
+		kvm_vz_save_cur_tlb(vcpu);
 		kvm_vz_vcpu_save_wired(vcpu);
+	}
 
 	kvm_vz_vcpu_load_tlb(vcpu, cpu);
 
-	if (preserve_guest_tlb)
+	if (preserve_guest_tlb) {
 		kvm_vz_vcpu_load_wired(vcpu);
+		kvm_vz_load_cur_tlb(vcpu);
+	}
 }
 
 static int kvm_vz_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
@@ -3793,9 +3803,11 @@ static int kvm_vz_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	kvm_vz_check_requests(vcpu, cpu);
 	kvm_vz_vcpu_load_tlb(vcpu, cpu);
 	kvm_vz_vcpu_load_wired(vcpu);
+	kvm_vz_load_cur_tlb(vcpu);
 
 	r = vcpu->arch.vcpu_run(run, vcpu);
 
+	kvm_vz_save_cur_tlb(vcpu);
 	kvm_vz_vcpu_save_wired(vcpu);
 
 	return r;
