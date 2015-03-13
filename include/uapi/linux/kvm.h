@@ -877,6 +877,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_MSI_DEVID 131
 #define KVM_CAP_PPC_HTM 132
 #define KVM_CAP_MIPS_VZ 133
+#define KVM_CAP_MIPS_64BIT 134
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
