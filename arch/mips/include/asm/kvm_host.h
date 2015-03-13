@@ -425,6 +425,10 @@ struct kvm_vcpu_arch {
 	unsigned int wired_tlb_limit;
 	unsigned int wired_tlb_used;
 
+	/* saved important tlb entry */
+	struct kvm_mips_tlb cur_tlb;
+	int cur_tlb_index;
+
 	/* emulated guest MAAR registers */
 	unsigned long maar[6];
 #endif
@@ -956,6 +960,8 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 			  unsigned int count);
 void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
 			  unsigned int count);
+void kvm_vz_save_cur_tlb(struct kvm_vcpu *vcpu);
+int kvm_vz_load_cur_tlb(struct kvm_vcpu *vcpu);
 #endif
 
 void kvm_mips_suspend_mm(int cpu);
