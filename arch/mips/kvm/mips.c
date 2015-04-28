@@ -1420,6 +1420,12 @@ skip_emul:
 		}
 	}
 
+	/* FIXME hack */
+	if (ret == RESUME_HOST && run->exit_reason == KVM_EXIT_INTERNAL_ERROR) {
+		run->internal.suberror = 0;
+		run->internal.ndata = 0;
+	}
+
 	if (ret == RESUME_GUEST) {
 		trace_kvm_reenter(vcpu);
 
