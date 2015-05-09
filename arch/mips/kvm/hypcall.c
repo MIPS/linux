@@ -40,6 +40,15 @@ static int kvm_mips_hypercall(struct kvm_vcpu *vcpu, unsigned long num,
 		*hret = (s32)vcpu->arch.count_hz;
 		break;
 
+	case KVM_HC_MIPS_EXIT_VM:
+		/* Pass shutdown system event to userland */
+		memset(&vcpu->run->system_event, 0,
+		       sizeof(vcpu->run->system_event));
+		vcpu->run->system_event.type = KVM_SYSTEM_EVENT_SHUTDOWN;
+		vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
+		ret = RESUME_HOST;
+		break;
+
 	default:
 		/* Report unimplemented hypercall to guest */
 		*hret = -KVM_ENOSYS;
