@@ -309,6 +309,9 @@ struct kvm_vcpu_arch {
 	/* GPR used as IO source/target */
 	u32 io_gpr;
 
+	/* Whether a hypercall needs completing */
+	int hypercall_needed;
+
 	struct hrtimer comparecount_timer;
 	/* Count timer control KVM register */
 	u32 count_ctl;
@@ -838,6 +841,7 @@ unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu);
 enum emulation_result kvm_mips_emul_hypcall(struct kvm_vcpu *vcpu,
 					    union mips_instruction inst);
 int kvm_mips_handle_hypcall(struct kvm_vcpu *vcpu);
+void kvm_mips_complete_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run);
 
 /* Dynamic binary translation */
 extern int kvm_mips_trans_cache_index(union mips_instruction inst,

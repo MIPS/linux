@@ -98,3 +98,13 @@ Purpose: Return the frequency of CP0_Count in HZ.
 Architecture: mips
 Status: active
 Purpose: Shut down the virtual machine.
+
+8. KVM_HC_MIPS_CONSOLE_OUTPUT
+------------------------
+Architecture: mips
+Status: active
+Purpose: Output a string to a console.
+Argument 1 contains the virtual terminal number to write to.
+Argument 2 contains a guest virtual address pointer to the string, which must
+be in an unmapped virtual memory segment (e.g. KSeg0, KSeg1 or XKPhys).
+Argument 3 contains the number of bytes to write.

@@ -409,6 +409,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		vcpu->mmio_needed = 0;
 	}
 
+	if (vcpu->arch.hypercall_needed)
+		kvm_mips_complete_hypercall(vcpu, run);
+
 	lose_fpu(1);
 
 	local_irq_disable();
