@@ -93,6 +93,12 @@ Architecture: mips
 Status: active
 Purpose: Return the frequency of CP0_Count in HZ.
 
+7. KVM_HC_MIPS_EXIT_VM
+------------------------
+Architecture: mips
+Status: active
+Purpose: Shut down the virtual machine.
+
 9. KVM_HC_CLOCK_PAIRING
 ------------------------
 Architecture: x86
