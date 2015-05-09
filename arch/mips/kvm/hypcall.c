@@ -32,9 +32,21 @@ enum emulation_result kvm_mips_emul_hypcall(struct kvm_vcpu *vcpu,
 static int kvm_mips_hypercall(struct kvm_vcpu *vcpu, unsigned long num,
 			      const unsigned long *args, unsigned long *hret)
 {
-	/* Report unimplemented hypercall to guest */
-	*hret = -KVM_ENOSYS;
-	return RESUME_GUEST;
+	int ret = RESUME_GUEST;
+
+	switch (num) {
+	case KVM_HC_MIPS_GET_CLOCK_FREQ:
+		/* Return frequency of count/compare timer */
+		*hret = (s32)vcpu->arch.count_hz;
+		break;
+
+	default:
+		/* Report unimplemented hypercall to guest */
+		*hret = -KVM_ENOSYS;
+		break;
+	};
+
+	return ret;
 }
 
 int kvm_mips_handle_hypcall(struct kvm_vcpu *vcpu)
