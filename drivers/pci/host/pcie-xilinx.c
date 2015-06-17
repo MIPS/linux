@@ -440,8 +440,8 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 				   XILINX_PCIE_REG_RPIFR1);
 
 			/* Handle INTx Interrupt */
-			val = ((val & XILINX_PCIE_RPIFR1_INTR_MASK) >>
-				XILINX_PCIE_RPIFR1_INTR_SHIFT) + 1;
+			val = (val & XILINX_PCIE_RPIFR1_INTR_MASK) >>
+				XILINX_PCIE_RPIFR1_INTR_SHIFT;
 			generic_handle_irq(irq_find_mapping(port->leg_domain,
 							    val));
 		}
