@@ -321,7 +321,7 @@ static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
 	u32 tmp;
 
 	/* wait busy */
-	tmp = 1000;
+	tmp = 10000;
 	while ((ioread32(reg) & bit) && --tmp)
 		cpu_relax();
 	if (!tmp)
