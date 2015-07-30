@@ -487,6 +487,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 
 	default:
 		r4k_blast_dcache();
+		mb();
 		r4k_blast_icache();
 		break;
 	}
@@ -561,8 +562,11 @@ static inline void local_r4k_flush_cache_range(void * args)
 	 * If executable, we must ensure any dirty lines are written back far
 	 * enough to be visible to icache.
 	 */
-	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc))
+	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
 		r4k_blast_dcache();
+		if (exec)
+			mb();
+	}
 	/* If executable, blast stale lines from icache */
 	if (exec)
 		r4k_blast_icache();
@@ -734,6 +738,7 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 		if (type == R4K_INDEX ||
 		    (type & R4K_INDEX && end - start >= dcache_size)) {
 			r4k_blast_dcache();
+			mb();
 		} else {
 			R4600_HIT_CACHEOP_WAR_IMPL;
 			if (user)
