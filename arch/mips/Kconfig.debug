@@ -159,4 +159,17 @@ config MIPS_HARDWARE_TRIGGERS
 	  simple for debug tools to trigger on from the RTL level, since it
 	  will always go out to the system bus.
 
+config MIPS_CP0_DEBUGFS
+	bool "Arbitrary cp0 access via DebugFS"
+	depends on DEBUG_FS
+	help
+	  Enable this to allow sufficiently priveleged users arbitrary access
+	  to coprocessor 0 registers via DebugFS. This can be useful for debug
+	  purposes when bringing up a new system, but does allow a user to
+	  interfere with the system in ways that prevent it functioning as
+	  intended. It should therefore not be enabled outside of specific
+	  debug uses.
+
+	  If unsure, say N.
+
 endmenu
