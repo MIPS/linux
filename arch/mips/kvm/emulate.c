@@ -1530,7 +1530,7 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 
 		case dmtc_op:
 			kvm_err("!!!!!!![%#lx]dmtc_op: rt: %d, rd: %d, sel: %d!!!!!!\n",
-				vcpu->arch.pc, rt, rd, sel);
+				curr_pc, rt, rd, sel);
 			trace_kvm_hwr(vcpu, KVM_TRACE_DMTC0,
 				      KVM_TRACE_COP0(rd, sel),
 				      vcpu->arch.gprs[rt]);
@@ -1547,11 +1547,11 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 			/* EI */
 			if (inst.mfmc0_format.sc) {
 				kvm_debug("[%#lx] mfmc0_op: EI\n",
-					  vcpu->arch.pc);
+					  curr_pc);
 				kvm_set_c0_guest_status(cop0, ST0_IE);
 			} else {
 				kvm_debug("[%#lx] mfmc0_op: DI\n",
-					  vcpu->arch.pc);
+					  curr_pc);
 				kvm_clear_c0_guest_status(cop0, ST0_IE);
 			}
 
@@ -1577,7 +1577,7 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 			break;
 		default:
 			kvm_err("[%#lx]MachEmulateCP0: unsupported COP0, copz: 0x%x\n",
-				vcpu->arch.pc, inst.c0r_format.rs);
+				curr_pc, inst.c0r_format.rs);
 			er = EMULATE_FAIL;
 			break;
 		}
@@ -1631,7 +1631,7 @@ enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 		*(u64 *)data = vcpu->arch.gprs[rt];
 
 		kvm_debug("[%#lx] OP_SD: eaddr: %#lx, gpr: %#lx, data: %#llx\n",
-			  vcpu->arch.pc, vcpu->arch.host_cp0_badvaddr,
+			  curr_pc, vcpu->arch.host_cp0_badvaddr,
 			  vcpu->arch.gprs[rt], *(u64 *)data);
 		break;
 #endif
@@ -1641,7 +1641,7 @@ enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 		*(u32 *)data = vcpu->arch.gprs[rt];
 
 		kvm_debug("[%#lx] OP_SW: eaddr: %#lx, gpr: %#lx, data: %#x\n",
-			  vcpu->arch.pc, vcpu->arch.host_cp0_badvaddr,
+			  curr_pc, vcpu->arch.host_cp0_badvaddr,
 			  vcpu->arch.gprs[rt], *(u32 *)data);
 		break;
 
@@ -1650,7 +1650,7 @@ enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 		*(u16 *)data = vcpu->arch.gprs[rt];
 
 		kvm_debug("[%#lx] OP_SH: eaddr: %#lx, gpr: %#lx, data: %#x\n",
-			  vcpu->arch.pc, vcpu->arch.host_cp0_badvaddr,
+			  curr_pc, vcpu->arch.host_cp0_badvaddr,
 			  vcpu->arch.gprs[rt], *(u16 *)data);
 		break;
 
@@ -1659,7 +1659,7 @@ enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 		*(u8 *)data = vcpu->arch.gprs[rt];
 
 		kvm_debug("[%#lx] OP_SB: eaddr: %#lx, gpr: %#lx, data: %#x\n",
-			  vcpu->arch.pc, vcpu->arch.host_cp0_badvaddr,
+			  curr_pc, vcpu->arch.host_cp0_badvaddr,
 			  vcpu->arch.gprs[rt], *(u8 *)data);
 		break;
 
@@ -1839,7 +1839,7 @@ enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 	 */
 	if (op == Index_Writeback_Inv) {
 		kvm_debug("@ %#lx/%#lx CACHE (cache: %#x, op: %#x, base[%d]: %#lx, offset: %#x\n",
-			  vcpu->arch.pc, vcpu->arch.gprs[31], cache, op, base,
+			  curr_pc, vcpu->arch.gprs[31], cache, op, base,
 			  arch->gprs[base], offset);
 
 		if (cache == Cache_D) {
