@@ -66,10 +66,12 @@ do {									\
 	unsigned long tmp;						\
 									\
 	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
 	"	.set "MIPS_ISA_LEVEL"				\n"	\
+	"	.set	gp=64					\n"	\
 	"	dla	%0, 1f					\n"	\
 	"	jr.hb	%0					\n"	\
-	"	.set	mips0					\n"	\
+	"	.set	pop					\n"	\
 	"1:							\n"	\
 	: "=r" (tmp));							\
 } while (0)
