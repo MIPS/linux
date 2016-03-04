@@ -129,7 +129,7 @@ static inline unsigned int kvm_vz_config5_guest_wrmask(struct kvm_vcpu *vcpu)
 /*
  * VZ optionally allows these additional Config bits to be written by root:
  * Config:	M, [MT]
- * Config1:	M, [MMUSize-1, C2, MD, PC, WR, CA], FP
+ * Config1:	M, [MMUSize-1, C2, MD, PC], WR, [CA], FP
  * Config2:	M
  * Config3:	M, MSAP, [BPG], ULRI, [DSP2P, DSPP], CTXTC, [ITL, LPA, VEIC,
  *		VInt, SP, CDMM, MT, SM, TL]
@@ -144,7 +144,8 @@ static inline unsigned int kvm_vz_config_user_wrmask(struct kvm_vcpu *vcpu)
 
 static inline unsigned int kvm_vz_config1_user_wrmask(struct kvm_vcpu *vcpu)
 {
-	unsigned int mask = kvm_vz_config1_guest_wrmask(vcpu) | MIPS_CONF_M;
+	unsigned int mask = kvm_vz_config1_guest_wrmask(vcpu) | MIPS_CONF_M |
+		MIPS_CONF1_WR;
 
 	/* Permit FPU to be present if FPU is supported */
 	if (kvm_mips_guest_can_have_fpu(&vcpu->arch))
@@ -588,6 +589,171 @@ void kvm_vz_lose_htimer(struct kvm_vcpu *vcpu)
 	preempt_enable();
 }
 
+static void kvm_vz_set_watch_regs(struct kvm_vcpu *vcpu, bool all)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	unsigned long *lo = cop0->reg[MIPS_CP0_WATCH_LO];
+	unsigned long *hi = cop0->reg[MIPS_CP0_WATCH_HI];
+	unsigned int reg_count = boot_cpu_data.watch_reg_count;
+
+	/*
+	 * If we have virtual guest watch registers, where the guest shares
+	 * watch registers with the root, then we must first set WM=GVA to
+	 * assign each register to the guest.
+	 */
+	if (cpu_guest_has_dyn_watch) {
+		switch (reg_count) {
+		case 8:
+			write_c0_watchhi7(MIPS_WATCHHI_WM_G_GVA);
+		case 7:
+			write_c0_watchhi6(MIPS_WATCHHI_WM_G_GVA);
+		case 6:
+			write_c0_watchhi5(MIPS_WATCHHI_WM_G_GVA);
+		case 5:
+			write_c0_watchhi4(MIPS_WATCHHI_WM_G_GVA);
+		case 4:
+			write_c0_watchhi3(MIPS_WATCHHI_WM_G_GVA);
+		case 3:
+			write_c0_watchhi2(MIPS_WATCHHI_WM_G_GVA);
+		case 2:
+			write_c0_watchhi1(MIPS_WATCHHI_WM_G_GVA);
+		case 1:
+			write_c0_watchhi0(MIPS_WATCHHI_WM_G_GVA);
+		}
+		/* Guest watch registers are only writable once assigned */
+		back_to_back_c0_hazard();
+	} else if (!all) {
+		/*
+		 * If we have separate guest watch registers, then they don't
+		 * need to be restored every time.
+		 */
+		return;
+	}
+
+	/*
+	 * Restore guest watch registers via guest context. This allows the
+	 * WatchHi.IRW bits to be written, which isn't possible via the root
+	 * context.
+	 */
+	switch (reg_count) {
+	default:
+		BUG();
+	case 8:
+		write_gc0_watchhi7(hi[7]);
+		write_gc0_watchlo7(lo[7]);
+	case 7:
+		write_gc0_watchhi6(hi[6]);
+		write_gc0_watchlo6(lo[6]);
+	case 6:
+		write_gc0_watchhi5(hi[5]);
+		write_gc0_watchlo5(lo[5]);
+	case 5:
+		write_gc0_watchhi4(hi[4]);
+		write_gc0_watchlo4(lo[4]);
+	case 4:
+		write_gc0_watchhi3(hi[3]);
+		write_gc0_watchlo3(lo[3]);
+	case 3:
+		write_gc0_watchhi2(hi[2]);
+		write_gc0_watchlo2(lo[2]);
+	case 2:
+		write_gc0_watchhi1(hi[1]);
+		write_gc0_watchlo1(lo[1]);
+	case 1:
+		write_gc0_watchhi0(hi[0]);
+		write_gc0_watchlo0(lo[0]);
+	}
+
+	vcpu->arch.aux_inuse |= KVM_MIPS_AUX_WATCH;
+	trace_kvm_aux(vcpu, KVM_TRACE_AUX_RESTORE, KVM_TRACE_AUX_WATCH);
+}
+
+static void kvm_vz_get_watch_regs(struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	unsigned long *lo = cop0->reg[MIPS_CP0_WATCH_LO];
+	unsigned long *hi = cop0->reg[MIPS_CP0_WATCH_HI];
+	unsigned long active = 0;
+	unsigned int reg_count = boot_cpu_data.watch_reg_count;
+
+	/*
+	 * Restore all registers from the guest context, regardless of whether
+	 * watch registers are shared with root context.
+	 */
+
+	switch (reg_count) {
+	default:
+		BUG();
+	case 8:
+		hi[7] = read_gc0_watchhi7();
+		lo[7] = read_gc0_watchlo7();
+		active |= lo[7];
+	case 7:
+		hi[6] = read_gc0_watchhi6();
+		lo[6] = read_gc0_watchlo6();
+		active |= lo[6];
+	case 6:
+		hi[5] = read_gc0_watchhi5();
+		lo[5] = read_gc0_watchlo5();
+		active |= lo[5];
+	case 5:
+		hi[4] = read_gc0_watchhi4();
+		lo[4] = read_gc0_watchlo4();
+		active |= lo[4];
+	case 4:
+		hi[3] = read_gc0_watchhi3();
+		lo[3] = read_gc0_watchlo3();
+		active |= lo[3];
+	case 3:
+		hi[2] = read_gc0_watchhi2();
+		lo[2] = read_gc0_watchlo2();
+		active |= lo[2];
+	case 2:
+		hi[1] = read_gc0_watchhi1();
+		lo[1] = read_gc0_watchlo1();
+		active |= lo[1];
+	case 1:
+		hi[0] = read_gc0_watchhi0();
+		lo[0] = read_gc0_watchlo0();
+		active |= lo[0];
+	}
+
+	/*
+	 * If we have virtual guest watch registers, where the guest shares
+	 * watch registers with the root, then we must reassign the registers
+	 * back to root so future guests don't use our watch state.
+	 */
+	if (cpu_guest_has_dyn_watch) {
+		/* Guest watch registers are only accessible while assigned */
+		back_to_back_c0_hazard();
+
+		switch (reg_count) {
+		case 8:
+			write_c0_watchhi7(MIPS_WATCHHI_WM_R_RVA);
+		case 7:
+			write_c0_watchhi6(MIPS_WATCHHI_WM_R_RVA);
+		case 6:
+			write_c0_watchhi5(MIPS_WATCHHI_WM_R_RVA);
+		case 5:
+			write_c0_watchhi4(MIPS_WATCHHI_WM_R_RVA);
+		case 4:
+			write_c0_watchhi3(MIPS_WATCHHI_WM_R_RVA);
+		case 3:
+			write_c0_watchhi2(MIPS_WATCHHI_WM_R_RVA);
+		case 2:
+			write_c0_watchhi1(MIPS_WATCHHI_WM_R_RVA);
+		case 1:
+			write_c0_watchhi0(MIPS_WATCHHI_WM_R_RVA);
+		}
+	}
+
+	vcpu->arch.aux_active &= ~KVM_MIPS_AUX_WATCH;
+	if (active & MIPS_WATCHLO_IRW)
+		vcpu->arch.aux_active |= KVM_MIPS_AUX_WATCH;
+	vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_WATCH;
+	trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_WATCH);
+}
+
 /**
  * is_eva_access() - Find whether an instruction is an EVA memory accessor.
  * @inst:	32-bit instruction encoding.
@@ -942,6 +1108,18 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 			} else if (rd == MIPS_CP0_COMPARE &&
 				   sel == 0) {		/* Compare */
 				val = read_gc0_compare();
+			} else if ((rd == MIPS_CP0_WATCH_LO ||
+				    rd == MIPS_CP0_WATCH_HI) &&
+				   sel < boot_cpu_data.watch_reg_count &&
+				   read_gc0_config1() & MIPS_CONF1_WR &&
+				   !(vcpu->arch.aux_inuse & KVM_MIPS_AUX_WATCH)) {
+				/* Restore guest watchpoint state and retry */
+				preempt_disable();
+				kvm_vz_set_watch_regs(vcpu, true);
+				preempt_enable();
+				vcpu->arch.pc = curr_pc;
+				/* Resume without clobbering rt */
+				return er;
 			} else if (rd == MIPS_CP0_LLADDR &&
 				   sel == 0) {		/* LLAddr */
 				if (cpu_guest_has_rw_llb)
@@ -1010,6 +1188,16 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				kvm_mips_write_compare(vcpu,
 						       vcpu->arch.gprs[rt],
 						       true);
+			} else if ((rd == MIPS_CP0_WATCH_LO ||
+				    rd == MIPS_CP0_WATCH_HI) &&
+				   sel < boot_cpu_data.watch_reg_count &&
+				   read_gc0_config1() & MIPS_CONF1_WR &&
+				   !(vcpu->arch.aux_inuse & KVM_MIPS_AUX_WATCH)) {
+				/* Restore guest watchpoint state and retry */
+				preempt_disable();
+				kvm_vz_set_watch_regs(vcpu, true);
+				preempt_enable();
+				vcpu->arch.pc = curr_pc;
 			} else if (rd == MIPS_CP0_LLADDR &&
 				   sel == 0) {		/* LLAddr */
 				/*
@@ -1533,6 +1721,47 @@ static int kvm_trap_vz_handle_msa_disabled(struct kvm_vcpu *vcpu)
 	return RESUME_GUEST;
 }
 
+/**
+ * kvm_vz_guest_exception_base() - Find guest exception vector base address.
+ *
+ * Returns:	The base address of the current guest exception vector, taking
+ *		both Guest.CP0_Status.BEV and Guest.CP0_EBase into account.
+ */
+static long kvm_vz_guest_exception_base(void)
+{
+	if (read_gc0_status() & ST0_BEV)
+		return (s32)0xbfc00200;
+	else
+		return kvm_vz_read_gc0_ebase() & MIPS_EBASE_BASE;
+}
+
+/**
+ * kvm_trap_vz_handle_watch() - Guest hit watchpoint.
+ * @vcpu:	Virtual CPU context.
+ *
+ * Handle when the guest hits a watchpoint. This happens on Cavium Octeon III
+ * when watchpoints are assigned to the guest. MIPS cores pass the exception
+ * straight to the guest.
+ */
+static int kvm_trap_vz_handle_watch(struct kvm_vcpu *vcpu)
+{
+	/* if either EXL or ERL, set Cause.WP and carry on */
+	if (read_gc0_status() & (ST0_EXL | ST0_ERL)) {
+		set_gc0_cause(CAUSEF_WP);
+		return RESUME_GUEST;
+	}
+
+	/* pass the exception to the guest */
+	write_gc0_epc(vcpu->arch.pc);
+	set_gc0_status(ST0_EXL);
+	change_gc0_cause(CAUSEF_BD | CAUSEF_EXCCODE, vcpu->arch.host_cp0_cause);
+	vcpu->arch.pc = kvm_vz_guest_exception_base() + 0x180;
+
+	trace_kvm_guest_mode_change(vcpu);
+
+	return RESUME_GUEST;
+}
+
 static int kvm_trap_vz_handle_tlb_ld_miss(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
@@ -1669,6 +1898,25 @@ static u64 kvm_vz_get_one_regs_contextconfig[] = {
 #endif
 };
 
+static u64 kvm_vz_get_one_regs_watch[] = {
+	KVM_REG_MIPS_CP0_WATCHLO0,
+	KVM_REG_MIPS_CP0_WATCHHI0,
+	KVM_REG_MIPS_CP0_WATCHLO1,
+	KVM_REG_MIPS_CP0_WATCHHI1,
+	KVM_REG_MIPS_CP0_WATCHLO2,
+	KVM_REG_MIPS_CP0_WATCHHI2,
+	KVM_REG_MIPS_CP0_WATCHLO3,
+	KVM_REG_MIPS_CP0_WATCHHI3,
+	KVM_REG_MIPS_CP0_WATCHLO4,
+	KVM_REG_MIPS_CP0_WATCHHI4,
+	KVM_REG_MIPS_CP0_WATCHLO5,
+	KVM_REG_MIPS_CP0_WATCHHI5,
+	KVM_REG_MIPS_CP0_WATCHLO6,
+	KVM_REG_MIPS_CP0_WATCHHI6,
+	KVM_REG_MIPS_CP0_WATCHLO7,
+	KVM_REG_MIPS_CP0_WATCHHI7,
+};
+
 static u64 kvm_vz_get_one_regs_segments[] = {
 	KVM_REG_MIPS_CP0_SEGCTL0,
 	KVM_REG_MIPS_CP0_SEGCTL1,
@@ -1704,6 +1952,8 @@ static unsigned long kvm_vz_num_regs(struct kvm_vcpu *vcpu)
 		++ret;
 	if (cpu_guest_has_contextconfig)
 		ret += ARRAY_SIZE(kvm_vz_get_one_regs_contextconfig);
+	if (cpu_guest_has_watch)
+		ret += boot_cpu_data.watch_reg_count * 2;
 	if (cpu_guest_has_segments)
 		ret += ARRAY_SIZE(kvm_vz_get_one_regs_segments);
 	if (cpu_guest_has_htw)
@@ -1748,6 +1998,13 @@ static int kvm_vz_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 				 sizeof(kvm_vz_get_one_regs_contextconfig)))
 			return -EFAULT;
 		indices += ARRAY_SIZE(kvm_vz_get_one_regs_contextconfig);
+	}
+	if (cpu_guest_has_watch) {
+		if (copy_to_user(indices, kvm_vz_get_one_regs_watch,
+				 sizeof(index) *
+					2 * boot_cpu_data.watch_reg_count))
+			return -EFAULT;
+		indices += 2 * boot_cpu_data.watch_reg_count;
 	}
 	if (cpu_guest_has_segments) {
 		if (copy_to_user(indices, kvm_vz_get_one_regs_segments,
@@ -1992,6 +2249,38 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 		if (!cpu_guest_has_maar || cpu_guest_has_dyn_maar)
 			return -EINVAL;
 		*v = kvm_read_sw_gc0_maari(vcpu->arch.cop0);
+		break;
+	case KVM_REG_MIPS_CP0_WATCHLO0 ... KVM_REG_MIPS_CP0_WATCHLO7:
+		preempt_disable();
+		if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_WATCH))
+			kvm_vz_set_watch_regs(vcpu, true);
+		switch (reg->id & 0x7) {
+		case 0: *v = read_gc0_watchlo0(); break;
+		case 1: *v = read_gc0_watchlo1(); break;
+		case 2: *v = read_gc0_watchlo2(); break;
+		case 3: *v = read_gc0_watchlo3(); break;
+		case 4: *v = read_gc0_watchlo4(); break;
+		case 5: *v = read_gc0_watchlo5(); break;
+		case 6: *v = read_gc0_watchlo6(); break;
+		case 7: *v = read_gc0_watchlo7(); break;
+		};
+		preempt_enable();
+		break;
+	case KVM_REG_MIPS_CP0_WATCHHI0 ... KVM_REG_MIPS_CP0_WATCHHI7:
+		preempt_disable();
+		if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_WATCH))
+			kvm_vz_set_watch_regs(vcpu, true);
+		switch (reg->id & 0x7) {
+		case 0: *v = read_gc0_watchhi0(); break;
+		case 1: *v = read_gc0_watchhi1(); break;
+		case 2: *v = read_gc0_watchhi2(); break;
+		case 3: *v = read_gc0_watchhi3(); break;
+		case 4: *v = read_gc0_watchhi4(); break;
+		case 5: *v = read_gc0_watchhi5(); break;
+		case 6: *v = read_gc0_watchhi6(); break;
+		case 7: *v = read_gc0_watchhi7(); break;
+		};
+		preempt_enable();
 		break;
 #ifdef CONFIG_64BIT
 	case KVM_REG_MIPS_CP0_XCONTEXT:
@@ -2263,6 +2552,40 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 		kvm_write_maari(vcpu, v);
 		break;
+	case KVM_REG_MIPS_CP0_WATCHLO0 ... KVM_REG_MIPS_CP0_WATCHLO7:
+		idx = reg->id - KVM_REG_MIPS_CP0_WATCHLO0;
+		preempt_disable();
+		if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_WATCH))
+			kvm_vz_set_watch_regs(vcpu, true);
+		switch (idx) {
+		case 0: write_gc0_watchlo0(v); break;
+		case 1: write_gc0_watchlo1(v); break;
+		case 2: write_gc0_watchlo2(v); break;
+		case 3: write_gc0_watchlo3(v); break;
+		case 4: write_gc0_watchlo4(v); break;
+		case 5: write_gc0_watchlo5(v); break;
+		case 6: write_gc0_watchlo6(v); break;
+		case 7: write_gc0_watchlo7(v); break;
+		};
+		preempt_enable();
+		break;
+	case KVM_REG_MIPS_CP0_WATCHHI0 ... KVM_REG_MIPS_CP0_WATCHHI7:
+		idx = reg->id - KVM_REG_MIPS_CP0_WATCHHI0;
+		preempt_disable();
+		if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_WATCH))
+			kvm_vz_set_watch_regs(vcpu, true);
+		switch (idx) {
+		case 0: write_gc0_watchhi0(v); break;
+		case 1: write_gc0_watchhi1(v); break;
+		case 2: write_gc0_watchhi2(v); break;
+		case 3: write_gc0_watchhi3(v); break;
+		case 4: write_gc0_watchhi4(v); break;
+		case 5: write_gc0_watchhi5(v); break;
+		case 6: write_gc0_watchhi6(v); break;
+		case 7: write_gc0_watchhi7(v); break;
+		};
+		preempt_enable();
+		break;
 #ifdef CONFIG_64BIT
 	case KVM_REG_MIPS_CP0_XCONTEXT:
 		write_gc0_xcontext(v);
@@ -2498,6 +2821,23 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	 */
 	kvm_vz_restore_timer(vcpu);
 
+	/*
+	 * Watch registers may be shared between root & guest, so may need
+	 * restoring regardless.
+	 *
+	 * If they're currently active we must restore them before running any
+	 * guest code so that they work. Otherwise lazily restore them when
+	 * they're actually accessed (via the GPSI handler).
+	 */
+
+	if (cpu_guest_has_watch &&
+	    (vcpu->arch.aux_active & KVM_MIPS_AUX_WATCH ||
+	     !cpu_guest_has_dyn_watch)) {
+		/* restore Config1 a little early, so we get WR bit */
+		kvm_restore_gc0_config1(cop0);
+		kvm_vz_set_watch_regs(vcpu, all);
+	}
+
 	/* Set MC bit if we want to trace guest mode changes */
 	if (kvm_trace_guest_mode_change)
 		set_c0_guestctl0(MIPS_GCTL0_MC);
@@ -2658,6 +2998,10 @@ static int kvm_vz_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 		kvm_save_gc0_config7(cop0);
 
 	kvm_save_gc0_errorepc(cop0);
+
+	/* save watch registers if loaded */
+	if (cpu_guest_has_watch && vcpu->arch.aux_inuse & KVM_MIPS_AUX_WATCH)
+		kvm_vz_get_watch_regs(vcpu);
 
 	/* save KScratch registers if enabled in guest */
 	if (cpu_guest_has_conf4) {
@@ -3178,7 +3522,7 @@ static struct kvm_mips_callbacks kvm_vz_callbacks = {
 	.handle_res_inst = kvm_trap_vz_no_handler,
 	.handle_break = kvm_trap_vz_no_handler,
 	.handle_msa_disabled = kvm_trap_vz_handle_msa_disabled,
-	.handle_watch = kvm_trap_vz_no_handler,
+	.handle_watch = kvm_trap_vz_handle_watch,
 	.handle_guest_exit = kvm_trap_vz_handle_guest_exit,
 
 	.hardware_enable = kvm_vz_hardware_enable,
