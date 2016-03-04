@@ -69,6 +69,22 @@
 #define KVM_REG_MIPS_CP0_CONFIG5	MIPS_CP0_32(16, 5)
 #define KVM_REG_MIPS_CP0_CONFIG7	MIPS_CP0_32(16, 7)
 #define KVM_REG_MIPS_CP0_MAARI		MIPS_CP0_64(17, 2)
+#define KVM_REG_MIPS_CP0_WATCHLO0	MIPS_CP0_64(18, 0)
+#define KVM_REG_MIPS_CP0_WATCHLO1	MIPS_CP0_64(18, 1)
+#define KVM_REG_MIPS_CP0_WATCHLO2	MIPS_CP0_64(18, 2)
+#define KVM_REG_MIPS_CP0_WATCHLO3	MIPS_CP0_64(18, 3)
+#define KVM_REG_MIPS_CP0_WATCHLO4	MIPS_CP0_64(18, 4)
+#define KVM_REG_MIPS_CP0_WATCHLO5	MIPS_CP0_64(18, 5)
+#define KVM_REG_MIPS_CP0_WATCHLO6	MIPS_CP0_64(18, 6)
+#define KVM_REG_MIPS_CP0_WATCHLO7	MIPS_CP0_64(18, 7)
+#define KVM_REG_MIPS_CP0_WATCHHI0	MIPS_CP0_64(19, 0)
+#define KVM_REG_MIPS_CP0_WATCHHI1	MIPS_CP0_64(19, 1)
+#define KVM_REG_MIPS_CP0_WATCHHI2	MIPS_CP0_64(19, 2)
+#define KVM_REG_MIPS_CP0_WATCHHI3	MIPS_CP0_64(19, 3)
+#define KVM_REG_MIPS_CP0_WATCHHI4	MIPS_CP0_64(19, 4)
+#define KVM_REG_MIPS_CP0_WATCHHI5	MIPS_CP0_64(19, 5)
+#define KVM_REG_MIPS_CP0_WATCHHI6	MIPS_CP0_64(19, 6)
+#define KVM_REG_MIPS_CP0_WATCHHI7	MIPS_CP0_64(19, 7)
 #define KVM_REG_MIPS_CP0_XCONTEXT	MIPS_CP0_64(20, 0)
 #define KVM_REG_MIPS_CP0_ERROREPC	MIPS_CP0_64(30, 0)
 #define KVM_REG_MIPS_CP0_KSCRATCH1	MIPS_CP0_64(31, 2)
@@ -308,6 +324,7 @@ struct kvm_mmu_memory_cache {
 
 #define KVM_MIPS_AUX_FPU	0x1
 #define KVM_MIPS_AUX_MSA	0x2
+#define KVM_MIPS_AUX_WATCH	0x4
 
 #define KVM_MIPS_GUEST_TLB_SIZE	64
 struct kvm_vcpu_arch {
@@ -338,6 +355,11 @@ struct kvm_vcpu_arch {
 	struct mips_fpu_struct fpu;
 	/* Which auxiliary state is loaded (KVM_MIPS_AUX_*) */
 	unsigned int aux_inuse;
+	/*
+	 * Which auxiliary state is background active, e.g. active watchpoints
+	 * work in the background as normal code executes.
+	 */
+	unsigned int aux_active;
 
 	/* COP0 State */
 	struct mips_coproc *cop0;
