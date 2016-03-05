@@ -246,15 +246,15 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		"	subu	%0, %1, %3				\n"
 		"	bltz	%0, 1f					\n"
 		"	sc	%0, %2					\n"
-		"	.set	noreorder				\n"
+		"	subu	%1, %1, %3				\n"
 		"	beqz	%0, 1b					\n"
-		"	 subu	%0, %1, %3				\n"
-		"	.set	reorder					\n"
 		"1:							\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp),
 		  "+" GCC_OFF_SMALL_ASM() (v->counter)
 		: "Ir" (i));
+
+		result = temp;
 	} else {
 		unsigned long flags;
 
@@ -591,15 +591,15 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		"	dsubu	%0, %1, %3				\n"
 		"	bltz	%0, 1f					\n"
 		"	scd	%0, %2					\n"
-		"	.set	noreorder				\n"
+		"	dsubu	%1, %1, %3				\n"
 		"	beqz	%0, 1b					\n"
-		"	 dsubu	%0, %1, %3				\n"
-		"	.set	reorder					\n"
 		"1:							\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp),
 		  "+" GCC_OFF_SMALL_ASM() (v->counter)
 		: "Ir" (i));
+
+		result = temp;
 	} else {
 		unsigned long flags;
 
