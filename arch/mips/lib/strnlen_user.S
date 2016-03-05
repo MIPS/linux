@@ -35,28 +35,26 @@ LEAF(__strnlen_\func\()_asm)
 FEXPORT(__strnlen_\func\()_nocheck_asm)
 	move		v0, a0
 	PTR_ADDU	a1, a0			# stop pointer
+	beq		v0, a1, 2f		# limit reached?
 1:
 #ifdef CONFIG_CPU_DADDI_WORKAROUNDS
 	.set		noat
 	li		AT, 1
 #endif
-	beq		v0, a1, 1f		# limit reached?
 .ifeqs "\func", "kernel"
 	EX(lb, t0, (v0), .Lfault\@)
 .else
 	EX(lbe, t0, (v0), .Lfault\@)
 .endif
-	.set		noreorder
-	bnez		t0, 1b
-1:
 #ifndef CONFIG_CPU_DADDI_WORKAROUNDS
-	 PTR_ADDIU	v0, 1
+	PTR_ADDIU	v0, 1
 #else
-	 PTR_ADDU	v0, AT
+	PTR_ADDU	v0, AT
 	.set		at
 #endif
-	.set		reorder
-	PTR_SUBU	v0, a0
+	beq		v0, a1, 2f		# limit reached?
+	bnez		t0, 1b
+2:	PTR_SUBU	v0, a0
 	jr		ra
 	END(__strnlen_\func\()_asm)
 
