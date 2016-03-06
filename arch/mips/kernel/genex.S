@@ -271,15 +271,15 @@ BUILD_ROLLBACK_PROLOGUE except_vec_vi
 NESTED(except_vec_vi, 0, sp)
 	SAVE_SOME
 	SAVE_AT
+	PTR_LA	v1, except_vec_vi_handler
 	.set	push
 	.set	noreorder
-	PTR_LA	v1, except_vec_vi_handler
 FEXPORT(except_vec_vi_lui)
 	lui	v0, 0		/* Patched */
-	jr	v1
 FEXPORT(except_vec_vi_ori)
-	 ori	v0, 0		/* Patched */
+	ori	v0, 0		/* Patched */
 	.set	pop
+	jr	v1
 	END(except_vec_vi)
 EXPORT(except_vec_vi_end)
 
@@ -547,20 +547,19 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	LEAF(handle_ri_rdhwr)
 	.set	push
 	.set	noat
-	.set	noreorder
 	/* MIPS32:    0x7c03e83b: rdhwr v1,$29 */
 	/* microMIPS: 0x007d6b3c: rdhwr v1,$29 */
 	MFC0	k1, CP0_EPC
 #if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS64_R2)
 	and	k0, k1, 1
+	xor	k1, k0
 	beqz	k0, 1f
-	 xor	k1, k0
 	lhu	k0, (k1)
 	lhu	k1, 2(k1)
 	ins	k1, k0, 16, 16
 	lui	k0, 0x007d
+	ori	k0, 0x6b3c
 	b	docheck
-	 ori	k0, 0x6b3c
 1:
 	lui	k0, 0x7c03
 	lw	k1, (k1)
@@ -572,7 +571,6 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	lw	k1, (k1)
 	ori	k0, 0xe83b
 #endif
-	.set	reorder
 docheck:
 	bne	k0, k1, handle_ri	/* if not ours */
 
