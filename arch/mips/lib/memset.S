@@ -60,13 +60,13 @@
 	EX(LONG_S, \val, (\offset +  1 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  2 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  3 * STORSIZE)(\dst), \fixup)
-#if ((defined(CONFIG_CPU_MICROMIPS) && (LONGSIZE == 4)) || !defined(CONFIG_CPU_MICROMIPS))
+#if STORSIZE <= 8
 	EX(LONG_S, \val, (\offset +  4 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  5 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  6 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  7 * STORSIZE)(\dst), \fixup)
 #endif
-#if (!defined(CONFIG_CPU_MICROMIPS) && (LONGSIZE == 4))
+#if STORSIZE <= 4
 	EX(LONG_S, \val, (\offset +  8 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  9 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset + 10 * STORSIZE)(\dst), \fixup)
@@ -112,7 +112,7 @@
 	.set		at
 #endif
 
-#ifndef CONFIG_CPU_MIPSR6
+#ifndef __mips_isa_rev >= 6
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
@@ -122,7 +122,7 @@
 	PTR_SUBU	a0, t0			/* long align ptr */
 	PTR_ADDU	a2, t0			/* correct size */
 
-#else /* CONFIG_CPU_MIPSR6 */
+#else /* __mips_isa_rev < 6 */
 #define STORE_BYTE(N)				\
 	EX(sb, a1, N(a0), .Lbyte_fixup\@);	\
 	beqz		t0, 0f;			\
@@ -132,7 +132,7 @@
 	PTR_ADDU	t0, 1
 	STORE_BYTE(0)
 	STORE_BYTE(1)
-#if LONGSIZE == 4
+#if STORSIZE == 4
 	EX(sb, a1, 2(a0), .Lbyte_fixup\@)
 #else
 	STORE_BYTE(2)
@@ -145,7 +145,7 @@
 	ori		a0, STORMASK
 	xori		a0, STORMASK
 	PTR_ADDIU	a0, STORSIZE
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* __mips_isa_rev < 6 */
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
 	beqz		t1, .Lmemset_partial\@	/* no block to fill */
@@ -185,7 +185,7 @@
 	andi		a2, STORMASK		/* At most one long to go */
 
 	beqz		a2, 1f
-#ifndef CONFIG_CPU_MIPSR6
+#if __mips_isa_rev < 6
 	PTR_ADDU	a0, a2			/* What's left */
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
@@ -193,12 +193,12 @@
 #else
 	EX(LONG_S_L, a1, -1(a0), .Llast_fixup\@)
 #endif
-#else
+#else /* __mips_isa_rev >= 6 */
 	PTR_SUBU	t0, $0, a2
 	PTR_ADDIU	t0, 1
 	STORE_BYTE(0)
 	STORE_BYTE(1)
-#if LONGSIZE == 4
+#if STORSIZE == 4
 	EX(sb, a1, 2(a0), .Lbyte_fixup\@)
 #else
 	STORE_BYTE(2)
@@ -208,7 +208,7 @@
 	EX(sb, a1, 6(a0), .Lbyte_fixup\@)
 #endif
 0:
-#endif
+#endif /* __mips_isa_rev >= 6 */
 1:	jr		ra
 	move		a2, zero
 
@@ -229,12 +229,12 @@
 	.hidden __memset
 	.endif
 
-#ifdef CONFIG_CPU_MIPSR6
+#if __mips_isa_rev >= 6
 .Lbyte_fixup\@:
 	PTR_SUBU	a2, $0, t0
 	jr		ra
 	 PTR_ADDIU	a2, 1
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* __mips_isa_rev >= 6 */
 
 .Lfirst_fixup\@:
 	jr	ra
