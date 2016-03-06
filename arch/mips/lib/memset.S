@@ -78,7 +78,6 @@
 #endif
 	.endm
 
-	.set	noreorder
 	.align	5
 
 	/*
@@ -148,16 +147,14 @@
 #endif /* __mips_isa_rev < 6 */
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
-	beqz		t1, .Lmemset_partial\@	/* no block to fill */
 	andi		t0, a2, 0x40-STORSIZE
+	beqz		t1, .Lmemset_partial\@	/* no block to fill */
 
 	PTR_ADDU	t1, a0			/* end address */
-	.set		reorder
 1:	PTR_ADDIU	a0, 64
 	R10KCBARRIER(0(ra))
 	f_fill64 a0, -64, FILL64RG, .Lfwd_fixup\@, \mode
 	bne		t1, a0, 1b
-	.set		noreorder
 
 .Lmemset_partial\@:
 	R10KCBARRIER(0(ra))
@@ -173,16 +170,12 @@
 	PTR_SUBU	t1, AT
 	.set		at
 #endif
-	jr		t1
 	PTR_ADDU	a0, t0			/* dest ptr */
+	jr		t1
 
-	.set		push
-	.set		noreorder
-	.set		nomacro
 	/* ... but first do longs ... */
 	f_fill64 a0, -64, FILL64RG, .Lpartial_fixup\@, \mode
-2:	.set		pop
-	andi		a2, STORMASK		/* At most one long to go */
+2:	andi		a2, STORMASK		/* At most one long to go */
 
 	beqz		a2, 1f
 #if __mips_isa_rev < 6
@@ -209,8 +202,8 @@
 #endif
 0:
 #endif /* __mips_isa_rev >= 6 */
-1:	jr		ra
-	move		a2, zero
+1:	move		a2, zero
+	jr		ra
 
 .Lsmall_memset\@:
 	beqz		a2, 2f
@@ -218,11 +211,11 @@
 
 1:	PTR_ADDIU	a0, 1			/* fill bytewise */
 	R10KCBARRIER(0(ra))
-	bne		t1, a0, 1b
 	sb		a1, -1(a0)
+	bne		t1, a0, 1b
 
-2:	jr		ra			/* done */
-	move		a2, zero
+2:	move		a2, zero
+	jr		ra			/* done */
 	.if __memset == 1
 	END(memset)
 	.set __memset, 0
@@ -232,33 +225,32 @@
 #if __mips_isa_rev >= 6
 .Lbyte_fixup\@:
 	PTR_SUBU	a2, $0, t0
+	PTR_ADDIU	a2, 1
 	jr		ra
-	 PTR_ADDIU	a2, 1
 #endif /* __mips_isa_rev >= 6 */
 
 .Lfirst_fixup\@:
 	jr	ra
-	nop
 
 .Lfwd_fixup\@:
 	PTR_L		t0, TI_TASK($28)
 	andi		a2, 0x3f
 	LONG_L		t0, THREAD_BUADDR(t0)
 	LONG_ADDU	a2, t1
-	jr		ra
 	LONG_SUBU	a2, t0
+	jr		ra
 
 .Lpartial_fixup\@:
 	PTR_L		t0, TI_TASK($28)
 	andi		a2, STORMASK
 	LONG_L		t0, THREAD_BUADDR(t0)
 	LONG_ADDU	a2, t1
-	jr		ra
 	LONG_SUBU	a2, t0
+	jr		ra
 
 .Llast_fixup\@:
-	jr		ra
 	andi		v1, a2, STORMASK
+	jr		ra
 
 	.endm
 
@@ -272,8 +264,8 @@
 
 LEAF(memset)
 EXPORT_SYMBOL(memset)
-	beqz		a1, 1f
 	move		v0, a0			/* result */
+	beqz		a1, 1f
 
 	andi		a1, 0xff		/* spread fillword */
 	LONG_SLL		t1, a1, 8
