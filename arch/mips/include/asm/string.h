@@ -15,7 +15,7 @@
  * Most of the inline functions are rather naive implementations so I just
  * didn't bother updating them for 64-bit ...
  */
-#ifdef CONFIG_32BIT
+#if defined(CONFIG_32BIT) && (__mips_isa_rev < 6)
 
 #ifndef IN_STRING_C
 
