@@ -149,9 +149,8 @@
 		.set	reorder
 		mfc0	k0, CP0_STATUS
 		sll	k0, 3		/* extract cu0 bit */
-		.set	noreorder
+		move	k1, sp
 		bltz	k0, 8f
-		 move	k1, sp
 #ifdef CONFIG_EVA
 		/*
 		 * Flush interAptiv's Return Prediction Stack (RPS) by writing
@@ -177,7 +176,6 @@
 		MFC0	k0, CP0_ENTRYHI
 		MTC0	k0, CP0_ENTRYHI
 #endif
-		.set	reorder
 		/* Called from user mode, new stack. */
 		get_saved_sp
 #ifndef CONFIG_CPU_DADDI_WORKAROUNDS
