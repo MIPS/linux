@@ -1173,6 +1173,11 @@ static inline int mm_insn_16bit(u16 insn)
  */
 static inline void tlbinvf(void)
 {
+	if (__mips_isa_rev >= 6) {
+		asm volatile("tlbinvf");
+		return;
+	}
+
 	__asm__ __volatile__(
 		".set push\n\t"
 		".set noreorder\n\t"
