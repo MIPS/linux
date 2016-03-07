@@ -1298,6 +1298,14 @@ static void build_r4000_tlb_refill_handler(void)
 	struct mips_huge_tlb_info htlb_info __maybe_unused;
 	enum vmalloc64_mode vmalloc_mode __maybe_unused;
 
+	if (config_enabled(CONFIG_CPU_MICROMIPS) && cpu_has_mips_r6) {
+		extern u16 handle_tlb_refill[];
+		void *ptr = (void *)((ulong)handle_tlb_refill & ~0x1ul);
+		memcpy((void *)ebase, ptr, 0x100);
+		local_flush_icache_range(ebase, ebase + 0x100);
+		return;
+	}
+
 	memset(tlb_handler, 0, sizeof(tlb_handler));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
@@ -2573,6 +2581,13 @@ void build_tlb_refill_handler(void)
 	check_for_high_segbits = current_cpu_data.vmbits > (PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);
 #endif
 
+	/*
+	 * Results in the compiler discarding the r3000 cases. Unsure why
+	 * __get_cpu_type doesn't always result in that by itself...
+	 */
+	if (cpu_has_mips_r6)
+		goto is_r4k;
+
 	switch (current_cpu_type()) {
 	case CPU_R2000:
 	case CPU_R3000:
@@ -2607,7 +2622,7 @@ void build_tlb_refill_handler(void)
 		if (cpu_has_ldpte)
 			setup_pw();
 
-		if (!run_once) {
+		if (!run_once && !IS_ENABLED(CONFIG_NANOMIPS)) {
 			scratch_reg = allocate_kscratch();
 			build_setup_pgd();
 			build_r4000_tlb_load_handler();
@@ -2618,13 +2633,13 @@ void build_tlb_refill_handler(void)
 			else if (!cpu_has_local_ebase)
 				build_r4000_tlb_refill_handler();
 			flush_tlb_handlers();
-			run_once++;
 		}
-		if (cpu_has_local_ebase)
+		if (!run_once || cpu_has_local_ebase)
 			build_r4000_tlb_refill_handler();
 		if (cpu_has_xpa)
 			config_xpa_params();
 		if (cpu_has_htw)
 			config_htw_params();
+		run_once = 1;
 	}
 }
