@@ -129,7 +129,7 @@ static inline unsigned int kvm_vz_config5_guest_wrmask(struct kvm_vcpu *vcpu)
 /*
  * VZ optionally allows these additional Config bits to be written by root:
  * Config:	M, [MT]
- * Config1:	M, [MMUSize-1, C2, MD, PC], WR, [CA], FP
+ * Config1:	M, [MMUSize-1, C2, MD], PC, WR, [CA], FP
  * Config2:	M
  * Config3:	M, MSAP, [BPG], ULRI, [DSP2P, DSPP], CTXTC, [ITL, LPA, VEIC,
  *		VInt, SP, CDMM, MT, SM, TL]
@@ -144,8 +144,16 @@ static inline unsigned int kvm_vz_config_user_wrmask(struct kvm_vcpu *vcpu)
 
 static inline unsigned int kvm_vz_config1_user_wrmask(struct kvm_vcpu *vcpu)
 {
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned int mask = kvm_vz_config1_guest_wrmask(vcpu) | MIPS_CONF_M |
 		MIPS_CONF1_WR;
+
+	/*
+	 * There's no point sharing perf counters if PRIds differ, as the guest
+	 * won't get the events it expects.
+	 */
+	if (kvm_read_c0_guest_prid(cop0) == boot_cpu_data.processor_id)
+		mask |= MIPS_CONF1_PC;
 
 	/* Permit FPU to be present if FPU is supported */
 	if (kvm_mips_guest_can_have_fpu(&vcpu->arch))
@@ -754,6 +762,164 @@ static void kvm_vz_get_watch_regs(struct kvm_vcpu *vcpu)
 	trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_WATCH);
 }
 
+/* FIXME move me to CPU info */
+static u8 perf_cnt_num;
+static u8 perf_cnt_wide;
+
+static void kvm_vz_probe_perfcnt(void)
+{
+	unsigned int perfctrl;
+
+	if (!cpu_guest_has_perf) {
+		perf_cnt_num = 0;
+		return;
+	}
+
+	perfctrl = read_c0_perfctrl0();
+	if (perfctrl & MIPS_PERFCTRL_W)
+		perf_cnt_wide |= BIT(0);
+	if (!(perfctrl & MIPS_PERFCTRL_M)) {
+		perf_cnt_num = 1;
+		return;
+	}
+
+	perfctrl = read_c0_perfctrl1();
+	if (perfctrl & MIPS_PERFCTRL_W)
+		perf_cnt_wide |= BIT(1);
+	if (!(perfctrl & MIPS_PERFCTRL_M)) {
+		perf_cnt_num = 2;
+		return;
+	}
+
+	perfctrl = read_c0_perfctrl2();
+	if (perfctrl & MIPS_PERFCTRL_W)
+		perf_cnt_wide |= BIT(2);
+	if (!(perfctrl & MIPS_PERFCTRL_M)) {
+		perf_cnt_num = 3;
+		return;
+	}
+
+	perfctrl = read_c0_perfctrl3();
+	if (perfctrl & MIPS_PERFCTRL_W)
+		perf_cnt_wide |= BIT(3);
+	perf_cnt_num = 4;
+	return;
+}
+
+static void kvm_vz_set_perf_regs(struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	u64 *perfcnt = cop0->reg[MIPS_CP0_PERFCNT];
+
+	/* Assign CP0_PerfCnt registers to guest via root context */
+	switch (perf_cnt_num) {
+	default:
+		BUG();
+	case 4:
+		write_c0_perfctrl3(MIPS_PERFCTRL_EC_G);
+	case 3:
+		write_c0_perfctrl2(MIPS_PERFCTRL_EC_G);
+	case 2:
+		write_c0_perfctrl1(MIPS_PERFCTRL_EC_G);
+	case 1:
+		write_c0_perfctrl0(MIPS_PERFCTRL_EC_G);
+	}
+	/* Guest CP0_PerfCnt registers are only writable once assigned */
+	back_to_back_c0_hazard();
+
+	/* Restore guest CP0_PerfCnt registers via guest context */
+	switch (perf_cnt_num) {
+	case 4:
+		if (perf_cnt_wide & BIT(3))
+			write_gc0_perfcntr3_64(perfcnt[7]);
+		else
+			write_gc0_perfcntr3(perfcnt[7]);
+		write_gc0_perfctrl3(perfcnt[6]);
+	case 3:
+		if (perf_cnt_wide & BIT(2))
+			write_gc0_perfcntr2_64(perfcnt[5]);
+		else
+			write_gc0_perfcntr2(perfcnt[5]);
+		write_gc0_perfctrl2(perfcnt[4]);
+	case 2:
+		if (perf_cnt_wide & BIT(1))
+			write_gc0_perfcntr1_64(perfcnt[3]);
+		else
+			write_gc0_perfcntr1(perfcnt[3]);
+		write_gc0_perfctrl1(perfcnt[2]);
+	case 1:
+		if (perf_cnt_wide & BIT(0))
+			write_gc0_perfcntr0_64(perfcnt[1]);
+		else
+			write_gc0_perfcntr0(perfcnt[1]);
+		write_gc0_perfctrl0(perfcnt[0]);
+	}
+
+	vcpu->arch.aux_inuse |= KVM_MIPS_AUX_PERF;
+	trace_kvm_aux(vcpu, KVM_TRACE_AUX_RESTORE, KVM_TRACE_AUX_PERF);
+}
+
+static void kvm_vz_get_perf_regs(struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	u64 *perfcnt = cop0->reg[MIPS_CP0_PERFCNT];
+	unsigned int active = 0;
+
+	switch (perf_cnt_num) {
+	default:
+		BUG();
+	case 4:
+		perfcnt[7] = perf_cnt_wide & BIT(3) ? read_gc0_perfcntr3_64()
+						    : read_gc0_perfcntr3();
+		perfcnt[6] = read_gc0_perfctrl3();
+		active |= perfcnt[6];
+	case 3:
+		perfcnt[5] = perf_cnt_wide & BIT(2) ? read_gc0_perfcntr2_64()
+						    : read_gc0_perfcntr2();
+		perfcnt[4] = read_gc0_perfctrl2();
+		active |= perfcnt[4];
+	case 2:
+		perfcnt[3] = perf_cnt_wide & BIT(1) ? read_gc0_perfcntr1_64()
+						    : read_gc0_perfcntr1();
+		perfcnt[2] = read_gc0_perfctrl1();
+		active |= perfcnt[2];
+	case 1:
+		perfcnt[1] = perf_cnt_wide & BIT(0) ? read_gc0_perfcntr0_64()
+						    : read_gc0_perfcntr0();
+		perfcnt[0] = read_gc0_perfctrl0();
+		active |= perfcnt[0];
+	}
+
+	/* Guest CP0_PerfCnt registers are only accessible while assigned */
+	back_to_back_c0_hazard();
+	/*
+	 * Assign CP0_PerfCnt registers back to root so future guests don't use
+	 * our perf counter context.
+	 */
+	switch (perf_cnt_num) {
+	default:
+		BUG();
+	case 4:
+		write_c0_perfctrl3(MIPS_PERFCTRL_EC_R);
+	case 3:
+		write_c0_perfctrl2(MIPS_PERFCTRL_EC_R);
+	case 2:
+		write_c0_perfctrl1(MIPS_PERFCTRL_EC_R);
+	case 1:
+		write_c0_perfctrl0(MIPS_PERFCTRL_EC_R);
+	}
+
+	vcpu->arch.aux_active &= ~KVM_MIPS_AUX_PERF;
+	if (active & (MIPS_PERFCTRL_EXL |
+		      MIPS_PERFCTRL_K |
+		      MIPS_PERFCTRL_S |
+		      MIPS_PERFCTRL_U))
+		vcpu->arch.aux_active |= KVM_MIPS_AUX_PERF;
+	vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_PERF;
+	trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_PERF);
+}
+
+
 /**
  * is_eva_access() - Find whether an instruction is an EVA memory accessor.
  * @inst:	32-bit instruction encoding.
@@ -1120,6 +1286,17 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				vcpu->arch.pc = curr_pc;
 				/* Resume without clobbering rt */
 				return er;
+			} else if (rd == MIPS_CP0_PERFCNT &&
+				   sel < 2 * perf_cnt_num &&
+				   read_gc0_config1() & MIPS_CONF1_PC &&
+				   !(vcpu->arch.aux_inuse & KVM_MIPS_AUX_PERF)) {
+				/* Restore guest perf counter state and retry */
+				preempt_disable();
+				kvm_vz_set_perf_regs(vcpu);
+				preempt_enable();
+				vcpu->arch.pc = curr_pc;
+				/* Resume without clobbering rt */
+				return er;
 			} else if (rd == MIPS_CP0_LLADDR &&
 				   sel == 0) {		/* LLAddr */
 				if (cpu_guest_has_rw_llb)
@@ -1196,6 +1373,15 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				/* Restore guest watchpoint state and retry */
 				preempt_disable();
 				kvm_vz_set_watch_regs(vcpu, true);
+				preempt_enable();
+				vcpu->arch.pc = curr_pc;
+			} else if (rd == MIPS_CP0_PERFCNT &&
+				   sel < 2 * perf_cnt_num &&
+				   read_gc0_config1() & MIPS_CONF1_PC &&
+				   !(vcpu->arch.aux_inuse & KVM_MIPS_AUX_PERF)) {
+				/* Restore guest perf counter state and retry */
+				preempt_disable();
+				kvm_vz_set_perf_regs(vcpu);
 				preempt_enable();
 				vcpu->arch.pc = curr_pc;
 			} else if (rd == MIPS_CP0_LLADDR &&
@@ -1504,6 +1690,31 @@ static enum emulation_result kvm_trap_vz_handle_gsfc(u32 cause, u32 *opc,
 			val = old_val ^
 				(change & kvm_vz_config5_guest_wrmask(vcpu));
 			write_gc0_config5(val);
+		} else if (rd == MIPS_CP0_PERFCNT && (sel & 1) == 0) {
+			preempt_disable();
+			/* Ensure performance counter state is loaded */
+			if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_PERF))
+				kvm_vz_set_perf_regs(vcpu);
+			/*
+			 * Perf counter control register
+			 * We don't generally object to guest setting whatever
+			 * performance counter value it likes.
+			 */
+			switch (sel) {
+			case 0:
+				write_gc0_perfctrl0(val);
+				break;
+			case 2:
+				write_gc0_perfctrl1(val);
+				break;
+			case 4:
+				write_gc0_perfctrl2(val);
+				break;
+			case 6:
+				write_gc0_perfctrl3(val);
+				break;
+			};
+			preempt_enable();
 		} else {
 			kvm_err("Handle GSFC, unsupported field change @ %p: %#x\n",
 			    opc, inst.word);
@@ -1917,6 +2128,17 @@ static u64 kvm_vz_get_one_regs_watch[] = {
 	KVM_REG_MIPS_CP0_WATCHHI7,
 };
 
+static u64 kvm_vz_get_one_regs_perf[] = {
+	KVM_REG_MIPS_CP0_PERFCTRL0,
+	KVM_REG_MIPS_CP0_PERFCNTR0,
+	KVM_REG_MIPS_CP0_PERFCTRL1,
+	KVM_REG_MIPS_CP0_PERFCNTR1,
+	KVM_REG_MIPS_CP0_PERFCTRL2,
+	KVM_REG_MIPS_CP0_PERFCNTR2,
+	KVM_REG_MIPS_CP0_PERFCTRL3,
+	KVM_REG_MIPS_CP0_PERFCNTR3,
+};
+
 static u64 kvm_vz_get_one_regs_segments[] = {
 	KVM_REG_MIPS_CP0_SEGCTL0,
 	KVM_REG_MIPS_CP0_SEGCTL1,
@@ -1954,6 +2176,8 @@ static unsigned long kvm_vz_num_regs(struct kvm_vcpu *vcpu)
 		ret += ARRAY_SIZE(kvm_vz_get_one_regs_contextconfig);
 	if (cpu_guest_has_watch)
 		ret += boot_cpu_data.watch_reg_count * 2;
+	if (cpu_guest_has_perf)
+		ret += perf_cnt_num * 2;
 	if (cpu_guest_has_segments)
 		ret += ARRAY_SIZE(kvm_vz_get_one_regs_segments);
 	if (cpu_guest_has_htw)
@@ -2005,6 +2229,12 @@ static int kvm_vz_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 					2 * boot_cpu_data.watch_reg_count))
 			return -EFAULT;
 		indices += 2 * boot_cpu_data.watch_reg_count;
+	}
+	if (cpu_guest_has_perf) {
+		if (copy_to_user(indices, kvm_vz_get_one_regs_perf,
+				 sizeof(index) * 2 * perf_cnt_num))
+			return -EFAULT;
+		indices += 2 * perf_cnt_num;
 	}
 	if (cpu_guest_has_segments) {
 		if (copy_to_user(indices, kvm_vz_get_one_regs_segments,
@@ -2282,6 +2512,29 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 		};
 		preempt_enable();
 		break;
+	case KVM_REG_MIPS_CP0_PERFCTRL0:
+	case KVM_REG_MIPS_CP0_PERFCNTR0:
+	case KVM_REG_MIPS_CP0_PERFCTRL1:
+	case KVM_REG_MIPS_CP0_PERFCNTR1:
+	case KVM_REG_MIPS_CP0_PERFCTRL2:
+	case KVM_REG_MIPS_CP0_PERFCNTR2:
+	case KVM_REG_MIPS_CP0_PERFCTRL3:
+	case KVM_REG_MIPS_CP0_PERFCNTR3:
+		preempt_disable();
+		if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_PERF))
+			kvm_vz_set_perf_regs(vcpu);
+		switch (reg->id & 0x7) {
+		case 0: *v = read_gc0_perfctrl0(); break;
+		case 1: *v = read_gc0_perfcntr0(); break;
+		case 2: *v = read_gc0_perfctrl1(); break;
+		case 3: *v = read_gc0_perfcntr1(); break;
+		case 4: *v = read_gc0_perfctrl2(); break;
+		case 5: *v = read_gc0_perfcntr2(); break;
+		case 6: *v = read_gc0_perfctrl3(); break;
+		case 7: *v = read_gc0_perfcntr3(); break;
+		};
+		preempt_enable();
+		break;
 #ifdef CONFIG_64BIT
 	case KVM_REG_MIPS_CP0_XCONTEXT:
 		*v = read_gc0_xcontext();
@@ -2475,6 +2728,13 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 			break;
 		default:
 			kvm_write_c0_guest_prid(cop0, v);
+			/*
+			 * There's no point sharing perf counters if PRIds
+			 * differ, as the guest won't get the events it expects.
+			 */
+			if (kvm_read_c0_guest_prid(cop0) !=
+			    boot_cpu_data.processor_id)
+				clear_gc0_config1(MIPS_CONF1_PC);
 			break;
 		};
 		break;
@@ -2583,6 +2843,29 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 		case 5: write_gc0_watchhi5(v); break;
 		case 6: write_gc0_watchhi6(v); break;
 		case 7: write_gc0_watchhi7(v); break;
+		};
+		preempt_enable();
+		break;
+	case KVM_REG_MIPS_CP0_PERFCTRL0:
+	case KVM_REG_MIPS_CP0_PERFCNTR0:
+	case KVM_REG_MIPS_CP0_PERFCTRL1:
+	case KVM_REG_MIPS_CP0_PERFCNTR1:
+	case KVM_REG_MIPS_CP0_PERFCTRL2:
+	case KVM_REG_MIPS_CP0_PERFCNTR2:
+	case KVM_REG_MIPS_CP0_PERFCTRL3:
+	case KVM_REG_MIPS_CP0_PERFCNTR3:
+		preempt_disable();
+		if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_PERF))
+			kvm_vz_set_perf_regs(vcpu);
+		switch (reg->id & 0x7) {
+		case 0: write_gc0_perfctrl0(v); break;
+		case 1: write_gc0_perfcntr0(v); break;
+		case 2: write_gc0_perfctrl1(v); break;
+		case 3: write_gc0_perfcntr1(v); break;
+		case 4: write_gc0_perfctrl2(v); break;
+		case 5: write_gc0_perfcntr2(v); break;
+		case 6: write_gc0_perfctrl3(v); break;
+		case 7: write_gc0_perfcntr3(v); break;
 		};
 		preempt_enable();
 		break;
@@ -2822,8 +3105,8 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	kvm_vz_restore_timer(vcpu);
 
 	/*
-	 * Watch registers may be shared between root & guest, so may need
-	 * restoring regardless.
+	 * Watch & performance counter registers may be shared between root &
+	 * guest, so may need restoring regardless.
 	 *
 	 * If they're currently active we must restore them before running any
 	 * guest code so that they work. Otherwise lazily restore them when
@@ -2836,6 +3119,11 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		/* restore Config1 a little early, so we get WR bit */
 		kvm_restore_gc0_config1(cop0);
 		kvm_vz_set_watch_regs(vcpu, all);
+	}
+	if (cpu_guest_has_perf && vcpu->arch.aux_active & KVM_MIPS_AUX_PERF) {
+		/* restore Config1 a little early, so we get PC bit */
+		kvm_restore_gc0_config1(cop0);
+		kvm_vz_set_perf_regs(vcpu);
 	}
 
 	/* Set MC bit if we want to trace guest mode changes */
@@ -3002,6 +3290,10 @@ static int kvm_vz_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 	/* save watch registers if loaded */
 	if (cpu_guest_has_watch && vcpu->arch.aux_inuse & KVM_MIPS_AUX_WATCH)
 		kvm_vz_get_watch_regs(vcpu);
+
+	/* save performance counter registers if loaded */
+	if (cpu_guest_has_perf && vcpu->arch.aux_inuse & KVM_MIPS_AUX_PERF)
+		kvm_vz_get_perf_regs(vcpu);
 
 	/* save KScratch registers if enabled in guest */
 	if (cpu_guest_has_conf4) {
@@ -3562,6 +3854,8 @@ int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks)
 	if (WARN(pgd_reg == -1,
 		 "pgd_reg not allocated even though cpu_has_vz\n"))
 		return -ENODEV;
+
+	kvm_vz_probe_perfcnt();
 
 	pr_info("Starting KVM with MIPS VZ extensions\n");
 
