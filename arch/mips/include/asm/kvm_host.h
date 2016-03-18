@@ -86,6 +86,14 @@
 #define KVM_REG_MIPS_CP0_WATCHHI6	MIPS_CP0_64(19, 6)
 #define KVM_REG_MIPS_CP0_WATCHHI7	MIPS_CP0_64(19, 7)
 #define KVM_REG_MIPS_CP0_XCONTEXT	MIPS_CP0_64(20, 0)
+#define KVM_REG_MIPS_CP0_PERFCTRL0	MIPS_CP0_32(25, 0)
+#define KVM_REG_MIPS_CP0_PERFCNTR0	MIPS_CP0_64(25, 1)
+#define KVM_REG_MIPS_CP0_PERFCTRL1	MIPS_CP0_32(25, 2)
+#define KVM_REG_MIPS_CP0_PERFCNTR1	MIPS_CP0_64(25, 3)
+#define KVM_REG_MIPS_CP0_PERFCTRL2	MIPS_CP0_32(25, 4)
+#define KVM_REG_MIPS_CP0_PERFCNTR2	MIPS_CP0_64(25, 5)
+#define KVM_REG_MIPS_CP0_PERFCTRL3	MIPS_CP0_32(25, 6)
+#define KVM_REG_MIPS_CP0_PERFCNTR3	MIPS_CP0_64(25, 7)
 #define KVM_REG_MIPS_CP0_ERROREPC	MIPS_CP0_64(30, 0)
 #define KVM_REG_MIPS_CP0_KSCRATCH1	MIPS_CP0_64(31, 2)
 #define KVM_REG_MIPS_CP0_KSCRATCH2	MIPS_CP0_64(31, 3)
@@ -325,6 +333,7 @@ struct kvm_mmu_memory_cache {
 #define KVM_MIPS_AUX_FPU	0x1
 #define KVM_MIPS_AUX_MSA	0x2
 #define KVM_MIPS_AUX_WATCH	0x4
+#define KVM_MIPS_AUX_PERF	0x8
 
 #define KVM_MIPS_GUEST_TLB_SIZE	64
 struct kvm_vcpu_arch {
@@ -356,8 +365,8 @@ struct kvm_vcpu_arch {
 	/* Which auxiliary state is loaded (KVM_MIPS_AUX_*) */
 	unsigned int aux_inuse;
 	/*
-	 * Which auxiliary state is background active, e.g. active watchpoints
-	 * work in the background as normal code executes.
+	 * Which auxiliary state is background active, e.g. active watchpoints &
+	 * perf counters work in the background as normal code executes.
 	 */
 	unsigned int aux_active;
 
