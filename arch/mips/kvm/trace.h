@@ -203,6 +203,14 @@ TRACE_EVENT(kvm_exit,
 	{ KVM_TRACE_COP0(19, 5),	"WatchHi5" },		\
 	{ KVM_TRACE_COP0(19, 6),	"WatchHi6" },		\
 	{ KVM_TRACE_COP0(19, 7),	"WatchHi7" },		\
+	{ KVM_TRACE_COP0(25, 0),	"PerfCnt0" },		\
+	{ KVM_TRACE_COP0(25, 1),	"PerfCnt1" },		\
+	{ KVM_TRACE_COP0(25, 2),	"PerfCnt2" },		\
+	{ KVM_TRACE_COP0(25, 3),	"PerfCnt3" },		\
+	{ KVM_TRACE_COP0(25, 4),	"PerfCnt4" },		\
+	{ KVM_TRACE_COP0(25, 5),	"PerfCnt5" },		\
+	{ KVM_TRACE_COP0(25, 6),	"PerfCnt6" },		\
+	{ KVM_TRACE_COP0(25, 7),	"PerfCnt7" },		\
 	{ KVM_TRACE_COP0(26, 0),	"ECC" },		\
 	{ KVM_TRACE_COP0(30, 0),	"ErrorEPC" },		\
 	{ KVM_TRACE_COP0(31, 2),	"KScratch1" },		\
@@ -255,6 +263,7 @@ TRACE_EVENT(kvm_hwr,
 #define KVM_TRACE_AUX_MSA		2
 #define KVM_TRACE_AUX_FPU_MSA		3
 #define KVM_TRACE_AUX_WATCH		4
+#define KVM_TRACE_AUX_PERF		8
 
 #define kvm_trace_symbol_aux_op		\
 	{ KVM_TRACE_AUX_RESTORE, "restore" },	\
@@ -267,7 +276,8 @@ TRACE_EVENT(kvm_hwr,
 	{ KVM_TRACE_AUX_FPU,     "FPU" },	\
 	{ KVM_TRACE_AUX_MSA,     "MSA" },	\
 	{ KVM_TRACE_AUX_FPU_MSA, "FPU & MSA" },	\
-	{ KVM_TRACE_AUX_WATCH,   "Watch" }
+	{ KVM_TRACE_AUX_WATCH,   "Watch" },	\
+	{ KVM_TRACE_AUX_PERF,    "Perf" }
 
 TRACE_EVENT(kvm_aux,
 	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int op,
