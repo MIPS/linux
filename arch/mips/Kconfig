@@ -2381,6 +2381,13 @@ config MIPS_CPS
 	  no external assistance. It is safe to enable this when hardware
 	  support is unavailable.
 
+config MIPS_CPU_STEAL
+	bool "VPE stealing"
+	depends on HOTPLUG_CPU && MIPS_CPS
+	help
+	  Select this is you wish to be able to run bare metal code on offline
+	  VPEs.
+
 config MIPS_CPS_PM
 	depends on MIPS_CPS
 	select MIPS_CPC
