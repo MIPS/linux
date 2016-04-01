@@ -114,7 +114,11 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	port->irq = irq_of_parse_and_map(np, 0);
 	port->iotype = UPIO_MEM;
-	if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
+	if (resource.flags & IORESOURCE_IO) {
+		port->iotype = UPIO_PORT;
+		port->iobase = port->mapbase;
+		port->mapbase = 0;
+	} else if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
 		switch (prop) {
 		case 1:
 			port->iotype = UPIO_MEM;
