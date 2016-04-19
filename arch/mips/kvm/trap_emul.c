@@ -1295,6 +1295,7 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.handle_msa_fpe = kvm_trap_emul_handle_msa_fpe,
 	.handle_fpe = kvm_trap_emul_handle_fpe,
 	.handle_msa_disabled = kvm_trap_emul_handle_msa_disabled,
+	.handle_watch = kvm_trap_emul_no_handler,
 	.handle_guest_exit = kvm_trap_emul_no_handler,
 
 	.hardware_enable = kvm_trap_emul_hardware_enable,
