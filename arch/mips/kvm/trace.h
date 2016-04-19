@@ -69,6 +69,7 @@ DEFINE_EVENT(kvm_transition, kvm_out,
 #define KVM_TRACE_EXIT_MSA_FPE		14
 #define KVM_TRACE_EXIT_FPE		15
 #define KVM_TRACE_EXIT_MSA_DISABLED	21
+#define KVM_TRACE_EXIT_WATCH		23
 #define KVM_TRACE_EXIT_GUEST_EXIT	27
 /* Further exit reasons */
 #define KVM_TRACE_EXIT_WAIT		32
@@ -100,6 +101,7 @@ DEFINE_EVENT(kvm_transition, kvm_out,
 	{ KVM_TRACE_EXIT_MSA_FPE,	"MSA FPE" },		\
 	{ KVM_TRACE_EXIT_FPE,		"FPE" },		\
 	{ KVM_TRACE_EXIT_MSA_DISABLED,	"MSA Disabled" },	\
+	{ KVM_TRACE_EXIT_WATCH,		"Watch" },		\
 	{ KVM_TRACE_EXIT_GUEST_EXIT,	"Guest Exit" },		\
 	{ KVM_TRACE_EXIT_WAIT,		"WAIT" },		\
 	{ KVM_TRACE_EXIT_CACHE,		"CACHE" },		\
