@@ -58,6 +58,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "msa_fpe",	  VCPU_STAT(msa_fpe_exits),	 KVM_STAT_VCPU },
 	{ "fpe",	  VCPU_STAT(fpe_exits),		 KVM_STAT_VCPU },
 	{ "msa_disabled", VCPU_STAT(msa_disabled_exits), KVM_STAT_VCPU },
+	{ "watch",	  VCPU_STAT(watch_exits),	 KVM_STAT_VCPU },
 	{ "flush_dcache", VCPU_STAT(flush_dcache_exits), KVM_STAT_VCPU },
 #ifdef CONFIG_KVM_MIPS_VZ
 	{ "vz_gpsi",	  VCPU_STAT(vz_gpsi_exits),	 KVM_STAT_VCPU },
@@ -1370,6 +1371,11 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	case EXCCODE_MSADIS:
 		++vcpu->stat.msa_disabled_exits;
 		ret = kvm_mips_callbacks->handle_msa_disabled(vcpu);
+		break;
+
+	case EXCCODE_WATCH:
+		++vcpu->stat.watch_exits;
+		ret = kvm_mips_callbacks->handle_watch(vcpu);
 		break;
 
 	case EXCCODE_GE:

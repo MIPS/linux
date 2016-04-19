@@ -3178,6 +3178,7 @@ static struct kvm_mips_callbacks kvm_vz_callbacks = {
 	.handle_res_inst = kvm_trap_vz_no_handler,
 	.handle_break = kvm_trap_vz_no_handler,
 	.handle_msa_disabled = kvm_trap_vz_handle_msa_disabled,
+	.handle_watch = kvm_trap_vz_no_handler,
 	.handle_guest_exit = kvm_trap_vz_handle_guest_exit,
 
 	.hardware_enable = kvm_vz_hardware_enable,

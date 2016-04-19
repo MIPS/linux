@@ -162,6 +162,7 @@ struct kvm_vcpu_stat {
 	u64 msa_fpe_exits;
 	u64 fpe_exits;
 	u64 msa_disabled_exits;
+	u64 watch_exits;
 	u64 flush_dcache_exits;
 #ifdef CONFIG_KVM_MIPS_VZ
 	u64 vz_gpsi_exits;
@@ -794,6 +795,7 @@ struct kvm_mips_callbacks {
 	int (*handle_msa_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_msa_disabled)(struct kvm_vcpu *vcpu);
+	int (*handle_watch)(struct kvm_vcpu *vcpu);
 	int (*handle_guest_exit)(struct kvm_vcpu *vcpu);
 	int (*hardware_enable)(void);
 	void (*hardware_disable)(void);
