@@ -60,6 +60,12 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 		} else {
 			/* We found a P2P bridge, check if it has a node */
 			ppnode = pci_device_to_OF_node(ppdev);
+
+			/*
+			 * Swizzle the pin number such that we're using the
+			 * right pin number for the bridge we just found.
+			 */
+			pin = pci_swizzle_interrupt_pin(pdev, pin);
 		}
 
 		/* Ok, we have found a parent with a device-node, hand over to
@@ -76,10 +82,10 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 		if (ppnode)
 			break;
 
-		/* We can only get here if we hit a P2P bridge with no node,
-		 * let's do standard swizzling and try again
+		/*
+		 * We can only get here if we hit a P2P bridge with no node,
+		 * try the next level up the PCI device hierarchy.
 		 */
-		pin = pci_swizzle_interrupt_pin(pdev, pin);
 		pdev = ppdev;
 	}
 
