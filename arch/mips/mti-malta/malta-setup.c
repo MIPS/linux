@@ -80,8 +80,6 @@ const char *get_system_type(void)
 	return "MIPS Malta";
 }
 
-const char display_string[] = "	       LINUX ON MALTA	    ";
-
 #ifdef CONFIG_BLK_DEV_FD
 static void __init fd_activate(void)
 {
