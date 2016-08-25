@@ -444,6 +444,7 @@ config MACH_PISTACHIO
 	select CEVT_R4K
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
+	select COMMON_CLK_PISTACHIO
 	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select GPIOLIB
