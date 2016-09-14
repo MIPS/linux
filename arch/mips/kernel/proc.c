@@ -32,6 +32,29 @@ int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v)
 	return raw_notifier_call_chain(&proc_cpuinfo_chain, val, v);
 }
 
+static bool cpu_prid_rev_332(unsigned int cpu)
+{
+	unsigned int comp = cpu_data[cpu].processor_id & PRID_COMP_MASK;
+
+	switch (__get_cpu_type(cpu_data[cpu].cputype)) {
+	case CPU_4KC:
+	case CPU_4KEC:
+	case CPU_4KSC:
+	case CPU_5KC:
+	case CPU_5KE:
+		/* PRID revision differs from the 3.3.2 format */
+		return false;
+
+	default:
+		/*
+		 * Most CPUs from MIPS Technologies & Imagination Technologies
+		 * use a 3.3.2 major.minor.patch format in the PRID revision
+		 * field.
+		 */
+		return comp == PRID_COMP_MIPS;
+	}
+}
+
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	struct proc_cpuinfo_notifier_args proc_cpuinfo_notifier_args;
@@ -57,12 +80,22 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m, "processor\t\t: %ld\n", n);
-	sprintf(fmt, "cpu model\t\t: %%s V%%d.%%d%s\n",
-		      cpu_data[n].options & MIPS_CPU_FPU ? "  FPU V%d.%d" : "");
-	seq_printf(m, fmt, __cpu_name[n],
-		      (version >> 4) & 0x0f, version & 0x0f,
-		      (fp_vers >> 4) & 0x0f, fp_vers & 0x0f);
-	seq_printf(m, "BogoMIPS\t\t: %u.%02u\n",
+	seq_printf(m, "cpu model\t\t: %s V", __cpu_name[n]);
+	if (cpu_prid_rev_332(n))
+		seq_printf(m, "%lu.%lu.%lu",
+			   (version >> 5) & BIT_MASK(3),
+			   (version >> 2) & BIT_MASK(3),
+			   (version >> 0) & BIT_MASK(2));
+	else
+		seq_printf(m, "%lu.%lu",
+			   (version >> 4) & BIT_MASK(4),
+			   (version >> 0) & BIT_MASK(4));
+
+	if (cpu_data[n].options & MIPS_CPU_FPU)
+		seq_printf(m, "  FPU V%lu.%lu",
+			   (fp_vers >> 4) & BIT_MASK(4),
+			   (fp_vers >> 0) & BIT_MASK(4));
+	seq_printf(m, "\nBogoMIPS\t\t: %u.%02u\n",
 		      cpu_data[n].udelay_val / (500000/HZ),
 		      (cpu_data[n].udelay_val / (5000/HZ)) % 100);
 	seq_printf(m, "wait instruction\t: %s\n", cpu_wait ? "yes" : "no");
