@@ -85,6 +85,7 @@ implementation.
 .. toctree::
    :maxdepth: 2
 
+   mips/index
    sh/index
 
 Korean translations
