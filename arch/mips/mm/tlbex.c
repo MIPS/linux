@@ -63,13 +63,6 @@ struct work_registers {
 	int r3;
 };
 
-struct tlb_reg_save {
-	unsigned long a;
-	unsigned long b;
-} ____cacheline_aligned_in_smp;
-
-static struct tlb_reg_save handler_reg_save[NR_CPUS];
-
 static inline int r45k_bvahwbug(void)
 {
 	/* XXX: We should probe for the presence of this bug, but we don't. */
@@ -290,6 +283,7 @@ static inline void dump_handler(const char *symbol, const u32 *handler, int coun
 #define C0_ENTRYHI	10, 0
 #define C0_EPC		14, 0
 #define C0_XCONTEXT	20, 0
+#define C0_ERROREPC	30, 0
 
 #ifdef CONFIG_64BIT
 # define GET_CONTEXT(buf, reg) UASM_i_MFC0(buf, reg, C0_XCONTEXT)
@@ -353,47 +347,25 @@ static struct work_registers build_get_work_registers(u32 **p)
 {
 	struct work_registers r;
 
-	if (scratch_reg >= 0) {
-		/* Save in CPU local C0_KScratch? */
+	/* Save in CPU local C0_KScratch? */
+	if (scratch_reg >= 0)
 		UASM_i_MTC0(p, 1, c0_kscratch(), scratch_reg);
-		r.r1 = K0;
-		r.r2 = K1;
-		r.r3 = 1;
-		return r;
-	}
+	else
+		UASM_i_MTC0(p, 1, C0_ERROREPC);
 
-	if (num_possible_cpus() > 1) {
-		/* Get smp_processor_id */
-		UASM_i_CPUID_MFC0(p, K0, SMP_CPUID_REG);
-		UASM_i_SRL_SAFE(p, K0, K0, SMP_CPUID_REGSHIFT);
+	r.r1 = K0;
+	r.r2 = K1;
+	r.r3 = 1;
 
-		/* handler_reg_save index in K0 */
-		UASM_i_SLL(p, K0, K0, ilog2(sizeof(struct tlb_reg_save)));
-
-		UASM_i_LA(p, K1, (long)&handler_reg_save);
-		UASM_i_ADDU(p, K0, K0, K1);
-	} else {
-		UASM_i_LA(p, K0, (long)&handler_reg_save);
-	}
-	/* K0 now points to save area, save $1 and $2  */
-	UASM_i_SW(p, 1, offsetof(struct tlb_reg_save, a), K0);
-	UASM_i_SW(p, 2, offsetof(struct tlb_reg_save, b), K0);
-
-	r.r1 = K1;
-	r.r2 = 1;
-	r.r3 = 2;
 	return r;
 }
 
 static void build_restore_work_registers(u32 **p)
 {
-	if (scratch_reg >= 0) {
+	if (scratch_reg >= 0)
 		UASM_i_MFC0(p, 1, c0_kscratch(), scratch_reg);
-		return;
-	}
-	/* K0 already points to save area, restore $1 and $2  */
-	UASM_i_LW(p, 1, offsetof(struct tlb_reg_save, a), K0);
-	UASM_i_LW(p, 2, offsetof(struct tlb_reg_save, b), K0);
+	else
+		UASM_i_MFC0(p, 1, C0_ERROREPC);
 }
 
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
