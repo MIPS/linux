@@ -156,7 +156,9 @@
 #endif
 
 #ifndef cpu_has_mmips
-# ifdef CONFIG_SYS_SUPPORTS_MICROMIPS
+# if defined(__mips_micromips)
+#  define cpu_has_mmips		1
+# elif defined(CONFIG_SYS_SUPPORTS_MICROMIPS)
 #  define cpu_has_mmips		(cpu_data[0].options & MIPS_CPU_MICROMIPS)
 # else
 #  define cpu_has_mmips		0
