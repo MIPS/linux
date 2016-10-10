@@ -120,7 +120,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 			void *kaddr;
 
 			kaddr = kmap_coherent(page, vmaddr);
-			flush_data_cache_page((unsigned long)kaddr);
+			local_flush_data_cache_page(kaddr);
 			kunmap_coherent();
 		} else
 			flush_data_cache_page(addr);
