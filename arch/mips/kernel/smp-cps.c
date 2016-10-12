@@ -141,9 +141,15 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 
 	/* Warn the user if the CCA prevents multi-core */
 	ncores = mips_cm_numcores();
-	if (cca_unsuitable && ncores > 1) {
-		pr_warn("Using only one core due to unsuitable CCA 0x%x\n",
-			cca);
+	if ((cca_unsuitable || cpu_has_dc_aliases) && ncores > 1) {
+		pr_warn("Using only one core due to ");
+		if (cca_unsuitable)
+			pr_cont("unsuitable CCA 0x%x ", cca);
+		if (cca_unsuitable && cpu_has_dc_aliases)
+			pr_cont("& ");
+		if (cpu_has_dc_aliases)
+			pr_cont("dcache aliasing");
+		pr_cont("\n");
 
 		for_each_present_cpu(c) {
 			if (cpu_data[c].core)
