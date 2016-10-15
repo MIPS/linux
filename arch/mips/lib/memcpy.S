@@ -92,6 +92,7 @@
 #define DST_PREFETCH 2
 #define LEGACY_MODE 1
 #define EVA_MODE    2
+#define MEMCPY_MODE 3
 #define USEROP   1
 #define KERNELOP 2
 
@@ -107,7 +108,9 @@
  */
 
 #define EXC(insn, type, reg, addr, handler)			\
-	.if \mode == LEGACY_MODE;				\
+	.if \mode == MEMCPY_MODE;				\
+		insn reg, addr;					\
+	.elseif \mode == LEGACY_MODE;				\
 9:		insn reg, addr;					\
 		.section __ex_table,"a";			\
 		PTR	9b, handler;				\
@@ -199,7 +202,7 @@
 #define STOREB(reg, addr, handler)	EXC(sb, ST_INSN, reg, addr, handler)
 
 #define _PREF(hint, addr, type)						\
-	.if \mode == LEGACY_MODE;					\
+	.if \mode != EVA_MODE;						\
 		PREF(hint, addr);					\
 	.else;								\
 		.if ((\from == USEROP) && (type == SRC_PREFETCH)) ||	\
@@ -255,17 +258,11 @@
 	/*
 	 * Macro to build the __copy_user common code
 	 * Arguments:
-	 * mode : LEGACY_MODE or EVA_MODE
+	 * mode : LEGACY_MODE, EVA_MODE or MEMCPY_MODE
 	 * from : Source operand. USEROP or KERNELOP
 	 * to   : Destination operand. USEROP or KERNELOP
 	 */
 	.macro __BUILD_COPY_USER mode, from, to
-
-	/* initialize __memcpy if this the first time we execute this macro */
-	.ifnotdef __memcpy
-	.set __memcpy, 1
-	.hidden __memcpy /* make sure it does not leak */
-	.endif
 
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
@@ -525,11 +522,9 @@
 	b	1b
 	 ADD	dst, dst, 8
 #endif /* CONFIG_CPU_MIPSR6 */
-	.if __memcpy == 1
-	END(memcpy)
-	.set __memcpy, 0
-	.hidden __memcpy
-	.endif
+
+	/* memcpy shouldn't generate exceptions */
+	.if	\mode != MEMCPY_MODE
 
 .Ll_exc_copy\@:
 	/*
@@ -616,7 +611,48 @@ SEXC(1)
 .Ls_exc\@:
 	jr	ra
 	 nop
+
+	.endif	/* \mode != MEMCPY_MODE */
 	.endm
+
+/*
+ * memcpy() - Copy memory
+ * @a0 - destination
+ * @a1 - source
+ * @a2 - length
+ *
+ * Copy @a2 bytes of memory from @a1 to @a0.
+ *
+ * Returns: the destination pointer
+ */
+	.align	5
+LEAF(memcpy)					/* a0=dst a1=src a2=len */
+EXPORT_SYMBOL(memcpy)
+	move	v0, dst				/* return value */
+.L__memcpy:
+	li	t6, 0	/* not inatomic */
+	/* Legacy Mode, user <-> user */
+	__BUILD_COPY_USER MEMCPY_MODE USEROP USEROP
+	END(memcpy)
+
+/*
+ * __copy_user() - Copy memory
+ * @a0 - destination
+ * @a1 - source
+ * @a2 - length
+ *
+ * Copy @a2 bytes of memory from @a1 to @a0.
+ *
+ * Returns: the number of uncopied bytes in @a2
+ */
+	.align	5
+LEAF(__copy_user)
+EXPORT_SYMBOL(__copy_user)
+	li	t6, 0	/* not inatomic */
+__copy_user_common:
+	/* Legacy Mode, user <-> user */
+	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP
+	END(__copy_user)
 
 /*
  * t6 is used as a flag to note inatomic mode.
@@ -626,24 +662,6 @@ EXPORT_SYMBOL(__copy_user_inatomic)
 	b	__copy_user_common
 	li	t6, 1
 	END(__copy_user_inatomic)
-
-/*
- * A combined memcpy/__copy_user
- * __copy_user sets len to 0 for success; else to an upper bound of
- * the number of uncopied bytes.
- * memcpy sets v0 to dst.
- */
-	.align	5
-LEAF(memcpy)					/* a0=dst a1=src a2=len */
-EXPORT_SYMBOL(memcpy)
-	move	v0, dst				/* return value */
-.L__memcpy:
-FEXPORT(__copy_user)
-EXPORT_SYMBOL(__copy_user)
-	li	t6, 0	/* not inatomic */
-__copy_user_common:
-	/* Legacy Mode, user <-> user */
-	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP
 
 #ifdef CONFIG_EVA
 
