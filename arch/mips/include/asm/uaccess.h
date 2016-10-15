@@ -814,6 +814,7 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 #ifndef CONFIG_EVA
 #define __invoke_copy_to_user(to, from, n)				\
 ({									\
+	register long __cu_ret_r __asm__("$2");				\
 	register void __user *__cu_to_r __asm__("$4");			\
 	register const void *__cu_from_r __asm__("$5");			\
 	register long __cu_len_r __asm__("$6");				\
@@ -823,11 +824,12 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_len_r = (n);						\
 	__asm__ __volatile__(						\
 	__MODULE_JAL(__copy_user)					\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
+	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\
+	  "+r" (__cu_from_r), "+r" (__cu_len_r)				\
 	:								\
 	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
+	__cu_ret_r;							\
 })
 
 #define __invoke_copy_to_kernel(to, from, n)				\
@@ -963,6 +965,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 
 #define __invoke_copy_from_user(to, from, n)				\
 ({									\
+	register long __cu_ret_r __asm__("$2");				\
 	register void *__cu_to_r __asm__("$4");				\
 	register const void __user *__cu_from_r __asm__("$5");		\
 	register long __cu_len_r __asm__("$6");				\
@@ -977,11 +980,12 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__UA_ADDU "\t$1, %1, %2\n\t"					\
 	".set\tat\n\t"							\
 	".set\treorder"							\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
+	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\
+	  "+r" (__cu_from_r), "+r" (__cu_len_r)				\
 	:								\
 	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
+	__cu_ret_r;							\
 })
 
 #define __invoke_copy_from_kernel(to, from, n)				\
@@ -997,6 +1001,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 
 #define __invoke_copy_from_user_inatomic(to, from, n)			\
 ({									\
+	register long __cu_ret_r __asm__("$2");				\
 	register void *__cu_to_r __asm__("$4");				\
 	register const void __user *__cu_from_r __asm__("$5");		\
 	register long __cu_len_r __asm__("$6");				\
@@ -1011,11 +1016,12 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__UA_ADDU "\t$1, %1, %2\n\t"					\
 	".set\tat\n\t"							\
 	".set\treorder"							\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
+	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\
+	  "+r" (__cu_from_r), "+r" (__cu_len_r)				\
 	:								\
 	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
+	__cu_ret_r;							\
 })
 
 #define __invoke_copy_from_kernel_inatomic(to, from, n)			\
@@ -1035,6 +1041,7 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
 
 #define __invoke_copy_from_user_eva_generic(to, from, n, func_ptr)	\
 ({									\
+	register long __cu_ret_r __asm__("$2");				\
 	register void *__cu_to_r __asm__("$4");				\
 	register const void __user *__cu_from_r __asm__("$5");		\
 	register long __cu_len_r __asm__("$6");				\
@@ -1049,15 +1056,17 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
 	__UA_ADDU "\t$1, %1, %2\n\t"					\
 	".set\tat\n\t"							\
 	".set\treorder"							\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
+	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\
+	  "+r" (__cu_from_r), "+r" (__cu_len_r)				\
 	:								\
 	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
+	__cu_ret_r;							\
 })
 
 #define __invoke_copy_to_user_eva_generic(to, from, n, func_ptr)	\
 ({									\
+	register long __cu_ret_r __asm__("$2");				\
 	register void *__cu_to_r __asm__("$4");				\
 	register const void __user *__cu_from_r __asm__("$5");		\
 	register long __cu_len_r __asm__("$6");				\
@@ -1067,11 +1076,12 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
 	__cu_len_r = (n);						\
 	__asm__ __volatile__(						\
 	__MODULE_JAL(func_ptr)						\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
+	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\
+	  "+r" (__cu_from_r), "+r" (__cu_len_r)				\
 	:								\
 	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
+	__cu_ret_r;							\
 })
 
 /*
