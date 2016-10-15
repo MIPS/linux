@@ -56,8 +56,6 @@
  *     - src is readable  (no exceptions when reading src)
  *   copy_from_user
  *     - dst is writable  (no exceptions when writing dst)
- * __copy_user uses a non-standard calling convention; see
- * include/asm-mips/uaccess.h
  *
  * When an exception happens on a load, the handler must
  # ensure that all of the destination buffer is overwritten to prevent
@@ -158,20 +156,6 @@
 #define SRLV   dsrlv
 #define NBYTES 8
 #define LOG_NBYTES 3
-
-/*
- * As we are sharing code base with the mips32 tree (which use the o32 ABI
- * register definitions). We need to redefine the register definitions from
- * the n64 ABI register naming to the o32 ABI register naming.
- */
-#undef t0
-#undef t1
-#undef t2
-#undef t3
-#define t0	$8
-#define t1	$9
-#define t2	$10
-#define t3	$11
 
 #else
 
