@@ -141,7 +141,7 @@
 	.set	noreorder
 	.set	noat
 
-	.macro __BUILD_COPY_USER mode
+	.macro __BUILD_COPY_USER mode, uncopied
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
 	 * Temps
@@ -358,12 +358,12 @@ EXC(	 sb	t0, N(dst), s_exc_p1)
 	COPY_BYTE(4)
 	COPY_BYTE(5)
 EXC(	lb	t0, NBYTES-2(src), l_exc)
-	SUB	len, len, 1
+	SUB	\uncopied, len, 1
 	jr	ra
 EXC(	 sb	t0, NBYTES-2(dst), s_exc_p1)
 .Ldone\@:
 	jr	ra
-	 nop
+	 move	\uncopied, len
 
 	/* memcpy shouldn't generate exceptions */
 	.if \mode != MEMCPY_MODE
@@ -414,13 +414,13 @@ l_exc:
 	bnez	src, 1b
 	 SUB	src, src, 1
 2:	jr	ra
-	 nop
+	 move	\uncopied, len
 
 
 #define SEXC(n)				\
 s_exc_p ## n ## u:			\
 	jr	ra;			\
-	 ADD	len, len, n*NBYTES
+	 ADD	\uncopied, len, n*NBYTES
 
 SEXC(16)
 SEXC(15)
@@ -441,10 +441,10 @@ SEXC(1)
 
 s_exc_p1:
 	jr	ra
-	 ADD	len, len, 1
+	 ADD	\uncopied, len, 1
 s_exc:
 	jr	ra
-	 nop
+	 move	\uncopied, len
 	.endif	/* \mode != MEMCPY_MODE */
 	.endm
 
@@ -462,7 +462,7 @@ s_exc:
 LEAF(memcpy)					/* a0=dst a1=src a2=len */
 EXPORT_SYMBOL(memcpy)
 	move	v0, dst				/* return value */
-	__BUILD_COPY_USER MEMCPY_MODE
+	__BUILD_COPY_USER MEMCPY_MODE len
 	END(memcpy)
 
 /*
@@ -479,7 +479,7 @@ LEAF(__copy_user)
 EXPORT_SYMBOL(__copy_user)
 	li	t7, 0				/* not inatomic */
 __copy_user_common:
-	__BUILD_COPY_USER COPY_USER_MODE
+	__BUILD_COPY_USER COPY_USER_MODE v0
 	END(__copy_user)
 
 /*
