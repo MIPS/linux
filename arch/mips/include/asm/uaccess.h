@@ -809,7 +809,8 @@ extern void __put_user_unaligned_unknown(void);
 #define DADDI_SCRATCH "$0"
 #endif
 
-extern size_t __copy_user(void *__to, const void *__from, size_t __n);
+extern size_t __copy_user(void *__to, const void *__from, size_t __n,
+			  const void *__from_end);
 
 #ifndef CONFIG_EVA
 #define __invoke_copy_to_user(to, from, n)				\
@@ -874,7 +875,8 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_len;							\
 })
 
-extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
+extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n,
+				   const void *__from_end);
 
 #define __copy_to_user_inatomic(to, from, n)				\
 ({									\
@@ -977,7 +979,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	".set\tnoreorder\n\t"						\
 	__MODULE_JAL(__copy_user)					\
 	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$1, %1, %2\n\t"					\
+	__UA_ADDU "\t$7, %1, %2\n\t"					\
 	".set\tat\n\t"							\
 	".set\treorder"							\
 	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\
@@ -1013,7 +1015,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	".set\tnoreorder\n\t"						\
 	__MODULE_JAL(__copy_user_inatomic)				\
 	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$1, %1, %2\n\t"					\
+	__UA_ADDU "\t$7, %1, %2\n\t"					\
 	".set\tat\n\t"							\
 	".set\treorder"							\
 	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\
@@ -1032,12 +1034,13 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 /* EVA specific functions */
 
 extern size_t __copy_user_inatomic_eva(void *__to, const void *__from,
-				       size_t __n);
+				       size_t __n, const void *__from_end);
 extern size_t __copy_from_user_eva(void *__to, const void *__from,
-				   size_t __n);
+				   size_t __n, const void *__from_end);
 extern size_t __copy_to_user_eva(void *__to, const void *__from,
-				 size_t __n);
-extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
+				 size_t __n, const void *__from_end);
+extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n,
+				 const void *__from_end);
 
 #define __invoke_copy_from_user_eva_generic(to, from, n, func_ptr)	\
 ({									\
@@ -1053,7 +1056,7 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
 	".set\tnoreorder\n\t"						\
 	__MODULE_JAL(func_ptr)						\
 	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$1, %1, %2\n\t"					\
+	__UA_ADDU "\t$7, %1, %2\n\t"					\
 	".set\tat\n\t"							\
 	".set\treorder"							\
 	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\

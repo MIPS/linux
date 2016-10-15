@@ -57,13 +57,13 @@
 
 /*
  * The exception handler for loads requires that:
- *  1- AT contain the address of the byte just past the end of the source
+ *  1- a3 contain the address of the byte just past the end of the source
  *     of the copy,
- *  2- src_entry <= src < AT, and
+ *  2- src_entry <= src < a3, and
  *  3- (dst - src) == (dst_entry - src_entry),
  * The _entry suffix denotes values when __copy_user was called.
  *
- * (1) is set up up by uaccess.h and maintained by not writing AT in copy_user
+ * (1) is set up up by uaccess.h and maintained by not writing a3 in copy_user
  * (2) is met by incrementing src by the number of bytes copied
  * (3) is met by not doing loads between a pair of increments of dst and src
  *
@@ -135,7 +135,6 @@
 
 	.text
 	.set	noreorder
-	.set	noat
 
 	.macro __BUILD_COPY_USER mode, uncopied
 	/*
@@ -390,7 +389,7 @@ EXC(	lb	t1, 0(src),	l_exc)
 l_exc:
 	LOAD	t0, TI_TASK($28)
 	LOAD	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
-	SUB	len, AT, t0		# len number of uncopied bytes
+	SUB	len, a3, t0		# len number of uncopied bytes
 	bnez	ta0, 2f		/* Skip the zeroing out part if inatomic */
 	/*
 	 * Here's where we rely on src and dst being incremented in tandem,
