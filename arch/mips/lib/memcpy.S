@@ -262,7 +262,7 @@
 	 * from : Source operand. USEROP or KERNELOP
 	 * to   : Destination operand. USEROP or KERNELOP
 	 */
-	.macro __BUILD_COPY_USER mode, from, to
+	.macro __BUILD_COPY_USER mode, from, to, uncopied
 
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
@@ -398,7 +398,7 @@
 	SHIFT_DISCARD t0, t0, bits
 	STREST(t0, -1(t1), .Ls_exc\@)
 	jr	ra
-	 move	len, zero
+	 move	\uncopied, zero
 .Ldst_unaligned\@:
 	/*
 	 * dst is unaligned
@@ -500,12 +500,12 @@
 	COPY_BYTE(5)
 #endif
 	LOADB(t0, NBYTES-2(src), .Ll_exc\@)
-	SUB	len, len, 1
+	SUB	\uncopied, len, 1
 	jr	ra
 	STOREB(t0, NBYTES-2(dst), .Ls_exc_p1\@)
 .Ldone\@:
 	jr	ra
-	 nop
+	 move	\uncopied, len
 
 #ifdef CONFIG_CPU_MIPSR6
 .Lcopy_unaligned_bytes\@:
@@ -555,12 +555,12 @@
 	 nop
 	SUB	len, AT, t0		# len number of uncopied bytes
 	jr	ra
-	 nop
+	 move	\uncopied, len
 
 #define SEXC(n)							\
 	.set	reorder;			/* DADDI_WAR */ \
 .Ls_exc_p ## n ## u\@:						\
-	ADD	len, len, n*NBYTES;				\
+	ADD	\uncopied, len, n*NBYTES;			\
 	jr	ra;						\
 	.set	noreorder
 
@@ -575,12 +575,12 @@ SEXC(1)
 
 .Ls_exc_p1\@:
 	.set	reorder				/* DADDI_WAR */
-	ADD	len, len, 1
+	ADD	\uncopied, len, 1
 	jr	ra
 	.set	noreorder
 .Ls_exc\@:
 	jr	ra
-	 nop
+	 move	\uncopied, len
 
 	.endif	/* \mode != MEMCPY_MODE */
 	.endm
@@ -601,7 +601,7 @@ EXPORT_SYMBOL(memcpy)
 	move	v0, dst				/* return value */
 .L__memcpy:
 	/* Legacy Mode, user <-> user */
-	__BUILD_COPY_USER MEMCPY_MODE USEROP USEROP
+	__BUILD_COPY_USER MEMCPY_MODE USEROP USEROP len
 	END(memcpy)
 
 /*
@@ -618,7 +618,7 @@ EXPORT_SYMBOL(memcpy)
 LEAF(__copy_user)
 EXPORT_SYMBOL(__copy_user)
 	/* Legacy Mode, user <-> user */
-	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP
+	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP v0
 	END(__copy_user)
 
 #ifdef CONFIG_EVA
@@ -636,7 +636,7 @@ EXPORT_SYMBOL(__copy_user)
 
 LEAF(__copy_from_user_eva)
 EXPORT_SYMBOL(__copy_from_user_eva)
-	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP
+	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP v0
 END(__copy_from_user_eva)
 
 
@@ -647,7 +647,7 @@ END(__copy_from_user_eva)
 
 LEAF(__copy_to_user_eva)
 EXPORT_SYMBOL(__copy_to_user_eva)
-__BUILD_COPY_USER EVA_MODE KERNELOP USEROP
+__BUILD_COPY_USER EVA_MODE KERNELOP USEROP v0
 END(__copy_to_user_eva)
 
 /*
@@ -656,7 +656,7 @@ END(__copy_to_user_eva)
 
 LEAF(__copy_in_user_eva)
 EXPORT_SYMBOL(__copy_in_user_eva)
-__BUILD_COPY_USER EVA_MODE USEROP USEROP
+__BUILD_COPY_USER EVA_MODE USEROP USEROP v0
 END(__copy_in_user_eva)
 
 #endif
