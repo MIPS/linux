@@ -112,10 +112,6 @@
 #define t1	$9
 #define t2	$10
 #define t3	$11
-#define t4	$12
-#define t5	$13
-#define t6	$14
-#define t7	$15
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 #define LDFIRST LOADR
@@ -395,7 +391,7 @@ l_exc:
 	LOAD	t0, TI_TASK($28)
 	LOAD	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
 	SUB	len, AT, t0		# len number of uncopied bytes
-	bnez	t7, 2f		/* Skip the zeroing out part if inatomic */
+	bnez	ta0, 2f		/* Skip the zeroing out part if inatomic */
 	/*
 	 * Here's where we rely on src and dst being incremented in tandem,
 	 *   See (3) above.
@@ -477,16 +473,16 @@ EXPORT_SYMBOL(memcpy)
  */
 LEAF(__copy_user)
 EXPORT_SYMBOL(__copy_user)
-	li	t7, 0				/* not inatomic */
+	li	ta0, 0				/* not inatomic */
 __copy_user_common:
 	__BUILD_COPY_USER COPY_USER_MODE v0
 	END(__copy_user)
 
 /*
- * t7 is used as a flag to note inatomic mode.
+ * ta0 is used as a flag to note inatomic mode.
  */
 LEAF(__copy_user_inatomic)
 EXPORT_SYMBOL(__copy_user_inatomic)
 	b	__copy_user_common
-	 li	t7, 1
+	 li	ta0, 1
 	END(__copy_user_inatomic)
