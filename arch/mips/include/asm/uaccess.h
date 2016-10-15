@@ -91,6 +91,20 @@ static inline bool eva_kernel_access(void)
 	return uaccess_kernel();
 }
 
+/**
+ * eva_user_access() - determine whether access should use EVA instructions
+ *
+ * Determines whether memory accesses should be performed using EVA memory
+ * access instructions - that is, whether to access the user address space on
+ * an EVA system.
+ *
+ * Return: true if user memory access on an EVA system, else false
+ */
+static inline bool eva_user_access(void)
+{
+	return IS_ENABLED(CONFIG_EVA) && !eva_kernel_access();
+}
+
 /*
  * Is a address valid? This does a straightforward calculation rather
  * than tests.
@@ -788,122 +802,31 @@ extern void __put_user_unaligned_unknown(void);
 	"jal\t" #destination "\n\t"
 #endif
 
-#if defined(CONFIG_CPU_DADDI_WORKAROUNDS) || (defined(CONFIG_EVA) &&	\
-					      defined(CONFIG_CPU_HAS_PREFETCH))
-#define DADDI_SCRATCH "$3"
-#else
-#define DADDI_SCRATCH "$0"
-#endif
-
-extern size_t __copy_user(void *__to, const void *__from, size_t __n,
-			  const void *__from_end);
-
-#define __invoke_copy_from(func, to, from, n)				\
-({									\
-	register long __cu_ret_r __asm__("$2");				\
-	register void *__cu_to_r __asm__("$4");				\
-	register const void __user *__cu_from_r __asm__("$5");		\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	".set\tnoreorder\n\t"						\
-	__MODULE_JAL(func)						\
-	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$7, %1, %2\n\t"					\
-	".set\tat\n\t"							\
-	".set\treorder"							\
-	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\
-	  "+r" (__cu_from_r), "+r" (__cu_len_r)				\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_ret_r;							\
-})
-
-#define __invoke_copy_to(func, to, from, n)				\
-({									\
-	register long __cu_ret_r __asm__("$2");				\
-	register void __user *__cu_to_r __asm__("$4");			\
-	register const void *__cu_from_r __asm__("$5");			\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	__MODULE_JAL(func)						\
-	: "=r"(__cu_ret_r), "+r" (__cu_to_r),				\
-	  "+r" (__cu_from_r), "+r" (__cu_len_r)				\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_ret_r;							\
-})
-
-#define __invoke_copy_from_kernel(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-#define __invoke_copy_to_kernel(to, from, n)				\
-	__invoke_copy_to(__copy_user, to, from, n)
-
-#define ___invoke_copy_in_kernel(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-#ifndef CONFIG_EVA
-#define __invoke_copy_from_user(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-#define __invoke_copy_to_user(to, from, n)				\
-	__invoke_copy_to(__copy_user, to, from, n)
-
-#define ___invoke_copy_in_user(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-#else
-
-/* EVA specific functions */
-
-extern size_t __copy_from_user_eva(void *__to, const void *__from,
-				   size_t __n, const void *__from_end);
-extern size_t __copy_to_user_eva(void *__to, const void *__from,
-				 size_t __n, const void *__from_end);
-extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n,
-				 const void *__from_end);
-
-/*
- * Source or destination address is in userland. We need to go through
- * the TLB
- */
-#define __invoke_copy_from_user(to, from, n)				\
-	__invoke_copy_from(__copy_from_user_eva, to, from, n)
-
-#define __invoke_copy_to_user(to, from, n)				\
-	__invoke_copy_to(__copy_to_user_eva, to, from, n)
-
-#define ___invoke_copy_in_user(to, from, n)				\
-	__invoke_copy_from(__copy_in_user_eva, to, from, n)
-
-#endif /* CONFIG_EVA */
+extern size_t __copy_user(void *to, const void *from, size_t n,
+			  const void *from_end);
+extern size_t __copy_from_user_eva(void *to, const void *from, size_t n,
+				   const void *from_end);
+extern size_t __copy_to_user_eva(void *to, const void *from, size_t n,
+				 const void *from_end);
+extern size_t __copy_in_user_eva(void *to, const void *from, size_t n,
+				 const void *from_end);
 
 static inline unsigned long
 raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (eva_kernel_access())
-		return __invoke_copy_to_kernel(to, from, n);
+	if (eva_user_access())
+		return __copy_to_user_eva(to, from, n, from + n);
 	else
-		return __invoke_copy_to_user(to, from, n);
+		return __copy_user(to, from, n, from + n);
 }
 
 static inline unsigned long
 raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (eva_kernel_access())
-		return __invoke_copy_from_kernel(to, from, n);
+	if (eva_user_access())
+		return __copy_from_user_eva(to, from, n, from + n);
 	else
-		return __invoke_copy_from_user(to, from, n);
+		return __copy_user(to, from, n, from + n);
 }
 
 #define INLINE_COPY_FROM_USER
@@ -912,10 +835,10 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 static inline unsigned long
 raw_copy_in_user(void __user*to, const void __user *from, unsigned long n)
 {
-	if (eva_kernel_access())
-		return ___invoke_copy_in_kernel(to, from, n);
+	if (eva_user_access())
+		return __copy_in_user_eva(to, from, n, from + n);
 	else
-		return ___invoke_copy_in_user(to, from,	n);
+		return __copy_user(to, from, n, from + n);
 }
 
 extern __kernel_size_t __bzero_kernel(void __user *addr, __kernel_size_t size);
