@@ -172,10 +172,6 @@
 #define t1	$9
 #define t2	$10
 #define t3	$11
-#define t4	$12
-#define t5	$13
-#define t6	$14
-#define t7	$15
 
 #else
 
@@ -314,8 +310,8 @@
 	LOAD(t2, UNIT(2)(src), .Ll_exc_copy\@)
 	LOAD(t3, UNIT(3)(src), .Ll_exc_copy\@)
 	SUB	len, len, 8*NBYTES
-	LOAD(t4, UNIT(4)(src), .Ll_exc_copy\@)
-	LOAD(t7, UNIT(5)(src), .Ll_exc_copy\@)
+	LOAD(ta0, UNIT(4)(src), .Ll_exc_copy\@)
+	LOAD(ta1, UNIT(5)(src), .Ll_exc_copy\@)
 	STORE(t0, UNIT(0)(dst),	.Ls_exc_p8u\@)
 	STORE(t1, UNIT(1)(dst),	.Ls_exc_p7u\@)
 	LOAD(t0, UNIT(6)(src), .Ll_exc_copy\@)
@@ -324,8 +320,8 @@
 	ADD	dst, dst, 8*NBYTES
 	STORE(t2, UNIT(-6)(dst), .Ls_exc_p6u\@)
 	STORE(t3, UNIT(-5)(dst), .Ls_exc_p5u\@)
-	STORE(t4, UNIT(-4)(dst), .Ls_exc_p4u\@)
-	STORE(t7, UNIT(-3)(dst), .Ls_exc_p3u\@)
+	STORE(ta0, UNIT(-4)(dst), .Ls_exc_p4u\@)
+	STORE(ta1, UNIT(-3)(dst), .Ls_exc_p3u\@)
 	STORE(t0, UNIT(-2)(dst), .Ls_exc_p2u\@)
 	STORE(t1, UNIT(-1)(dst), .Ls_exc_p1u\@)
 	PREFS(	0, 8*32(src) )
