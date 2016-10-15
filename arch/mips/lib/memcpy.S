@@ -172,10 +172,6 @@
 #define t1	$9
 #define t2	$10
 #define t3	$11
-#define t4	$12
-#define t5	$13
-#define t6	$14
-#define t7	$15
 
 #else
 
@@ -314,8 +310,8 @@
 	LOAD(t2, UNIT(2)(src), .Ll_exc_copy\@)
 	LOAD(t3, UNIT(3)(src), .Ll_exc_copy\@)
 	SUB	len, len, 8*NBYTES
-	LOAD(t4, UNIT(4)(src), .Ll_exc_copy\@)
-	LOAD(t7, UNIT(5)(src), .Ll_exc_copy\@)
+	LOAD(ta0, UNIT(4)(src), .Ll_exc_copy\@)
+	LOAD(ta1, UNIT(5)(src), .Ll_exc_copy\@)
 	STORE(t0, UNIT(0)(dst),	.Ls_exc_p8u\@)
 	STORE(t1, UNIT(1)(dst),	.Ls_exc_p7u\@)
 	LOAD(t0, UNIT(6)(src), .Ll_exc_copy\@)
@@ -324,8 +320,8 @@
 	ADD	dst, dst, 8*NBYTES
 	STORE(t2, UNIT(-6)(dst), .Ls_exc_p6u\@)
 	STORE(t3, UNIT(-5)(dst), .Ls_exc_p5u\@)
-	STORE(t4, UNIT(-4)(dst), .Ls_exc_p4u\@)
-	STORE(t7, UNIT(-3)(dst), .Ls_exc_p3u\@)
+	STORE(ta0, UNIT(-4)(dst), .Ls_exc_p4u\@)
+	STORE(ta1, UNIT(-3)(dst), .Ls_exc_p3u\@)
 	STORE(t0, UNIT(-2)(dst), .Ls_exc_p2u\@)
 	STORE(t1, UNIT(-1)(dst), .Ls_exc_p1u\@)
 	PREFS(	0, 8*32(src) )
@@ -554,7 +550,7 @@
 	LOADK	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
 	 nop
 	SUB	len, AT, t0		# len number of uncopied bytes
-	bnez	t6, .Ldone\@	/* Skip the zeroing part if inatomic */
+	bnez	ta2, .Ldone\@	/* Skip the zeroing part if inatomic */
 	/*
 	 * Here's where we rely on src and dst being incremented in tandem,
 	 *   See (3) above.
@@ -630,7 +626,7 @@ LEAF(memcpy)					/* a0=dst a1=src a2=len */
 EXPORT_SYMBOL(memcpy)
 	move	v0, dst				/* return value */
 .L__memcpy:
-	li	t6, 0	/* not inatomic */
+	li	ta2, 0	/* not inatomic */
 	/* Legacy Mode, user <-> user */
 	__BUILD_COPY_USER MEMCPY_MODE USEROP USEROP len
 	END(memcpy)
@@ -648,19 +644,19 @@ EXPORT_SYMBOL(memcpy)
 	.align	5
 LEAF(__copy_user)
 EXPORT_SYMBOL(__copy_user)
-	li	t6, 0	/* not inatomic */
+	li	ta2, 0	/* not inatomic */
 __copy_user_common:
 	/* Legacy Mode, user <-> user */
 	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP v0
 	END(__copy_user)
 
 /*
- * t6 is used as a flag to note inatomic mode.
+ * ta2 is used as a flag to note inatomic mode.
  */
 LEAF(__copy_user_inatomic)
 EXPORT_SYMBOL(__copy_user_inatomic)
 	b	__copy_user_common
-	li	t6, 1
+	li	ta2, 1
 	END(__copy_user_inatomic)
 
 #ifdef CONFIG_EVA
@@ -675,7 +671,7 @@ EXPORT_SYMBOL(__copy_user_inatomic)
 LEAF(__copy_user_inatomic_eva)
 EXPORT_SYMBOL(__copy_user_inatomic_eva)
 	b       __copy_from_user_common
-	li	t6, 1
+	li	ta2, 1
 	END(__copy_user_inatomic_eva)
 
 /*
@@ -684,7 +680,7 @@ EXPORT_SYMBOL(__copy_user_inatomic_eva)
 
 LEAF(__copy_from_user_eva)
 EXPORT_SYMBOL(__copy_from_user_eva)
-	li	t6, 0	/* not inatomic */
+	li	ta2, 0	/* not inatomic */
 __copy_from_user_common:
 	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP v0
 END(__copy_from_user_eva)
