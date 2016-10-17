@@ -501,6 +501,10 @@ $(generic_config_dir)/%.config: ;
 # now that the boards have been converted to use the generic kernel they are
 # wrappers around the generic rules above.
 #
+.PHONY: pistachio_defconfig
+pistachio_defconfig:
+	$(Q)$(MAKE) 32r2el_defconfig BOARDS=ci40
+
 .PHONY: sead3_defconfig
 sead3_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile 32r2el_defconfig BOARDS=sead-3

@@ -233,7 +233,6 @@ config PINCTRL_SX150X
 
 config PINCTRL_PISTACHIO
 	bool "ImgTec Pistachio pin control driver"
-	default y if MACH_PISTACHIO
 	depends on GPIOLIB
 	select PINMUX
 	select GENERIC_PINCONF
