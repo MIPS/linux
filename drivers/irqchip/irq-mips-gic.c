@@ -1276,10 +1276,10 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	    !of_property_read_u32_array(node, "mti,reserved-ipi-vectors", v, 2)) {
 		bitmap_set(ipi_resrv, v[0], v[1]);
 	} else {
-		/* Make the last 2 * gic_vpes available for IPIs */
+		/* Make the last 2 * num_possible_cpus() available for IPIs */
 		bitmap_set(ipi_resrv,
-			   gic_shared_intrs - 2 * gic_vpes,
-			   2 * gic_vpes);
+			   gic_shared_intrs - 2 * num_possible_cpus(),
+			   2 * num_possible_cpus());
 	}
 
 	gic_basic_init();
