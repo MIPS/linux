@@ -272,6 +272,7 @@ void mips_cm_lock_other(unsigned int cluster, unsigned int core,
 
 		if (cm_rev >= CM_REV_CM3_5) {
 			val |= CM_GCR_Cx_OTHER_CLUSTER_EN;
+			val |= CM_GCR_Cx_OTHER_GIC_EN;
 			val |= cluster << __ffs(CM_GCR_Cx_OTHER_CLUSTER);
 			val |= block << __ffs(CM_GCR_Cx_OTHER_BLOCK);
 		} else {
