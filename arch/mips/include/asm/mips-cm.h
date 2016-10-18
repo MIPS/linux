@@ -113,103 +113,108 @@ static inline bool mips_cm_has_l2sync(void)
 #define MIPS_CM_L2SYNC_SIZE	0x1000
 
 /* Macros to ease the creation of register access functions */
-#define BUILD_CM_R_(name, off)					\
-static inline unsigned long __iomem *addr_gcr_##name(void)	\
-{								\
-	return (unsigned long __iomem *)(mips_cm_base + (off));	\
-}								\
-								\
-static inline u32 read32_gcr_##name(void)			\
-{								\
-	return __raw_readl(addr_gcr_##name());			\
-}								\
-								\
-static inline u64 read64_gcr_##name(void)			\
-{								\
-	void __iomem *addr = addr_gcr_##name();			\
-	u64 ret;						\
-								\
-	if (mips_cm_is64) {					\
-		ret = __raw_readq(addr);			\
-	} else {						\
-		ret = __raw_readl(addr);			\
-		ret |= (u64)__raw_readl(addr + 0x4) << 32;	\
-	}							\
-								\
-	return ret;						\
-}								\
-								\
-static inline unsigned long read_gcr_##name(void)		\
-{								\
-	if (mips_cm_is64)					\
-		return read64_gcr_##name();			\
-	else							\
-		return read32_gcr_##name();			\
+#define BUILD_CM_R_(name, block, off, redir)					\
+static inline unsigned long __iomem *addr##redir##_gcr_##name(void)		\
+{										\
+	return (unsigned long __iomem *)(mips_cm_base + (block) + (off));	\
+}										\
+										\
+static inline u32 read32##redir##_gcr_##name(void)				\
+{										\
+	return __raw_readl(addr##redir##_gcr_##name());				\
+}										\
+										\
+static inline u64 read64##redir##_gcr_##name(void)				\
+{										\
+	void __iomem *addr = addr##redir##_gcr_##name();			\
+	u64 ret;								\
+										\
+	if (mips_cm_is64) {							\
+		ret = __raw_readq(addr);					\
+	} else {								\
+		ret = __raw_readl(addr);					\
+		ret |= (u64)__raw_readl(addr + 0x4) << 32;			\
+	}									\
+										\
+	return ret;								\
+}										\
+										\
+static inline unsigned long read##redir##_gcr_##name(void)			\
+{										\
+	if (mips_cm_is64)							\
+		return read64##redir##_gcr_##name();				\
+	else									\
+		return read32##redir##_gcr_##name();				\
 }
 
-#define BUILD_CM__W(name, off)					\
-static inline void write32_gcr_##name(u32 value)		\
-{								\
-	__raw_writel(value, addr_gcr_##name());			\
-}								\
-								\
-static inline void write64_gcr_##name(u64 value)		\
-{								\
-	__raw_writeq(value, addr_gcr_##name());			\
-}								\
-								\
-static inline void write_gcr_##name(unsigned long value)	\
-{								\
-	if (mips_cm_is64)					\
-		write64_gcr_##name(value);			\
-	else							\
-		write32_gcr_##name(value);			\
+#define BUILD_CM__W(name, redir)						\
+static inline void write32##redir##_gcr_##name(u32 value)			\
+{										\
+	__raw_writel(value, addr##redir##_gcr_##name());			\
+}										\
+										\
+static inline void write64##redir##_gcr_##name(u64 value)			\
+{										\
+	__raw_writeq(value, addr##redir##_gcr_##name());			\
+}										\
+										\
+static inline void write##redir##_gcr_##name(unsigned long value)		\
+{										\
+	if (mips_cm_is64)							\
+		write64##redir##_gcr_##name(value);				\
+	else									\
+		write32##redir##_gcr_##name(value);				\
 }
 
-#define BUILD_CM_RW(name, off)					\
-	BUILD_CM_R_(name, off)					\
-	BUILD_CM__W(name, off)
+#define BUILD_GCR_R_(name, off)					\
+	BUILD_CM_R_(name, MIPS_CM_GCB_OFS, off, )		\
+	BUILD_CM_R_(name, MIPS_CM_COCB_OFS, off, _redir)
+
+#define BUILD_GCR_RW(name, off)					\
+	BUILD_GCR_R_(name, off)					\
+	BUILD_CM__W(name, )					\
+	BUILD_CM__W(name, _redir)
 
 #define BUILD_CM_Cx_R_(name, off)				\
-	BUILD_CM_R_(cl_##name, MIPS_CM_CLCB_OFS + (off))	\
-	BUILD_CM_R_(co_##name, MIPS_CM_COCB_OFS + (off))
+	BUILD_CM_R_(cl_##name, MIPS_CM_CLCB_OFS, (off), )	\
+	BUILD_CM_R_(co_##name, MIPS_CM_COCB_OFS, (off), )
 
-#define BUILD_CM_Cx__W(name, off)				\
-	BUILD_CM__W(cl_##name, MIPS_CM_CLCB_OFS + (off))	\
-	BUILD_CM__W(co_##name, MIPS_CM_COCB_OFS + (off))
+#define BUILD_CM_Cx__W(name)					\
+	BUILD_CM__W(cl_##name, )				\
+	BUILD_CM__W(co_##name, )
 
 #define BUILD_CM_Cx_RW(name, off)				\
 	BUILD_CM_Cx_R_(name, off)				\
-	BUILD_CM_Cx__W(name, off)
+	BUILD_CM_Cx__W(name)
 
 /* GCB register accessor functions */
-BUILD_CM_R_(config,		MIPS_CM_GCB_OFS + 0x00)
-BUILD_CM_RW(base,		MIPS_CM_GCB_OFS + 0x08)
-BUILD_CM_RW(access,		MIPS_CM_GCB_OFS + 0x20)
-BUILD_CM_R_(rev,		MIPS_CM_GCB_OFS + 0x30)
-BUILD_CM_RW(err_control,	MIPS_CM_GCB_OFS + 0x38)
-BUILD_CM_RW(error_mask,		MIPS_CM_GCB_OFS + 0x40)
-BUILD_CM_RW(error_cause,	MIPS_CM_GCB_OFS + 0x48)
-BUILD_CM_RW(error_addr,		MIPS_CM_GCB_OFS + 0x50)
-BUILD_CM_RW(error_mult,		MIPS_CM_GCB_OFS + 0x58)
-BUILD_CM_RW(l2_only_sync_base,	MIPS_CM_GCB_OFS + 0x70)
-BUILD_CM_RW(gic_base,		MIPS_CM_GCB_OFS + 0x80)
-BUILD_CM_RW(cpc_base,		MIPS_CM_GCB_OFS + 0x88)
-BUILD_CM_RW(reg0_base,		MIPS_CM_GCB_OFS + 0x90)
-BUILD_CM_RW(reg0_mask,		MIPS_CM_GCB_OFS + 0x98)
-BUILD_CM_RW(reg1_base,		MIPS_CM_GCB_OFS + 0xa0)
-BUILD_CM_RW(reg1_mask,		MIPS_CM_GCB_OFS + 0xa8)
-BUILD_CM_RW(reg2_base,		MIPS_CM_GCB_OFS + 0xb0)
-BUILD_CM_RW(reg2_mask,		MIPS_CM_GCB_OFS + 0xb8)
-BUILD_CM_RW(reg3_base,		MIPS_CM_GCB_OFS + 0xc0)
-BUILD_CM_RW(reg3_mask,		MIPS_CM_GCB_OFS + 0xc8)
-BUILD_CM_R_(gic_status,		MIPS_CM_GCB_OFS + 0xd0)
-BUILD_CM_R_(cpc_status,		MIPS_CM_GCB_OFS + 0xf0)
-BUILD_CM_RW(l2_config,		MIPS_CM_GCB_OFS + 0x130)
-BUILD_CM_RW(sys_config2,	MIPS_CM_GCB_OFS + 0x150)
-BUILD_CM_RW(l2_pft_control,	MIPS_CM_GCB_OFS + 0x300)
-BUILD_CM_RW(l2_pft_control_b,	MIPS_CM_GCB_OFS + 0x308)
-BUILD_CM_RW(bev_base,		MIPS_CM_GCB_OFS + 0x680)
+BUILD_GCR_R_(config,		0x00)
+BUILD_GCR_RW(base,		0x08)
+BUILD_GCR_RW(access,		0x20)
+BUILD_GCR_R_(rev,		0x30)
+BUILD_GCR_RW(err_control,	0x38)
+BUILD_GCR_RW(error_mask,	0x40)
+BUILD_GCR_RW(error_cause,	0x48)
+BUILD_GCR_RW(error_addr,	0x50)
+BUILD_GCR_RW(error_mult,	0x58)
+BUILD_GCR_RW(l2_only_sync_base,	0x70)
+BUILD_GCR_RW(gic_base,		0x80)
+BUILD_GCR_RW(cpc_base,		0x88)
+BUILD_GCR_RW(reg0_base,		0x90)
+BUILD_GCR_RW(reg0_mask,		0x98)
+BUILD_GCR_RW(reg1_base,		0xa0)
+BUILD_GCR_RW(reg1_mask,		0xa8)
+BUILD_GCR_RW(reg2_base,		0xb0)
+BUILD_GCR_RW(reg2_mask,		0xb8)
+BUILD_GCR_RW(reg3_base,		0xc0)
+BUILD_GCR_RW(reg3_mask,		0xc8)
+BUILD_GCR_R_(gic_status,	0xd0)
+BUILD_GCR_R_(cpc_status,	0xf0)
+BUILD_GCR_RW(l2_config,		0x130)
+BUILD_GCR_RW(sys_config2,	0x150)
+BUILD_GCR_RW(l2_pft_control,	0x300)
+BUILD_GCR_RW(l2_pft_control_b,	0x308)
+BUILD_GCR_RW(bev_base,		0x680)
 
 /* Core Local & Core Other register accessor functions */
 BUILD_CM_Cx_RW(reset_release,	0x00)
