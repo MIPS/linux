@@ -139,6 +139,12 @@ struct proc_cpuinfo_notifier_args {
 	unsigned long n;
 };
 
+static inline unsigned int cpu_cluster(struct cpuinfo_mips *cpuinfo)
+{
+	return (cpuinfo->globalnumber & MIPS_GLOBALNUMBER_CLUSTER) >>
+		MIPS_GLOBALNUMBER_CLUSTER_SHF;
+}
+
 static inline unsigned int cpu_core(struct cpuinfo_mips *cpuinfo)
 {
 	return (cpuinfo->globalnumber & MIPS_GLOBALNUMBER_CORE) >>
@@ -155,6 +161,7 @@ static inline unsigned int cpu_vpe_id(struct cpuinfo_mips *cpuinfo)
 		MIPS_GLOBALNUMBER_VP_SHF;
 }
 
+extern void cpu_set_cluster(struct cpuinfo_mips *cpuinfo, unsigned int cl);
 extern void cpu_set_core(struct cpuinfo_mips *cpuinfo, unsigned int core);
 extern void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe);
 

@@ -101,6 +101,13 @@ BUILD_CPC_RW(seqdel,		MIPS_CPC_GCB_OFS + 0x08)
 BUILD_CPC_RW(rail,		MIPS_CPC_GCB_OFS + 0x10)
 BUILD_CPC_RW(resetlen,		MIPS_CPC_GCB_OFS + 0x18)
 BUILD_CPC_R_(revision,		MIPS_CPC_GCB_OFS + 0x20)
+BUILD_CPC_RW(pwrup_ctl,		MIPS_CPC_GCB_OFS + 0x30)
+BUILD_CPC_R_(config,		MIPS_CPC_GCB_OFS + 0x138)
+BUILD_CPC_RW(sys_config,	MIPS_CPC_GCB_OFS + 0x140)
+
+/* CPC_SYS_CONFIG register fields */
+#define CPC_SYS_CONFIG_BE	BIT(0)
+#define CPC_SYS_CONFIG_BE_STAT	BIT(1)
 
 /* Core Local & Core Other accessor functions */
 BUILD_CPC_Cx_RW(cmd,		0x00)
@@ -109,6 +116,7 @@ BUILD_CPC_Cx_RW(other,		0x10)
 BUILD_CPC_Cx_RW(vp_stop,	0x20)
 BUILD_CPC_Cx_RW(vp_run,		0x28)
 BUILD_CPC_Cx_RW(vp_running,	0x30)
+BUILD_CPC_Cx_R_(config,		0x90)
 
 /* CPC_Cx_CMD register fields */
 #define CPC_Cx_CMD_SHF				0
