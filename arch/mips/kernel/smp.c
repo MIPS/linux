@@ -96,11 +96,16 @@ static inline void set_cpu_sibling_map(int cpu)
 
 	if (smp_num_siblings > 1) {
 		for_each_cpu(i, &cpu_sibling_setup_map) {
-			if (cpu_data[cpu].package == cpu_data[i].package &&
-				    cpu_data[cpu].core == cpu_data[i].core) {
-				cpumask_set_cpu(i, &cpu_sibling_map[cpu]);
-				cpumask_set_cpu(cpu, &cpu_sibling_map[i]);
-			}
+			if (cpu_data[cpu].package != cpu_data[i].package)
+				continue;
+			if (cpu_cluster(&cpu_data[cpu]) !=
+			    cpu_cluster(&cpu_data[i]))
+				continue;
+			if (cpu_data[cpu].core != cpu_data[i].core)
+				continue;
+
+			cpumask_set_cpu(i, &cpu_sibling_map[cpu]);
+			cpumask_set_cpu(cpu, &cpu_sibling_map[i]);
 		}
 	} else
 		cpumask_set_cpu(cpu, &cpu_sibling_map[cpu]);
@@ -113,10 +118,13 @@ static inline void set_cpu_core_map(int cpu)
 	cpumask_set_cpu(cpu, &cpu_core_setup_map);
 
 	for_each_cpu(i, &cpu_core_setup_map) {
-		if (cpu_data[cpu].package == cpu_data[i].package) {
-			cpumask_set_cpu(i, &cpu_core_map[cpu]);
-			cpumask_set_cpu(cpu, &cpu_core_map[i]);
-		}
+		if (cpu_data[cpu].package != cpu_data[i].package)
+			continue;
+		if (cpu_cluster(&cpu_data[cpu]) != cpu_cluster(&cpu_data[i]))
+			continue;
+
+		cpumask_set_cpu(i, &cpu_core_map[cpu]);
+		cpumask_set_cpu(cpu, &cpu_core_map[i]);
 	}
 }
 
@@ -133,10 +141,16 @@ void calculate_cpu_foreign_map(void)
 	cpumask_clear(&temp_foreign_map);
 	for_each_online_cpu(i) {
 		core_present = 0;
-		for_each_cpu(k, &temp_foreign_map)
-			if (cpu_data[i].package == cpu_data[k].package &&
-			    cpu_data[i].core == cpu_data[k].core)
-				core_present = 1;
+		for_each_cpu(k, &temp_foreign_map) {
+			if (cpu_data[i].package != cpu_data[k].package)
+				continue;
+			if (cpu_cluster(&cpu_data[i]) !=
+			    cpu_cluster(&cpu_data[k]))
+				continue;
+			if (cpu_data[i].core != cpu_data[k].core)
+				continue;
+			core_present = 1;
+		}
 		if (!core_present)
 			cpumask_set_cpu(i, &temp_foreign_map);
 	}

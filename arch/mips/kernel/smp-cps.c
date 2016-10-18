@@ -74,6 +74,7 @@ static void __init cps_smp_setup(void)
 			smp_num_siblings = core_vpes;
 
 		for (v = 0; v < min_t(int, core_vpes, NR_CPUS - nvpes); v++) {
+			cpu_set_cluster(&cpu_data[nvpes + v], 0);
 			cpu_data[nvpes + v].core = c;
 #if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
 			cpu_data[nvpes + v].vpe_id = v;
@@ -324,7 +325,8 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 		mips_cm_unlock_other();
 	}
 
-	if (core != current_cpu_data.core) {
+	if ((cluster != cpu_cluster(&current_cpu_data)) ||
+	    (core != current_cpu_data.core)) {
 		/* Boot a VPE on another powered up core */
 		for (remote = 0; remote < NR_CPUS; remote++) {
 			if (cpu_data[remote].core != core)
@@ -419,11 +421,12 @@ static enum {
 
 void play_dead(void)
 {
-	unsigned int cpu, core, vpe_id;
+	unsigned int cpu, core, vpe_id, cluster;
 
 	local_irq_disable();
 	idle_task_exit();
 	cpu = smp_processor_id();
+	cluster = cpu_cluster(&cpu_data[cpu]);
 	cpu_death = CPU_DEATH_POWER;
 
 	pr_debug("CPU%d going offline\n", cpu);
@@ -433,6 +436,9 @@ void play_dead(void)
 
 		/* Look for another online VPE within the core */
 		for_each_online_cpu(cpu_death_sibling) {
+			if (cpu_cluster(&cpu_data[cpu_death_sibling]) !=
+			    cluster)
+				continue;
 			if (cpu_data[cpu_death_sibling].core != core)
 				continue;
 
