@@ -488,21 +488,6 @@ static inline void mips_cm_lock_other_cpu(unsigned int cpu,
 			   block);
 }
 
-/*
- * mips_cm_numcores - return the number of cores present in the system
- *
- * Returns the value of the PCORES field of the GCR_CONFIG register plus 1, or
- * zero if no Coherence Manager is present.
- */
-static inline unsigned mips_cm_numcores(void)
-{
-	if (!mips_cm_present())
-		return 0;
-
-	return ((read_gcr_config() & CM_GCR_CONFIG_PCORES_MSK)
-		>> CM_GCR_CONFIG_PCORES_SHF) + 1;
-}
-
 /**
  * mips_cm_numiocu - return the number of IOCUs present in the system
  *
@@ -593,6 +578,31 @@ static inline unsigned int mips_cm_vp_id(unsigned int cpu)
 	unsigned int vp = cpu_vpe_id(&cpu_data[cpu]);
 
 	return (core * mips_cm_max_vp_width()) + vp;
+}
+
+/**
+ * mips_cm_numcores - return the number of cores present in the system
+ *
+ * Returns the value of the PCORES field of the GCR_CONFIG register plus 1, or
+ * zero if no Coherence Manager is present.
+ */
+static inline unsigned int mips_cm_numcores(unsigned int cluster)
+{
+	unsigned int cfg;
+
+	if (!mips_cm_present())
+		return 0;
+
+	if (mips_cm_revision() >= CM_REV_CM3_5) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GCR_GLOBAL);
+		cfg = read_redir_gcr_config();
+		mips_cm_unlock_other();
+	} else {
+		/* We only have one truly global GCR_CONFIG */
+		cfg = read_gcr_config();
+	}
+
+	return ((cfg & CM_GCR_CONFIG_PCORES_MSK) >> CM_GCR_CONFIG_PCORES_SHF) + 1;
 }
 
 /**
