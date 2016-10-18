@@ -522,12 +522,12 @@ extern unsigned int mips_cm_cluster_cfg(unsigned int cluster);
  * Returns the value of the PCORES field of the GCR_CONFIG register plus 1, or
  * zero if no Coherence Manager is present.
  */
-static inline unsigned mips_cm_numcores(void)
+static inline unsigned mips_cm_numcores(unsigned int cluster)
 {
 	if (!mips_cm_present())
 		return 0;
 
-	return ((read_gcr_config() & CM_GCR_CONFIG_PCORES_MSK)
+	return ((mips_cm_cluster_cfg(cluster) & CM_GCR_CONFIG_PCORES_MSK)
 		>> CM_GCR_CONFIG_PCORES_SHF) + 1;
 }
 

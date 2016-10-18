@@ -65,7 +65,7 @@ static void __init cps_smp_setup(void)
 	int c, v;
 
 	/* Detect & record VPE topology */
-	ncores = mips_cm_numcores();
+	ncores = mips_cm_numcores(0);
 	pr_info("%s topology ", cpu_has_mips_r6 ? "VP" : "VPE");
 	for (c = nvpes = 0; c < ncores; c++) {
 		core_vpes = core_vpe_count(c);
@@ -139,7 +139,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	}
 
 	/* Warn the user if the CCA prevents multi-core */
-	ncores = mips_cm_numcores();
+	ncores = mips_cm_numcores(0);
 	if ((cca_unsuitable || cpu_has_dc_aliases) && ncores > 1) {
 		pr_warn("Using only one core due to %s%s%s\n",
 			cca_unsuitable ? "unsuitable CCA" : "",
