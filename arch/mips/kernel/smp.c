@@ -190,7 +190,7 @@ void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 			core = cpu_core(&cpu_data[cpu]);
 
 			while (!cpumask_test_cpu(cpu, &cpu_coherent_mask)) {
-				mips_cm_lock_other(core, 0);
+				mips_cm_lock_other(0, core, 0, BLOCK_CPC_CORE_LOCAL);
 				mips_cpc_lock_other(core);
 				write_cpc_co_cmd(CPC_Cx_CMD_PWRUP);
 				mips_cpc_unlock_other();
