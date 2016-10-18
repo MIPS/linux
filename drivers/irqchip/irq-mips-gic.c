@@ -963,7 +963,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	if (node &&
 	    !of_property_read_u32_array(node, "mti,reserved-ipi-vectors", v, 2)) {
 		bitmap_set(ipi_resrv, v[0], v[1]);
-	} else {
+	} else if (num_possible_cpus() > 1) {
 		/* Make the last 2 * num_possible_cpus() available for IPIs */
 		bitmap_set(ipi_resrv,
 			   gic_shared_intrs - 2 * num_possible_cpus(),
