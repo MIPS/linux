@@ -402,6 +402,61 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_Cx_RESET_EXT_BASE_PRESENT_SHF	0
 #define CM_GCR_Cx_RESET_EXT_BASE_PRESENT_MSK	(_ULCAST_(0x1) << 0)
 
+/*
+ * enum gcr_redir_block - blocks to target using GCR_Cx_REDIRECT
+ *
+ * Register blocks that a core or VP "other" register block can be redirected
+ * to using the GCR_Cx_REDIRECT register, typically via mips_cm_lock_other().
+ */
+enum gcr_redir_block {
+	/* CM GCR redirect blocks */
+	BLOCK_GCR_CORE_LOCAL = 0,
+	BLOCK_GCR_GLOBAL = 1,
+	BLOCK_GCR_DEBUG = 2,
+
+	/* CPC redirect blocks */
+	BLOCK_CPC_CORE_LOCAL = 0,
+	BLOCK_CPC_GLOBAL = 1,
+
+	/* GIC redirect blocks */
+	BLOCK_GIC_VP_LOCAL = 0,
+	BLOCK_GIC_SHARED_LOWER = 1,
+	BLOCK_GIC_USER = 2,
+	BLOCK_GIC_SHARED_UPPER = 3,
+};
+
+#ifdef CONFIG_MIPS_CM
+
+/**
+ * mips_cm_lock_other - lock access to another core
+ * @cluster: the other cluster to be accessed
+ * @core: the other core to be accessed
+ * @vp: the VP within the other core to be accessed
+ *
+ * Call before operating upon a core via the 'other' register region in
+ * order to prevent the region being moved during access. Must be followed
+ * by a call to mips_cm_unlock_other.
+ */
+extern void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+			       unsigned int vp, enum gcr_redir_block block);
+
+/**
+ * mips_cm_unlock_other - unlock access to another core
+ *
+ * Call after operating upon another core via the 'other' register region.
+ * Must be called after mips_cm_lock_other.
+ */
+extern void mips_cm_unlock_other(void);
+
+#else /* !CONFIG_MIPS_CM */
+
+static inline void
+mips_cm_lock_other(unsigned int cluster, unsigned int core,
+		   unsigned int vp, enum gcr_redir_block block) { }
+static inline void mips_cm_unlock_other(void) { }
+
+#endif /* !CONFIG_MIPS_CM */
+
 /**
  * mips_cm_numcores - return the number of cores present in the system
  *
@@ -550,33 +605,5 @@ static inline bool mips_cm_using_multicluster(void)
 	last_cpu = find_last_bit(cpumask_bits(cpu_possible_mask), nr_cpumask_bits);
 	return cpu_cluster(&cpu_data[last_cpu]) != 0;
 }
-
-#ifdef CONFIG_MIPS_CM
-
-/**
- * mips_cm_lock_other - lock access to another core
- * @core: the other core to be accessed
- * @vp: the VP within the other core to be accessed
- *
- * Call before operating upon a core via the 'other' register region in
- * order to prevent the region being moved during access. Must be followed
- * by a call to mips_cm_unlock_other.
- */
-extern void mips_cm_lock_other(unsigned int core, unsigned int vp);
-
-/**
- * mips_cm_unlock_other - unlock access to another core
- *
- * Call after operating upon another core via the 'other' register region.
- * Must be called after mips_cm_lock_other.
- */
-extern void mips_cm_unlock_other(void);
-
-#else /* !CONFIG_MIPS_CM */
-
-static inline void mips_cm_lock_other(unsigned int core, unsigned int vp) { }
-static inline void mips_cm_unlock_other(void) { }
-
-#endif /* !CONFIG_MIPS_CM */
 
 #endif /* __MIPS_ASM_MIPS_CM_H__ */
