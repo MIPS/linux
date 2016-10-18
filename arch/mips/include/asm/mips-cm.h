@@ -212,8 +212,13 @@ BUILD_GCR_R_(gic_status,	0xd0)
 BUILD_GCR_R_(cpc_status,	0xf0)
 BUILD_GCR_RW(l2_config,		0x130)
 BUILD_GCR_RW(sys_config2,	0x150)
+BUILD_GCR_RW(l2_ram_config,	0x240)
 BUILD_GCR_RW(l2_pft_control,	0x300)
 BUILD_GCR_RW(l2_pft_control_b,	0x308)
+BUILD_GCR_RW(l2_tag_state,	0x608)
+BUILD_GCR_RW(l2_ecc,		0x618)
+BUILD_GCR_RW(l2sm_cop,		0x620)
+BUILD_GCR_RW(l2sm_tag_addr_cop,	0x628)
 BUILD_GCR_RW(bev_base,		0x680)
 
 /* Core Local & Core Other register accessor functions */
@@ -356,6 +361,11 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 /* GCR_SYS_CONFIG2 register fields */
 #define CM_GCR_SYS_CONFIG2_MAXVPW_SHF		0
 #define CM_GCR_SYS_CONFIG2_MAXVPW_MSK		(_ULCAST_(0xf) << 0)
+
+/* GCR_L2_RAM_CONFIG register fields */
+#define CM_HCR_L2_RAM_CONFIG_PRESENT		BIT(31)
+#define CM_HCR_L2_RAM_CONFIG_HCI_DONE		BIT(30)
+#define CM_HCR_L2_RAM_CONFIG_HCI_SUPPORTED	BIT(29)
 
 /* GCR_L2_PFT_CONTROL register fields */
 #define CM_GCR_L2_PFT_CONTROL_PAGEMASK_SHF	12
