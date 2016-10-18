@@ -259,16 +259,29 @@ int mips_cm_probe(void)
 	return 0;
 }
 
-void mips_cm_lock_other(unsigned int core, unsigned int vp)
+void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+			unsigned int vp, enum gcr_redir_block block)
 {
-	unsigned curr_core;
+	unsigned int curr_core, cm_rev;
 	u32 val;
+
+	cm_rev = mips_cm_revision();
 
 	preempt_disable();
 
-	if (mips_cm_revision() >= CM_REV_CM3) {
+	if (cm_rev >= CM_REV_CM3) {
 		val = core << CM3_GCR_Cx_OTHER_CORE_SHF;
 		val |= vp << CM3_GCR_Cx_OTHER_VP_SHF;
+
+		if (cm_rev >= CM_REV_CM3_5) {
+			val |= cluster << CM3_GCR_Cx_REDIRECT_CLUSTER_SHF;
+			if (cluster != cpu_cluster(&current_cpu_data))
+				val |= CM3_GCR_Cx_REDIRECT_CLUSTER_REDIREN_MSK;
+			val |= (unsigned int)block << CM3_GCR_Cx_REDIRECT_BLOCK_SHF;
+		} else {
+			WARN_ON(cluster != 0);
+			WARN_ON(block != BLOCK_GCR_CORE_LOCAL);
+		}
 
 		/*
 		 * We need to disable interrupts in SMP systems in order to
@@ -282,7 +295,9 @@ void mips_cm_lock_other(unsigned int core, unsigned int vp)
 		spin_lock_irqsave(this_cpu_ptr(&cm_core_lock),
 				  *this_cpu_ptr(&cm_core_lock_flags));
 	} else {
+		WARN_ON(cluster != 0);
 		WARN_ON(vp != 0);
+		WARN_ON(block != BLOCK_GCR_CORE_LOCAL);
 
 		/*
 		 * We only have a GCR_CL_OTHER per core in systems with
