@@ -1,0 +1,105 @@
+generic_32r2_page4k			32r2	page-4k smp
+generic_32r2_page4k_up			32r2	page-4k up
+generic_32r2_page4k_dbg			32r2	page-4k smp dbg
+generic_32r2_mm_page4k_up_dbg		32r2	page-4k up dbg micromips
+generic_32r2_page16k			32r2	page-16k smp
+generic_32r2_page16k_up			32r2	page-16k up
+generic_32r2_page16k_dbg		32r2	page-16k smp dbg
+generic_32r2_mm_page16k_up_dbg		32r2	page-16k up dbg micromips
+generic_32r2_page64k			32r2	page-64k smp
+generic_32r2_page64k_up			32r2	page-64k up
+generic_32r2_page64k_dbg		32r2	page-64k smp dbg
+generic_32r2_mm_page64k_up_dbg		32r2	page-64k up dbg micromips
+
+generic_32r2el_page4k			32r2el	page-4k smp
+generic_32r2el_page4k_up		32r2el	page-4k up
+generic_32r2el_page4k_dbg		32r2el	page-4k smp dbg
+generic_32r2el_mm_page4k_up_dbg		32r2el	page-4k up dbg micromips
+generic_32r2el_page16k			32r2el	page-16k smp
+generic_32r2el_page16k_up		32r2el	page-16k up
+generic_32r2el_page16k_dbg		32r2el	page-16k smp dbg
+generic_32r2el_mm_page16k_up_dbg	32r2el	page-16k up dbg micromips
+generic_32r2el_page64k			32r2el	page-64k smp
+generic_32r2el_page64k_up		32r2el	page-64k up
+generic_32r2el_page64k_dbg		32r2el	page-64k smp dbg
+generic_32r2el_mm_page64k_up_dbg	32r2el	page-64k up dbg micromips
+
+generic_32r6_page4k			32r6	page-4k smp
+generic_32r6_page4k_up			32r6	page-4k up
+generic_32r6_page4k_dbg			32r6	page-4k smp dbg
+generic_32r6_page16k			32r6	page-16k smp
+generic_32r6_page16k_up			32r6	page-16k up
+generic_32r6_page16k_dbg		32r6	page-16k smp dbg
+generic_32r6_page64k			32r6	page-64k smp
+generic_32r6_page64k_up			32r6	page-64k up
+generic_32r6_page64k_dbg		32r6	page-64k smp dbg
+
+generic_32r6el_page4k			32r6el	page-4k smp
+generic_32r6el_page4k_up		32r6el	page-4k up
+generic_32r6el_page4k_dbg		32r6el	page-4k smp dbg
+generic_32r6el_page16k			32r6el	page-16k smp
+generic_32r6el_page16k_up		32r6el	page-16k up
+generic_32r6el_page16k_dbg		32r6el	page-16k smp dbg
+generic_32r6el_page64k			32r6el	page-64k smp
+generic_32r6el_page64k_up		32r6el	page-64k up
+generic_32r6el_page64k_dbg		32r6el	page-64k smp dbg
+
+generic_64r2_page4k			64r2	page-4k smp
+generic_64r2_page4k_up			64r2	page-4k up
+generic_64r2_page4k_dbg			64r2	page-4k smp dbg
+generic_64r2_page16k			64r2	page-16k smp
+generic_64r2_page16k_up			64r2	page-16k up
+generic_64r2_page16k_dbg		64r2	page-16k smp dbg
+generic_64r2_page64k			64r2	page-64k smp
+generic_64r2_page64k_up			64r2	page-64k up
+generic_64r2_page64k_dbg		64r2	page-64k smp dbg
+
+generic_64r2el_page4k			64r2el	page-4k smp
+generic_64r2el_page4k_up		64r2el	page-4k up
+generic_64r2el_page4k_dbg		64r2el	page-4k smp dbg
+generic_64r2el_page16k			64r2el	page-16k smp
+generic_64r2el_page16k_up		64r2el	page-16k up
+generic_64r2el_page16k_dbg		64r2el	page-16k smp dbg
+generic_64r2el_page64k			64r2el	page-64k smp
+generic_64r2el_page64k_up		64r2el	page-64k up
+generic_64r2el_page64k_dbg		64r2el	page-64k smp dbg
+
+generic_64r6_page4k			64r6	page-4k smp
+generic_64r6_page4k_up			64r6	page-4k up
+generic_64r6_page4k_dbg			64r6	page-4k smp dbg
+generic_64r6_page16k			64r6	page-16k smp
+generic_64r6_page16k_up			64r6	page-16k up
+generic_64r6_page16k_dbg		64r6	page-16k smp dbg
+generic_64r6_page64k			64r6	page-64k smp
+generic_64r6_page64k_up			64r6	page-64k up
+generic_64r6_page64k_dbg		64r6	page-64k smp dbg
+
+generic_64r6el_page4k			64r6el	page-4k smp
+generic_64r6el_page4k_up		64r6el	page-4k up
+generic_64r6el_page4k_dbg		64r6el	page-4k smp dbg
+generic_64r6el_page16k			64r6el	page-16k smp
+generic_64r6el_page16k_up		64r6el	page-16k up
+generic_64r6el_page16k_dbg		64r6el	page-16k smp dbg
+generic_64r6el_page64k			64r6el	page-64k smp
+generic_64r6el_page64k_up		64r6el	page-64k up
+generic_64r6el_page64k_dbg		64r6el	page-64k smp dbg
+
+octeon_64r2_page4k			cavium_octeon	../generic/64r2 ../generic/eb page-4k octeon
+octeon_64r2_page4k_up			cavium_octeon	../generic/64r2 ../generic/eb page-4k up octeon
+octeon_64r2_page4k_dbg			cavium_octeon	../generic/64r2 ../generic/eb page-4k dbg octeon
+octeon_64r2_page16k			cavium_octeon	../generic/64r2 ../generic/eb page-16k octeon
+octeon_64r2_page16k_up			cavium_octeon	../generic/64r2 ../generic/eb page-16k up octeon
+octeon_64r2_page16k_dbg			cavium_octeon	../generic/64r2 ../generic/eb page-16k dbg octeon
+octeon_64r2_page64k			cavium_octeon	../generic/64r2 ../generic/eb page-64k octeon
+octeon_64r2_page64k_up			cavium_octeon	../generic/64r2 ../generic/eb page-64k up octeon
+octeon_64r2_page64k_dbg			cavium_octeon	../generic/64r2 ../generic/eb page-64k dbg octeon
+
+octeon_64r2el_page4k			cavium_octeon	../generic/64r2 ../generic/el page-4k octeon
+octeon_64r2el_page4k_up			cavium_octeon	../generic/64r2 ../generic/el page-4k up octeon
+octeon_64r2el_page4k_dbg		cavium_octeon	../generic/64r2 ../generic/el page-4k dbg octeon
+octeon_64r2el_page16k			cavium_octeon	../generic/64r2 ../generic/el page-16k octeon
+octeon_64r2el_page16k_up		cavium_octeon	../generic/64r2 ../generic/el page-16k up octeon
+octeon_64r2el_page16k_dbg		cavium_octeon	../generic/64r2 ../generic/el page-16k dbg octeon
+octeon_64r2el_page64k			cavium_octeon	../generic/64r2 ../generic/el page-64k octeon
+octeon_64r2el_page64k_up		cavium_octeon	../generic/64r2 ../generic/el page-64k up octeon
+octeon_64r2el_page64k_dbg		cavium_octeon	../generic/64r2 ../generic/el page-64k dbg octeon
