@@ -62,48 +62,53 @@ static inline bool mips_cpc_present(void)
 #define MIPS_CPC_COCB_OFS	0x4000
 
 /* Macros to ease the creation of register access functions */
-#define BUILD_CPC_R_(name, off)					\
-static inline u32 *addr_cpc_##name(void)			\
+#define BUILD_CPC_R_(name, block, off, redir)			\
+static inline u32 *addr##redir##_cpc_##name(void)		\
 {								\
-	return (u32 *)(mips_cpc_base + (off));			\
+	return (u32 *)(mips_cpc_base + (block) + (off));	\
 }								\
 								\
-static inline u32 read_cpc_##name(void)				\
+static inline u32 read##redir##_cpc_##name(void)		\
 {								\
-	return __raw_readl(mips_cpc_base + (off));		\
+	return __raw_readl(addr##redir##_cpc_##name());		\
 }
 
-#define BUILD_CPC__W(name, off) \
-static inline void write_cpc_##name(u32 value)			\
+#define BUILD_CPC__W(name, redir)				\
+static inline void write##redir##_cpc_##name(u32 value)		\
 {								\
-	__raw_writel(value, mips_cpc_base + (off));		\
+	__raw_writel(value, addr##redir##_cpc_##name());	\
 }
+
+#define BUILD_CPC_RO(name, off)					\
+	BUILD_CPC_R_(name, MIPS_CPC_GCB_OFS, off, )		\
+	BUILD_CPC_R_(name, MIPS_CPC_COCB_OFS, off, _redir)
 
 #define BUILD_CPC_RW(name, off)					\
-	BUILD_CPC_R_(name, off)					\
-	BUILD_CPC__W(name, off)
+	BUILD_CPC_RO(name, off)					\
+	BUILD_CPC__W(name, )					\
+	BUILD_CPC__W(name, _redir)
 
 #define BUILD_CPC_Cx_R_(name, off)				\
-	BUILD_CPC_R_(cl_##name, MIPS_CPC_CLCB_OFS + (off))	\
-	BUILD_CPC_R_(co_##name, MIPS_CPC_COCB_OFS + (off))
+	BUILD_CPC_R_(cl_##name, MIPS_CPC_CLCB_OFS, (off), )	\
+	BUILD_CPC_R_(co_##name, MIPS_CPC_COCB_OFS, (off), )
 
-#define BUILD_CPC_Cx__W(name, off)				\
-	BUILD_CPC__W(cl_##name, MIPS_CPC_CLCB_OFS + (off))	\
-	BUILD_CPC__W(co_##name, MIPS_CPC_COCB_OFS + (off))
+#define BUILD_CPC_Cx__W(name)					\
+	BUILD_CPC__W(cl_##name, )				\
+	BUILD_CPC__W(co_##name, )
 
 #define BUILD_CPC_Cx_RW(name, off)				\
 	BUILD_CPC_Cx_R_(name, off)				\
-	BUILD_CPC_Cx__W(name, off)
+	BUILD_CPC_Cx__W(name)
 
 /* GCB register accessor functions */
-BUILD_CPC_RW(access,		MIPS_CPC_GCB_OFS + 0x00)
-BUILD_CPC_RW(seqdel,		MIPS_CPC_GCB_OFS + 0x08)
-BUILD_CPC_RW(rail,		MIPS_CPC_GCB_OFS + 0x10)
-BUILD_CPC_RW(resetlen,		MIPS_CPC_GCB_OFS + 0x18)
-BUILD_CPC_R_(revision,		MIPS_CPC_GCB_OFS + 0x20)
-BUILD_CPC_RW(pwrup_ctl,		MIPS_CPC_GCB_OFS + 0x30)
-BUILD_CPC_R_(config,		MIPS_CPC_GCB_OFS + 0x138)
-BUILD_CPC_RW(sys_config,	MIPS_CPC_GCB_OFS + 0x140)
+BUILD_CPC_RW(access,		0x00)
+BUILD_CPC_RW(seqdel,		0x08)
+BUILD_CPC_RW(rail,		0x10)
+BUILD_CPC_RW(resetlen,		0x18)
+BUILD_CPC_RO(revision,		0x20)
+BUILD_CPC_RW(pwrup_ctl,		0x30)
+BUILD_CPC_RO(config,		0x138)
+BUILD_CPC_RW(sys_config,	0x140)
 
 /* CPC_SYS_CONFIG register fields */
 #define CPC_SYS_CONFIG_BE	BIT(0)
