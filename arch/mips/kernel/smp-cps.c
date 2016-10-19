@@ -581,6 +581,7 @@ static void mips_cps_halt_sibling(void *ptr_cpu)
 
 int mips_cps_halt_and_return_cpu(unsigned int cpu)
 {
+	unsigned int cluster = cpu_cluster(&cpu_data[cpu]);
 	unsigned int core = cpu_data[cpu].core;
 	unsigned int vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 
@@ -602,7 +603,7 @@ int mips_cps_halt_and_return_cpu(unsigned int cpu)
 			panic("Failed to call sibling CPU\n");
 
 	} else if (cpu_has_vp) {
-		mips_cm_lock_other(core, vpe_id);
+		mips_cm_lock_other(cluster, core, vpe_id, BLOCK_CPC_CORE_LOCAL);
 		write_cpc_co_vp_stop(1 << vpe_id);
 		mips_cm_unlock_other();
 	}
