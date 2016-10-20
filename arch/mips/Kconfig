@@ -72,6 +72,7 @@ config MIPS
 	select RTC_LIB if !MACH_LOONGSON64
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
+	select LD_DEAD_CODE_DATA_ELIMINATION
 
 menu "Machine selection"
 
