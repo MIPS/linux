@@ -16,4 +16,10 @@ config LEGACY_BOARD_SEAD3
 	  Enable this to include support for booting on MIPS SEAD-3 FPGA-based
 	  development boards, which boot using a legacy boot protocol.
 
+config FIT_IMAGE_FDT_XILFPGA
+	bool "Include FDT for Xilfpga"
+	help
+	  Enable this to include the FDT for the MIPSfpga platform
+	  from Imagination Technologies in the FIT kernel image.
+
 endif
