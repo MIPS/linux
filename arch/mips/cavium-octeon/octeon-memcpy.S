@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Unified implementation of memcpy, memmove and the __copy_user backend.
+ * Unified implementation of memcpy and the __copy_user backend.
  *
  * Copyright (C) 1998, 99, 2000, 01, 2002 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999, 2000, 01, 2002 Silicon Graphics, Inc.
@@ -66,9 +66,6 @@
  *
  * The exception handlers for stores adjust len (if necessary) and return.
  * These handlers do not need to overwrite any data.
- *
- * For __rmemcpy and memmove an exception is always a kernel bug, therefore
- * they're not protected.
  */
 
 #define EXC(inst_reg,addr,handler)		\
@@ -464,48 +461,3 @@ s_exc_p1:
 s_exc:
 	jr	ra
 	 nop
-
-	.align	5
-LEAF(memmove)
-EXPORT_SYMBOL(memmove)
-	ADD	t0, a0, a2
-	ADD	t1, a1, a2
-	sltu	t0, a1, t0			# dst + len <= src -> memcpy
-	sltu	t1, a0, t1			# dst >= src + len -> memcpy
-	and	t0, t1
-	beqz	t0, __memcpy
-	 move	v0, a0				/* return value */
-	beqz	a2, r_out
-	END(memmove)
-
-	/* fall through to __rmemcpy */
-LEAF(__rmemcpy)					/* a0=dst a1=src a2=len */
-	 sltu	t0, a1, a0
-	beqz	t0, r_end_bytes_up		# src >= dst
-	 nop
-	ADD	a0, a2				# dst = dst + len
-	ADD	a1, a2				# src = src + len
-
-r_end_bytes:
-	lb	t0, -1(a1)
-	SUB	a2, a2, 0x1
-	sb	t0, -1(a0)
-	SUB	a1, a1, 0x1
-	bnez	a2, r_end_bytes
-	 SUB	a0, a0, 0x1
-
-r_out:
-	jr	ra
-	 move	a2, zero
-
-r_end_bytes_up:
-	lb	t0, (a1)
-	SUB	a2, a2, 0x1
-	sb	t0, (a0)
-	ADD	a1, a1, 0x1
-	bnez	a2, r_end_bytes_up
-	 ADD	a0, a0, 0x1
-
-	jr	ra
-	 move	a2, zero
-	END(__rmemcpy)
