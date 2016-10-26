@@ -6,6 +6,7 @@ lib-y += bitops.o
 lib-y += csum_partial.o
 lib-y += delay.o
 lib-y += memcpy.o
+lib-y += memmove.o
 lib-y += memset.o
 lib-y += mips-atomic.o
 lib-y += strlen_user.o
