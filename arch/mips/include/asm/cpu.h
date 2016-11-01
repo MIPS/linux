@@ -124,6 +124,7 @@
 #define PRID_IMP_P5600		0xa800
 #define PRID_IMP_I6400		0xa900
 #define PRID_IMP_M6250		0xab00
+#define PRID_IMP_I6500		0xb000
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
@@ -332,7 +333,7 @@ enum cpu_type_enum {
 	/*
 	 * MIPS64r6 class processors
 	 */
-	CPU_I6400, CPU_P6600,
+	CPU_I6400, CPU_I6500, CPU_P6600,
 
 	CPU_QEMU_GENERIC,
 
