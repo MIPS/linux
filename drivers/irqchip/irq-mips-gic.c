@@ -56,6 +56,7 @@ static unsigned int gic_cpu_pin;
 static unsigned int timer_cpu_pin;
 static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
 DECLARE_BITMAP(ipi_resrv, GIC_MAX_INTRS);
+DECLARE_BITMAP(ipi_available, GIC_MAX_INTRS);
 
 #ifdef CONFIG_MIPS_REMOTEPROC
 struct gic_local_state_t {
@@ -866,17 +867,17 @@ static int gic_irq_domain_alloc(struct irq_domain *d, unsigned int virq,
 
 		return gic_setup_dev_chip(d, virq, spec->hwirq);
 	} else {
-		base_hwirq = find_first_bit(ipi_resrv, gic_shared_intrs);
+		base_hwirq = find_first_bit(ipi_available, gic_shared_intrs);
 		if (base_hwirq == gic_shared_intrs) {
 			return -ENOMEM;
 		}
 
 		/* check that we have enough space */
 		for (i = base_hwirq; i < nr_irqs; i++) {
-			if (!test_bit(i, ipi_resrv))
+			if (!test_bit(i, ipi_available))
 				return -EBUSY;
 		}
-		bitmap_clear(ipi_resrv, base_hwirq, nr_irqs);
+		bitmap_clear(ipi_available, base_hwirq, nr_irqs);
 
 		/* map the hwirq for each cpu consecutively */
 		i = 0;
@@ -907,7 +908,7 @@ static int gic_irq_domain_alloc(struct irq_domain *d, unsigned int virq,
 
 	return 0;
 error:
-	bitmap_set(ipi_resrv, base_hwirq, nr_irqs);
+	bitmap_set(ipi_available, base_hwirq, nr_irqs);
 	return ret;
 }
 
@@ -922,7 +923,7 @@ void gic_irq_domain_free(struct irq_domain *d, unsigned int virq,
 		return;
 
 	base_hwirq = GIC_HWIRQ_TO_SHARED(irqd_to_hwirq(data));
-	bitmap_set(ipi_resrv, base_hwirq, nr_irqs);
+	bitmap_set(ipi_available, base_hwirq, nr_irqs);
 }
 
 int gic_irq_domain_match(struct irq_domain *d, struct device_node *node,
@@ -1282,6 +1283,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 			   2 * num_possible_cpus());
 	}
 
+	bitmap_copy(ipi_available, ipi_resrv, GIC_MAX_INTRS);
 	gic_basic_init();
 	gic_map_interrupts(node);
 
