@@ -82,6 +82,19 @@ static inline void gic_write(unsigned int reg, unsigned long val)
 		return gic_write64(reg, (u64)val);
 }
 
+static inline void gic_lock_other(unsigned int cpu, unsigned long *flags)
+{
+	local_irq_save(*flags);
+
+	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+		  mips_cm_vp_id(cpu));
+}
+
+static inline void gic_unlock_other(unsigned long flags)
+{
+	local_irq_restore(flags);
+}
+
 static inline void gic_update_bits(unsigned int reg, unsigned long mask,
 				   unsigned long val)
 {
@@ -183,9 +196,7 @@ void notrace gic_write_cpu_compare(u64 cnt, int cpu)
 {
 	unsigned long flags;
 
-	local_irq_save(flags);
-
-	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), mips_cm_vp_id(cpu));
+	gic_lock_other(cpu, &flags);
 
 	if (mips_cm_is64) {
 		gic_write(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE), cnt);
@@ -196,7 +207,7 @@ void notrace gic_write_cpu_compare(u64 cnt, int cpu)
 					(int)(cnt & 0xffffffff));
 	}
 
-	local_irq_restore(flags);
+	gic_unlock_other(flags);
 }
 
 u64 gic_read_compare(void)
@@ -535,13 +546,13 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 {
 	int intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
 	int i;
-	unsigned long flags;
+	unsigned long flags, gic_flags;
 
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-			  mips_cm_vp_id(i));
+		gic_lock_other(i, &gic_flags);
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_RMASK), 1 << intr);
+		gic_unlock_other(gic_flags);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 }
@@ -550,13 +561,13 @@ static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 {
 	int intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
 	int i;
-	unsigned long flags;
+	unsigned long flags, gic_flags;
 
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-			  mips_cm_vp_id(i));
+		gic_lock_other(i, &gic_flags);
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_SMASK), 1 << intr);
+		gic_unlock_other(gic_flags);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 }
@@ -581,6 +592,7 @@ static void gic_irq_dispatch(struct irq_desc *desc)
 
 static void __init gic_basic_init(void)
 {
+	unsigned long flags;
 	unsigned int i;
 
 	board_bind_eic_interrupt = &gic_bind_eic_interrupt;
@@ -595,13 +607,13 @@ static void __init gic_basic_init(void)
 	for (i = 0; i < gic_vpes; i++) {
 		unsigned int j;
 
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-			  mips_cm_vp_id(i));
+		gic_lock_other(i, &flags);
 		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
 			if (!gic_local_irq_is_routable(j))
 				continue;
 			gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_RMASK), 1 << j);
 		}
+		gic_unlock_other(flags);
 	}
 }
 
@@ -611,7 +623,7 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	int intr = GIC_HWIRQ_TO_LOCAL(hw);
 	int ret = 0;
 	int i;
-	unsigned long flags;
+	unsigned long flags, gic_flags;
 
 	if (!gic_local_irq_is_routable(intr))
 		return -EPERM;
@@ -620,8 +632,7 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	for (i = 0; i < gic_vpes; i++) {
 		u32 val = GIC_MAP_TO_PIN_MSK | gic_cpu_pin;
 
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-			  mips_cm_vp_id(i));
+		gic_lock_other(i, &gic_flags);
 
 		switch (intr) {
 		case GIC_LOCAL_INT_WD:
@@ -657,6 +668,8 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 			ret = -EINVAL;
 			break;
 		}
+
+		gic_unlock_other(gic_flags);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 
@@ -888,6 +901,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 {
 	unsigned int gicconfig, cpu;
 	unsigned int v[2];
+	unsigned long flags;
 
 	__gic_base_addr = gic_base_addr;
 
@@ -905,10 +919,10 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	if (cpu_has_veic) {
 		/* Set EIC mode for all VPEs */
 		for_each_present_cpu(cpu) {
-			gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-				  mips_cm_vp_id(cpu));
+			gic_lock_other(cpu, &flags);
 			gic_write(GIC_REG(VPE_OTHER, GIC_VPE_CTL),
 				  GIC_VPE_CTL_EIC_MODE_MSK);
+			gic_unlock_other(flags);
 		}
 
 		/* Always use vector 1 in EIC mode */
