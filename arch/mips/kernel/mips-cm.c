@@ -279,6 +279,7 @@ void mips_cm_lock_other(unsigned int cluster, unsigned int core,
 			if (cluster != cpu_cluster(&current_cpu_data))
 				val |= CM3_GCR_Cx_REDIRECT_CLUSTER_REDIREN_MSK;
 			val |= (unsigned int)block << CM3_GCR_Cx_REDIRECT_BLOCK_SHF;
+			val |= CM3_GCR_Cx_REDIRECT_GIC_REDIREN_MSK;
 		} else {
 			WARN_ON(cluster != 0);
 			WARN_ON(block != BLOCK_GCR_CORE_LOCAL);
