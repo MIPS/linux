@@ -117,45 +117,156 @@ static inline void gic_update_bits(unsigned int reg, unsigned long mask,
 
 static inline void gic_reset_mask(unsigned int intr)
 {
-	gic_write(GIC_REG(SHARED, GIC_SH_RMASK) + GIC_INTR_OFS(intr),
-		  1ul << GIC_INTR_BIT(intr));
+	unsigned int cluster;
+
+	if (!mips_cm_using_multicluster()) {
+		gic_write(GIC_REG(SHARED, GIC_SH_RMASK) + GIC_INTR_OFS(intr),
+			  1ul << GIC_INTR_BIT(intr));
+		return;
+	}
+
+	for_each_possible_cluster(cluster) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+		gic_write(GIC_REG(VPE_OTHER, GIC_SH_RMASK) + GIC_INTR_OFS(intr),
+			  1ul << GIC_INTR_BIT(intr));
+		mips_cm_unlock_other();
+	}
 }
 
 static inline void gic_set_mask(unsigned int intr)
 {
-	gic_write(GIC_REG(SHARED, GIC_SH_SMASK) + GIC_INTR_OFS(intr),
-		  1ul << GIC_INTR_BIT(intr));
+	unsigned int cluster, cpu;
+
+	if (!mips_cm_using_multicluster()) {
+		gic_write(GIC_REG(SHARED, GIC_SH_SMASK) + GIC_INTR_OFS(intr),
+			  1ul << GIC_INTR_BIT(intr));
+		return;
+	}
+
+	/*
+	 * We only want to set the mask bit, ie. enable the interrupt, on the
+	 * cluster containing the CPU which we're prepared to handle this
+	 * interrupt on. That is, we only want to set its mask bit on the
+	 * cluster corresponding to the CPU which has the interrupt's bit set
+	 * in its per-CPU mask.
+	 *
+	 * It is important that we don't enable the interrupt on other
+	 * clusters, since it will be routed to a CPU within that cluster that
+	 * simply ignores it due to its per-CPU mask. That CPU will then take
+	 * the interrupt again & again, at best wasting time & energy. If the
+	 * CPU which can handle the interrupt happens to be waiting for the CPU
+	 * that is in this loop of taking & ignoring interrupts (eg. to acquire
+	 * a spinlock which it holds) then the system may grind to a halt as
+	 * nothing makes forward progress.
+	 */
+	for_each_possible_cpu(cpu) {
+		if (!test_bit(intr, pcpu_masks[cpu].pcpu_mask))
+			continue;
+
+		cluster = cpu_cluster(&cpu_data[cpu]);
+
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+		gic_write(GIC_REG(VPE_OTHER, GIC_SH_SMASK) + GIC_INTR_OFS(intr),
+			  1ul << GIC_INTR_BIT(intr));
+		mips_cm_unlock_other();
+		return;
+	}
+
+	WARN(1, "Shared IRQ %u is associated with no CPU", intr);
 }
 
 static inline void gic_set_polarity(unsigned int intr, unsigned int pol)
 {
-	gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_POLARITY) +
-			GIC_INTR_OFS(intr), 1ul << GIC_INTR_BIT(intr),
-			(unsigned long)pol << GIC_INTR_BIT(intr));
+	unsigned int cluster;
+
+	if (!mips_cm_using_multicluster()) {
+		gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_POLARITY) +
+				GIC_INTR_OFS(intr), 1ul << GIC_INTR_BIT(intr),
+				(unsigned long)pol << GIC_INTR_BIT(intr));
+		return;
+	}
+
+	for_each_possible_cluster(cluster) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+		gic_update_bits(GIC_REG(VPE_OTHER, GIC_SH_SET_POLARITY) +
+				GIC_INTR_OFS(intr), 1ul << GIC_INTR_BIT(intr),
+				(unsigned long)pol << GIC_INTR_BIT(intr));
+		mips_cm_unlock_other();
+	}
 }
 
 static inline void gic_set_trigger(unsigned int intr, unsigned int trig)
 {
-	gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_TRIGGER) +
-			GIC_INTR_OFS(intr), 1ul << GIC_INTR_BIT(intr),
-			(unsigned long)trig << GIC_INTR_BIT(intr));
+	unsigned int cluster;
+
+	if (!mips_cm_using_multicluster()) {
+		gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_TRIGGER) +
+				GIC_INTR_OFS(intr), 1ul << GIC_INTR_BIT(intr),
+				(unsigned long)trig << GIC_INTR_BIT(intr));
+		return;
+	}
+
+	for_each_possible_cluster(cluster) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+		gic_update_bits(GIC_REG(VPE_OTHER, GIC_SH_SET_TRIGGER) +
+				GIC_INTR_OFS(intr), 1ul << GIC_INTR_BIT(intr),
+				(unsigned long)trig << GIC_INTR_BIT(intr));
+		mips_cm_unlock_other();
+	}
 }
 
 static inline void gic_set_dual_edge(unsigned int intr, unsigned int dual)
 {
-	gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_DUAL) + GIC_INTR_OFS(intr),
-			1ul << GIC_INTR_BIT(intr),
-			(unsigned long)dual << GIC_INTR_BIT(intr));
+	unsigned int cluster;
+
+	if (!mips_cm_using_multicluster()) {
+		gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_DUAL) + GIC_INTR_OFS(intr),
+				1ul << GIC_INTR_BIT(intr),
+				(unsigned long)dual << GIC_INTR_BIT(intr));
+		return;
+	}
+
+	for_each_possible_cluster(cluster) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+		gic_update_bits(GIC_REG(VPE_OTHER, GIC_SH_SET_DUAL) + GIC_INTR_OFS(intr),
+				1ul << GIC_INTR_BIT(intr),
+				(unsigned long)dual << GIC_INTR_BIT(intr));
+		mips_cm_unlock_other();
+	}
 }
 
 static inline void gic_map_to_pin(unsigned int intr, unsigned int pin)
 {
-	gic_write32(GIC_REG(SHARED, GIC_SH_INTR_MAP_TO_PIN_BASE) +
-		    GIC_SH_MAP_TO_PIN(intr), GIC_MAP_TO_PIN_MSK | pin);
+	unsigned int cluster;
+
+	if (!mips_cm_using_multicluster()) {
+		gic_write32(GIC_REG(SHARED, GIC_SH_INTR_MAP_TO_PIN_BASE) +
+			    GIC_SH_MAP_TO_PIN(intr), GIC_MAP_TO_PIN_MSK | pin);
+		return;
+	}
+
+	for_each_possible_cluster(cluster) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+		gic_write32(GIC_REG(VPE_OTHER, GIC_SH_INTR_MAP_TO_PIN_BASE) +
+			    GIC_SH_MAP_TO_PIN(intr), GIC_MAP_TO_PIN_MSK | pin);
+		mips_cm_unlock_other();
+	}
 }
 
-static inline void gic_map_to_vpe(unsigned int intr, unsigned int vpe)
+static inline void gic_map_to_cpu(unsigned int intr, unsigned int cpu)
 {
+	unsigned int vpe = mips_cm_vp_id(cpu);
+	unsigned long flags;
+
+	if (mips_cm_using_multicluster()) {
+		gic_lock_other(cpu, &flags, BLOCK_GIC_SHARED_LOWER);
+		gic_write(GIC_REG(VPE_OTHER, GIC_SH_INTR_MAP_TO_VPE_BASE) +
+			  GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe),
+			  GIC_SH_MAP_TO_VPE_REG_BIT(vpe));
+		gic_unlock_other(flags);
+		return;
+	}
+
 	gic_write(GIC_REG(SHARED, GIC_SH_INTR_MAP_TO_VPE_BASE) +
 		  GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe),
 		  GIC_SH_MAP_TO_VPE_REG_BIT(vpe));
@@ -235,21 +346,45 @@ u64 gic_read_compare(void)
 void gic_start_count(void)
 {
 	u32 gicconfig;
+	unsigned int cluster;
 
-	/* Start the counter */
-	gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
-	gicconfig &= ~(1 << GIC_SH_CONFIG_COUNTSTOP_SHF);
-	gic_write(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
+	if (!mips_cm_using_multicluster()) {
+		/* Start the counter */
+		gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
+		gicconfig &= ~(1 << GIC_SH_CONFIG_COUNTSTOP_SHF);
+		gic_write(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
+		return;
+	}
+
+	for_each_possible_cluster(cluster) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+		gicconfig = gic_read(GIC_REG(VPE_OTHER, GIC_SH_CONFIG));
+		gicconfig &= ~(1 << GIC_SH_CONFIG_COUNTSTOP_SHF);
+		gic_write(GIC_REG(VPE_OTHER, GIC_SH_CONFIG), gicconfig);
+		mips_cm_unlock_other();
+	}
 }
 
 void gic_stop_count(void)
 {
 	u32 gicconfig;
+	unsigned int cluster;
 
-	/* Stop the counter */
-	gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
-	gicconfig |= 1 << GIC_SH_CONFIG_COUNTSTOP_SHF;
-	gic_write(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
+	if (!mips_cm_using_multicluster()) {
+		/* Stop the counter */
+		gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
+		gicconfig |= 1 << GIC_SH_CONFIG_COUNTSTOP_SHF;
+		gic_write(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
+		return;
+	}
+
+	for_each_possible_cluster(cluster) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+		gicconfig = gic_read(GIC_REG(VPE_OTHER, GIC_SH_CONFIG));
+		gicconfig |= 1 << GIC_SH_CONFIG_COUNTSTOP_SHF;
+		gic_write(GIC_REG(VPE_OTHER, GIC_SH_CONFIG), gicconfig);
+		mips_cm_unlock_other();
+	}
 }
 
 #endif
@@ -299,6 +434,15 @@ static void gic_bind_eic_interrupt(int irq, int set)
 static void gic_send_ipi(struct irq_data *d, unsigned int cpu)
 {
 	irq_hw_number_t hwirq = GIC_HWIRQ_TO_SHARED(irqd_to_hwirq(d));
+	unsigned long flags;
+
+	if (mips_cm_using_multicluster()) {
+		gic_lock_other(cpu, &flags, BLOCK_GIC_SHARED_LOWER);
+		gic_write(GIC_REG(VPE_OTHER, GIC_SH_WEDGE),
+			  GIC_SH_WEDGE_SET(hwirq));
+		gic_unlock_other(flags);
+		return;
+	}
 
 	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_SET(hwirq));
 }
@@ -402,8 +546,19 @@ static void gic_unmask_irq(struct irq_data *d)
 static void gic_ack_irq(struct irq_data *d)
 {
 	unsigned int irq = GIC_HWIRQ_TO_SHARED(d->hwirq);
+	unsigned int cluster;
 
-	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_CLR(irq));
+	if (!mips_cm_using_multicluster()) {
+		gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_CLR(irq));
+		return;
+	}
+
+	for_each_possible_cluster(cluster) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+		gic_write(GIC_REG(VPE_OTHER, GIC_SH_WEDGE),
+			  GIC_SH_WEDGE_CLR(irq));
+		mips_cm_unlock_other();
+	}
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
@@ -475,7 +630,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	spin_lock_irqsave(&gic_lock, flags);
 
 	/* Re-route this IRQ */
-	gic_map_to_vpe(irq, mips_cm_vp_id(cpumask_first(&tmp)));
+	gic_map_to_cpu(irq, cpumask_first(&tmp));
 
 	/* Update the pcpu_masks */
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
@@ -554,12 +709,12 @@ static struct irq_chip gic_local_irq_controller = {
 static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 {
 	int intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
-	int i;
+	int cpu;
 	unsigned long flags, gic_flags;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	for (i = 0; i < gic_vpes; i++) {
-		gic_lock_other(i, &gic_flags, BLOCK_GIC_VP_LOCAL);
+	for_each_possible_cpu(cpu) {
+		gic_lock_other(cpu, &gic_flags, BLOCK_GIC_VP_LOCAL);
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_RMASK), 1 << intr);
 		gic_unlock_other(gic_flags);
 	}
@@ -569,12 +724,12 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 {
 	int intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
-	int i;
+	int cpu;
 	unsigned long flags, gic_flags;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	for (i = 0; i < gic_vpes; i++) {
-		gic_lock_other(i, &gic_flags, BLOCK_GIC_VP_LOCAL);
+	for_each_possible_cpu(cpu) {
+		gic_lock_other(cpu, &gic_flags, BLOCK_GIC_VP_LOCAL);
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_SMASK), 1 << intr);
 		gic_unlock_other(gic_flags);
 	}
@@ -602,7 +757,7 @@ static void gic_irq_dispatch(struct irq_desc *desc)
 static void __init gic_basic_init(void)
 {
 	unsigned long flags;
-	unsigned int i;
+	unsigned int i, cpu;
 
 	board_bind_eic_interrupt = &gic_bind_eic_interrupt;
 
@@ -613,10 +768,10 @@ static void __init gic_basic_init(void)
 		gic_reset_mask(i);
 	}
 
-	for (i = 0; i < gic_vpes; i++) {
+	for_each_possible_cpu(cpu) {
 		unsigned int j;
 
-		gic_lock_other(i, &flags, BLOCK_GIC_VP_LOCAL);
+		gic_lock_other(cpu, &flags, BLOCK_GIC_VP_LOCAL);
 		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
 			if (!gic_local_irq_is_routable(j))
 				continue;
@@ -631,17 +786,17 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 {
 	int intr = GIC_HWIRQ_TO_LOCAL(hw);
 	int ret = 0;
-	int i;
+	int cpu;
 	unsigned long flags, gic_flags;
 
 	if (!gic_local_irq_is_routable(intr))
 		return -EPERM;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	for (i = 0; i < gic_vpes; i++) {
+	for_each_possible_cpu(cpu) {
 		u32 val = GIC_MAP_TO_PIN_MSK | gic_cpu_pin;
 
-		gic_lock_other(i, &gic_flags, BLOCK_GIC_VP_LOCAL);
+		gic_lock_other(cpu, &gic_flags, BLOCK_GIC_VP_LOCAL);
 
 		switch (intr) {
 		case GIC_LOCAL_INT_WD:
@@ -694,7 +849,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 
 	spin_lock_irqsave(&gic_lock, flags);
 	gic_map_to_pin(intr, gic_cpu_pin);
-	gic_map_to_vpe(intr, mips_cm_vp_id(cpu));
+	gic_map_to_cpu(intr, cpu);
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
 	set_bit(intr, pcpu_masks[cpu].pcpu_mask);
