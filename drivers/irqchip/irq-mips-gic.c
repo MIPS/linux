@@ -156,9 +156,15 @@ static inline void gic_write(unsigned int reg, unsigned long val)
 		return gic_write64(reg, (u64)val);
 }
 
-static inline void gic_lock_other(unsigned int cpu, unsigned long *flags)
+static inline void gic_lock_other(unsigned int cpu, unsigned long *flags,
+				  enum gcr_redir_block block)
 {
 	local_irq_save(*flags);
+
+	if (mips_cm_revision() >= CM_REV_CM3_5) {
+		mips_cm_lock_other_cpu(cpu, block);
+		return;
+	}
 
 	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
 		  mips_cm_vp_id(cpu));
@@ -166,6 +172,9 @@ static inline void gic_lock_other(unsigned int cpu, unsigned long *flags)
 
 static inline void gic_unlock_other(unsigned long flags)
 {
+	if (mips_cm_revision() >= CM_REV_CM3_5)
+		mips_cm_unlock_other();
+
 	local_irq_restore(flags);
 }
 
@@ -312,7 +321,7 @@ void gic_write_cpu_compare(u64 cnt, int cpu)
 {
 	unsigned long flags;
 
-	gic_lock_other(cpu, &flags);
+	gic_lock_other(cpu, &flags, BLOCK_GIC_VP_LOCAL);
 
 	if (mips_cm_is64) {
 		gic_write(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE), cnt);
@@ -670,7 +679,7 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 	for (i = 0; i < gic_vpes; i++) {
 		gic_save_local_rmask(i, 1 << intr);
 
-		gic_lock_other(i, &gic_flags);
+		gic_lock_other(i, &gic_flags, BLOCK_GIC_VP_LOCAL);
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_RMASK), 1 << intr);
 		gic_unlock_other(gic_flags);
 	}
@@ -687,7 +696,7 @@ static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 	for (i = 0; i < gic_vpes; i++) {
 		gic_save_local_smask(i, 1 << intr);
 
-		gic_lock_other(i, &gic_flags);
+		gic_lock_other(i, &gic_flags, BLOCK_GIC_VP_LOCAL);
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_SMASK), 1 << intr);
 		gic_unlock_other(gic_flags);
 	}
@@ -729,7 +738,7 @@ static void __init gic_basic_init(void)
 	for (i = 0; i < gic_vpes; i++) {
 		unsigned int j;
 
-		gic_lock_other(i, &flags);
+		gic_lock_other(i, &flags, BLOCK_GIC_VP_LOCAL);
 		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
 			if (!gic_local_irq_is_routable(j))
 				continue;
@@ -754,7 +763,7 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	for (i = 0; i < gic_vpes; i++) {
 		u32 val = GIC_MAP_TO_PIN_MSK | gic_cpu_pin;
 
-		gic_lock_other(i, &gic_flags);
+		gic_lock_other(i, &gic_flags, BLOCK_GIC_VP_LOCAL);
 
 		switch (intr) {
 		case GIC_LOCAL_INT_WD:
@@ -1069,7 +1078,7 @@ static void gic_restore_local(unsigned int cpu)
 		gic_local_irq_domain_map(gic_irq_domain, virq, hw);
 	}
 
-	gic_lock_other(cpu, &flags);
+	gic_lock_other(cpu, &flags, BLOCK_GIC_VP_LOCAL);
 
 	/* Enable EIC mode if necessary */
 	gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_CTL), cpu_has_veic);
@@ -1126,7 +1135,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	if (cpu_has_veic) {
 		/* Set EIC mode for all VPEs */
 		for_each_present_cpu(cpu) {
-			gic_lock_other(cpu, &flags);
+			gic_lock_other(cpu, &flags, BLOCK_GIC_VP_LOCAL);
 			gic_write(GIC_REG(VPE_OTHER, GIC_VPE_CTL),
 				  GIC_VPE_CTL_EIC_MODE_MSK);
 			gic_unlock_other(flags);
