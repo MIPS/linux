@@ -10,6 +10,7 @@
  */
 
 #include <linux/types.h>
+#include <asm/inst.h>
 
 #ifdef CONFIG_EXPORT_UASM
 #include <linux/export.h>
@@ -17,6 +18,52 @@
 #else
 #define UASM_EXPORT_SYMBOL(sym)
 #endif
+
+static inline void _uasm_emit(u32 **buf, union mips_instruction insn)
+{
+	u32 word = insn.word;
+
+	if (IS_ENABLED(__mips_micromips) && IS_ENABLED(CONFIG_CPU_LITTLE_ENDIAN))
+		word = (word << 16) | (word >> 16);
+
+	*(*buf)++ = word;
+}
+
+static inline void _uasm_emit_i(u32 **buf, struct i_format insn)
+{
+	_uasm_emit(buf, (union mips_instruction){ .i_format = insn });
+}
+
+static inline long _uasm_check_simm(long imm, unsigned int bits)
+{
+	unsigned long sign_bits;
+
+	sign_bits = GENMASK(BITS_PER_LONG - 1, BITS_PER_LONG - bits - 1);
+	WARN_ON((imm & sign_bits) && ((imm & sign_bits) != sign_bits));
+
+	return imm;
+}
+
+static inline ulong _uasm_check_uimm(ulong imm, unsigned int bits)
+{
+	unsigned long mask;
+
+	mask = GENMASK(bits - 1, 0);
+	WARN_ON(imm & ~mask);
+
+	return imm;
+}
+
+static inline void uasm_i_addiu(u32 **buf, unsigned int rt,
+				unsigned int rs, int imm)
+{
+	_uasm_emit_i(buf, (struct i_format){
+		.opcode = IS_ENABLED(__mips_micromips) ? mm_addiu32_op : addiu_op,
+		.rt = IS_ENABLED(__mips_micromips) ? rs : rt,
+		.rs = IS_ENABLED(__mips_micromips) ? rt : rs,
+		.simmediate = _uasm_check_simm(imm, 16),
+	});
+}
 
 #define Ip_u1u2u3(op)							\
 void uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
@@ -59,7 +106,6 @@ void uasm_i##op(u32 **buf, unsigned int a, signed int b)
 
 #define Ip_0(op) void uasm_i##op(u32 **buf)
 
-Ip_u2u1s3(_addiu);
 Ip_u3u1u2(_addu);
 Ip_u3u1u2(_and);
 Ip_u2u1u3(_andi);

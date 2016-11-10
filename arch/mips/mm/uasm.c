@@ -47,7 +47,7 @@ enum fields {
 
 enum opcode {
 	insn_invalid,
-	insn_addiu, insn_addu, insn_and, insn_andi, insn_bbit0, insn_bbit1,
+	insn_addu, insn_and, insn_andi, insn_bbit0, insn_bbit1,
 	insn_beq, insn_beql, insn_bgez, insn_bgezl, insn_bltz, insn_bltzl,
 	insn_bne, insn_cache, insn_cfc1, insn_cfcmsa, insn_ctc1, insn_ctcmsa,
 	insn_daddiu, insn_daddu, insn_di, insn_dins, insn_dinsm, insn_divu,
@@ -257,7 +257,6 @@ Ip_0(op)						\
 }							\
 UASM_EXPORT_SYMBOL(uasm_i##op);
 
-I_u2u1s3(_addiu)
 I_u3u1u2(_addu)
 I_u2u1u3(_andi)
 I_u3u1u2(_and)

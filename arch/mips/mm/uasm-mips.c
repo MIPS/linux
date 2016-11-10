@@ -49,7 +49,6 @@
 #include "uasm.c"
 
 static struct insn insn_table[] = {
-	{ insn_addiu, M(addiu_op, 0, 0, 0, 0, 0), RS | RT | SIMM },
 	{ insn_addu, M(spec_op, 0, 0, 0, 0, addu_op), RS | RT | RD },
 	{ insn_andi, M(andi_op, 0, 0, 0, 0, 0), RS | RT | UIMM },
 	{ insn_and, M(spec_op, 0, 0, 0, 0, and_op), RS | RT | RD },
