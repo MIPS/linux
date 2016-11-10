@@ -879,6 +879,11 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 
 	preempt_disable();
 	if (cpu_has_inclusive_pcaches) {
+		unsigned int slsize = cpu_scache_line_size();
+
+		if (slsize)
+			WARN_ON(addr % slsize);
+
 		if (size >= scache_size)
 			r4k_blast_scache();
 		else {
@@ -896,6 +901,8 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		__sync();
 		return;
 	}
+
+	WARN_ON(addr % cpu_dcache_line_size());
 
 	if (size >= dcache_size) {
 		r4k_blast_dcache();
