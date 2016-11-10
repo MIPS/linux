@@ -10,6 +10,7 @@
  */
 
 #include <linux/types.h>
+#include <asm/bugs.h>
 #include <asm/inst.h>
 
 #ifdef CONFIG_EXPORT_UASM
@@ -59,6 +60,19 @@ static inline void uasm_i_addiu(u32 **buf, unsigned int rt,
 {
 	_uasm_emit_i(buf, (struct i_format){
 		.opcode = IS_ENABLED(__mips_micromips) ? mm_addiu32_op : addiu_op,
+		.rt = IS_ENABLED(__mips_micromips) ? rs : rt,
+		.rs = IS_ENABLED(__mips_micromips) ? rt : rs,
+		.simmediate = _uasm_check_simm(imm, 16),
+	});
+}
+
+static inline void uasm_i_daddiu(u32 **buf, unsigned int rt,
+				 unsigned int rs, int imm)
+{
+	WARN_ON(r4k_daddiu_bug());
+
+	_uasm_emit_i(buf, (struct i_format){
+		.opcode = IS_ENABLED(__mips_micromips) ? mm_daddiu32_op : daddiu_op,
 		.rt = IS_ENABLED(__mips_micromips) ? rs : rt,
 		.rs = IS_ENABLED(__mips_micromips) ? rt : rs,
 		.simmediate = _uasm_check_simm(imm, 16),
@@ -123,7 +137,6 @@ Ip_u1u2(_cfc1);
 Ip_u2u1(_cfcmsa);
 Ip_u1u2(_ctc1);
 Ip_u2u1(_ctcmsa);
-Ip_u2u1s3(_daddiu);
 Ip_u3u1u2(_daddu);
 Ip_u1(_di);
 Ip_u2u1msbu3(_dins);

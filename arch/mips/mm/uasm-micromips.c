@@ -57,7 +57,6 @@ static struct insn insn_table_MM[] = {
 	{ insn_ctc1, M(mm_pool32f_op, 0, 0, 0, mm_ctc1_op, mm_32f_73_op), RT | RS },
 	{ insn_ctcmsa, M(mm_pool32s_op, 0, msa_ctc_op, 0, 0, mm_32s_elm_op), RD | RE },
 	{ insn_daddu, 0, 0 },
-	{ insn_daddiu, 0, 0 },
 	{ insn_di, M(mm_pool32a_op, 0, 0, 0, mm_di_op, mm_pool32axf_op), RS },
 	{ insn_divu, M(mm_pool32a_op, 0, 0, 0, mm_divu_op, mm_pool32axf_op), RT | RS },
 	{ insn_dmfc0, 0, 0 },
@@ -166,7 +165,7 @@ static void build_insn(u32 **buf, enum opcode opc, ...)
 			break;
 		}
 
-	if (!ip || (opc == insn_daddiu && r4k_daddiu_bug()))
+	if (!ip)
 		panic("Unsupported Micro-assembler instruction %d", opc);
 
 	op = ip->match;

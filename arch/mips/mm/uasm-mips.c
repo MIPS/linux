@@ -70,7 +70,6 @@ static struct insn insn_table[] = {
 	{ insn_cfcmsa, M(msa_op, 0, msa_cfc_op, 0, 0, msa_elm_op), RD | RE },
 	{ insn_ctc1, M(cop1_op, ctc_op, 0, 0, 0, 0), RT | RD },
 	{ insn_ctcmsa, M(msa_op, 0, msa_ctc_op, 0, 0, msa_elm_op), RD | RE },
-	{ insn_daddiu, M(daddiu_op, 0, 0, 0, 0, 0), RS | RT | SIMM },
 	{ insn_daddu, M(spec_op, 0, 0, 0, 0, daddu_op), RS | RT | RD },
 	{ insn_dinsm, M(spec3_op, 0, 0, 0, 0, dinsm_op), RS | RT | RD | RE },
 	{ insn_di, M(cop0_op, mfmc0_op, 0, 12, 0, 0), RT },
@@ -205,7 +204,7 @@ static void build_insn(u32 **buf, enum opcode opc, ...)
 			break;
 		}
 
-	if (!ip || (opc == insn_daddiu && r4k_daddiu_bug()))
+	if (!ip)
 		panic("Unsupported Micro-assembler instruction %d", opc);
 
 	op = ip->match;
