@@ -691,7 +691,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			bit = get_fpr32(&current->thread.fpu.fpr[reg], 0) & 0x1;
 			if (insn.i_format.rs == bc1eqz_op)
 				bit = !bit;
-			own_fpu(1);
+			own_fpu_opportunistic();
 			if (bit)
 				epc = epc + 4 +
 					(insn.i_format.simmediate << 2);

@@ -817,7 +817,7 @@ static int simulate_fp(struct pt_regs *regs, unsigned int opcode,
 	current->thread.fpu.fcr31 &= ~fcr31;
 
 	/* Restore the hardware register state */
-	own_fpu(1);
+	own_fpu_opportunistic();
 
 	/* Send a signal if required.  */
 	process_fpemu_return(sig, fault_addr, fcr31);
@@ -871,7 +871,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		current->thread.fpu.fcr31 &= ~fcr31;
 
 		/* Restore the hardware register state */
-		own_fpu(1);	/* Using the FPU again.	 */
+		own_fpu_opportunistic();	/* Using the FPU again.	 */
 	} else {
 		sig = SIGFPE;
 		fault_addr = (void __user *) regs->cp0_epc;
