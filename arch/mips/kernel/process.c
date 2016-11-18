@@ -26,6 +26,7 @@
 #include <linux/kallsyms.h>
 #include <linux/random.h>
 #include <linux/prctl.h>
+#include <linux/cpu.h>
 
 #include <asm/asm.h>
 #include <asm/bootinfo.h>
@@ -593,19 +594,25 @@ int mips_get_process_fp_mode(struct task_struct *task)
 	return value;
 }
 
-static void prepare_for_fp_mode_switch(void *info)
+static long prepare_for_fp_mode_switch(void *unused)
 {
-	struct mm_struct *mm = info;
-
-	if (current->mm == mm)
-		lose_fpu(1);
+	/*
+	 * This is icky, but we use this to simply ensure that all CPUs have
+	 * context switched, regardless of whether they were previously running
+	 * kernel or user code. This ensures that no CPU currently has its FPU
+	 * enabled, or is about to attempt to enable it through any path other
+	 * than enable_restore_fp_context() which will wait appropriately for
+	 * fp_mode_switching to be zero.
+	 */
+	return 0;
 }
 
 int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 {
 	const unsigned int known_bits = PR_FP_MODE_FR | PR_FP_MODE_FRE;
 	struct task_struct *t;
-	int max_users;
+	struct cpumask process_cpus;
+	int cpu;
 
 	/* Check the value is valid */
 	if (value & ~known_bits)
@@ -639,12 +646,32 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	 * regain until fp_mode_switching is cleared later.
 	 */
 	if (num_online_cpus() > 1) {
-		/* No need to send an IPI for the local CPU */
-		max_users = (task->mm == current->mm) ? 1 : 0;
+		/*
+		 * Generate a mask of all CPUs that a thread in the current
+		 * process may currently be running on. They may reschedule in
+		 * the meantime, but that doesn't matter. If the task in this
+		 * process is scheduled out then we'll just end up calling
+		 * work_on_cpu() an extra time. If it's scheduled in then it
+		 * can't enable the FPU without going through
+		 * enable_restore_fp_context(), which is what we want.
+		 */
+		cpumask_clear(&process_cpus);
+		for_each_thread(task, t)
+			cpumask_set_cpu(task_cpu(t), &process_cpus);
 
-		if (atomic_read(&current->mm->mm_users) > max_users)
-			smp_call_function(prepare_for_fp_mode_switch,
-					  (void *)current->mm, 1);
+		/*
+		 * Now, with preemption enabled so that we can sleep whilst
+		 * waiting, schedule prepare_for_fp_mode_switch() on each CPU
+		 * that may be running a thread from this process. The act of
+		 * scheduling it will force any previously running task to be
+		 * context switched out & therefore to lose the FPU.
+		 */
+		preempt_enable_no_resched();
+		get_online_cpus();
+		for_each_cpu_and(cpu, &process_cpus, cpu_online_mask)
+			work_on_cpu(cpu, prepare_for_fp_mode_switch, NULL);
+		put_online_cpus();
+		preempt_disable();
 	}
 
 	/*
