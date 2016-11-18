@@ -634,7 +634,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 
 	/* Save FP & vector context, then disable FPU & MSA */
 	if (task->signal == current->signal)
-		lose_fpu(1);
+		lose_fpu_inatomic(1, current);
 
 	/* Prevent any threads from obtaining live FP context */
 	atomic_set(&task->mm->context.fp_mode_switching, 1);
