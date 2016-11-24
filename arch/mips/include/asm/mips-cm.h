@@ -628,4 +628,73 @@ static inline bool mips_cm_using_multicluster(void)
 	return cpu_cluster(&cpu_data[last_cpu]) != 0;
 }
 
+/**
+ * __mips_cm_first_cluster() - Find the first cluster number from a cpumask
+ * @cpumask: mask containing CPUs whose clusters we want to cover
+ *
+ * Find the cluster number for the first CPU set in @cpumask. Not intended for
+ * direct use - instead make use of this via the for_each_possible_cluster()
+ * macro.
+ *
+ * Return: the cluster number of the first CPU set in @cpumask
+ */
+static inline unsigned int
+__mips_cm_first_cluster(const struct cpumask *cpumask)
+{
+	return cpu_cluster(&cpu_data[cpumask_first(cpumask)]);
+}
+
+/**
+ * __mips_cm_next_cluster() - Find the next cluster covering a cpumask
+ * @cpumask: mask containing CPUs whose clusters we want to cover
+ * @prev: the cluster to start from
+ *
+ * Find the cluster number for the cluster following @prev which contains CPUs
+ * set within @cpumask. Not intended for direct use - instead make use of this
+ * via the for_each_possible_cluster() macro.
+ *
+ * Return: the cluster number following @prev, or UINT_MAX if no more clusters
+ */
+static inline unsigned int
+__mips_cm_next_cluster(const struct cpumask *cpumask, unsigned int prev)
+{
+	unsigned int cpu;
+
+	/*
+	 * We rely here upon having probed CPUs from each cluster sequentially
+	 * with a strictly incrementing cluster number. That is, each CPU
+	 * should have a cluster number greater or equal than that of all CPUs
+	 * with a lower CPU number.
+	 */
+	for_each_cpu(cpu, cpumask) {
+		if (cpu_cluster(&cpu_data[cpu]) <= prev)
+			continue;
+
+		return cpu_cluster(&cpu_data[cpu]);
+	}
+
+	return UINT_MAX;
+}
+
+/*
+ * for_each_possible_cluster() - Loop over clusters containing possible CPUs
+ * @cluster: an unsigned integer to contain the cluster number
+ *
+ * Loop over all clusters which contain any CPUs set in cpu_possible_mask. This
+ * can be used to easily operate on all clusters that Linux is running across.
+ * For example you may access a register in all clusters by doing something
+ * along the lines of:
+ *
+ *   unsigned int cluster;
+ *   for_each_possible_cluster(cluster) {
+ *     mips_cm_lock_other(cluster, 0, 0, BLOCK_GCR_GLOBAL);
+ *     write_redir_gcr_gic_base(0x10000001);
+ *     mips_cm_unlock_other();
+ *   }
+ */
+#define for_each_possible_cluster(cluster)					\
+	for ((cluster) = __mips_cm_first_cluster(cpu_possible_mask);		\
+	     (cluster) != UINT_MAX;						\
+	     (cluster) = __mips_cm_next_cluster(cpu_possible_mask, cluster))
+
 #endif /* __MIPS_ASM_MIPS_CM_H__ */
