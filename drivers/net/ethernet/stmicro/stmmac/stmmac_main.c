@@ -964,14 +964,16 @@ static int stmmac_init_rx_buffers(struct stmmac_priv *priv, struct dma_desc *p,
 		return -ENOMEM;
 	}
 	priv->rx_skbuff[i] = skb;
-	priv->rx_skbuff_dma[i] = dma_map_single(priv->device, skb->data,
-						priv->dma_buf_sz,
-						DMA_FROM_DEVICE);
-	if (dma_mapping_error(priv->device, priv->rx_skbuff_dma[i])) {
+	priv->rx_skbuff_head[i] = dma_map_single(priv->device, skb->head,
+						 skb_headroom(skb) +
+						 priv->dma_buf_sz,
+						 DMA_FROM_DEVICE);
+	if (dma_mapping_error(priv->device, priv->rx_skbuff_head[i])) {
 		netdev_err(priv->dev, "%s: DMA mapping error\n", __func__);
 		dev_kfree_skb_any(skb);
 		return -EINVAL;
 	}
+	priv->rx_skbuff_dma[i] = priv->rx_skbuff_head[i] + skb_headroom(skb);
 
 	if (priv->synopsys_id >= DWMAC_CORE_4_00)
 		p->des0 = cpu_to_le32(priv->rx_skbuff_dma[i]);
@@ -988,7 +990,8 @@ static int stmmac_init_rx_buffers(struct stmmac_priv *priv, struct dma_desc *p,
 static void stmmac_free_rx_buffers(struct stmmac_priv *priv, int i)
 {
 	if (priv->rx_skbuff[i]) {
-		dma_unmap_single(priv->device, priv->rx_skbuff_dma[i],
+		dma_unmap_single(priv->device, priv->rx_skbuff_head[i],
+				 skb_headroom(priv->rx_skbuff[i]) +
 				 priv->dma_buf_sz, DMA_FROM_DEVICE);
 		dev_kfree_skb_any(priv->rx_skbuff[i]);
 	}
@@ -1163,6 +1166,11 @@ static int alloc_dma_desc_resources(struct stmmac_priv *priv)
 	if (!priv->tx_skbuff_dma)
 		goto err_tx_skbuff_dma;
 
+	priv->rx_skbuff_head = kmalloc_array(DMA_RX_SIZE, sizeof(dma_addr_t),
+					    GFP_KERNEL);
+	if (!priv->rx_skbuff_head)
+		goto err_tx_skbuff_head;
+
 	priv->tx_skbuff = kmalloc_array(DMA_TX_SIZE, sizeof(struct sk_buff *),
 					GFP_KERNEL);
 	if (!priv->tx_skbuff)
@@ -1214,6 +1222,8 @@ err_dma:
 	kfree(priv->tx_skbuff);
 err_tx_skbuff:
 	kfree(priv->tx_skbuff_dma);
+err_tx_skbuff_head:
+	kfree(priv->rx_skbuff_head);
 err_tx_skbuff_dma:
 	kfree(priv->rx_skbuff);
 err_rx_skbuff:
@@ -1246,6 +1256,7 @@ static void free_dma_desc_resources(struct stmmac_priv *priv)
 	kfree(priv->rx_skbuff_dma);
 	kfree(priv->rx_skbuff);
 	kfree(priv->tx_skbuff_dma);
+	kfree(priv->rx_skbuff_head);
 	kfree(priv->tx_skbuff);
 }
 
@@ -2416,15 +2427,18 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 			}
 
 			priv->rx_skbuff[entry] = skb;
-			priv->rx_skbuff_dma[entry] =
-			    dma_map_single(priv->device, skb->data, bfsize,
+			priv->rx_skbuff_head[entry] =
+			    dma_map_single(priv->device, skb->head,
+					   skb_headroom(skb) + bfsize,
 					   DMA_FROM_DEVICE);
 			if (dma_mapping_error(priv->device,
-					      priv->rx_skbuff_dma[entry])) {
+					      priv->rx_skbuff_head[entry])) {
 				netdev_err(priv->dev, "Rx DMA map failed\n");
 				dev_kfree_skb(skb);
 				break;
 			}
+			priv->rx_skbuff_dma[entry] = priv->rx_skbuff_head[entry]
+						     + skb_headroom(skb);
 
 			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00)) {
 				p->des0 = cpu_to_le32(priv->rx_skbuff_dma[entry]);
@@ -2522,10 +2536,12 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 				 * them in stmmac_rx_refill() function so that
 				 * device can reuse it.
 				 */
+				int head = skb_headroom(priv->rx_skbuff[entry]);
+
 				priv->rx_skbuff[entry] = NULL;
 				dma_unmap_single(priv->device,
-						 priv->rx_skbuff_dma[entry],
-						 priv->dma_buf_sz,
+						 priv->rx_skbuff_head[entry],
+						 head + priv->dma_buf_sz,
 						 DMA_FROM_DEVICE);
 			}
 		} else {
@@ -2573,6 +2589,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			if (unlikely(!priv->plat->has_gmac4 &&
 				     ((frame_len < priv->rx_copybreak) ||
 				     stmmac_rx_threshold_count(priv)))) {
+				int head = skb_headroom(priv->rx_skbuff[entry]);
+
 				skb = netdev_alloc_skb_ip_align(priv->dev,
 								frame_len);
 				if (unlikely(!skb)) {
@@ -2584,8 +2602,9 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 				}
 
 				dma_sync_single_for_cpu(priv->device,
-							priv->rx_skbuff_dma
-							[entry], frame_len,
+							priv->rx_skbuff_head
+							[entry],
+							head + frame_len,
 							DMA_FROM_DEVICE);
 				skb_copy_to_linear_data(skb,
 							priv->
@@ -2594,11 +2613,15 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 
 				skb_put(skb, frame_len);
 				dma_sync_single_for_device(priv->device,
-							   priv->rx_skbuff_dma
-							   [entry], frame_len,
+							   priv->rx_skbuff_head
+							   [entry],
+							   head + frame_len,
 							   DMA_FROM_DEVICE);
 			} else {
+				int head;
+
 				skb = priv->rx_skbuff[entry];
+				head = skb_headroom(skb);
 				if (unlikely(!skb)) {
 					netdev_err(priv->dev,
 						   "%s: Inconsistent Rx chain\n",
@@ -2612,8 +2635,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 
 				skb_put(skb, frame_len);
 				dma_unmap_single(priv->device,
-						 priv->rx_skbuff_dma[entry],
-						 priv->dma_buf_sz,
+						 priv->rx_skbuff_head[entry],
+						 head + priv->dma_buf_sz,
 						 DMA_FROM_DEVICE);
 			}
 
