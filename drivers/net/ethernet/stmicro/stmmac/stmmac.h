@@ -67,6 +67,7 @@ struct stmmac_rx_queue {
 	struct dma_desc *dma_rx ____cacheline_aligned_in_smp;
 	struct sk_buff **rx_skbuff;
 	dma_addr_t *rx_skbuff_dma;
+	dma_addr_t *rx_skbuff_head;
 	unsigned int cur_rx;
 	unsigned int dirty_rx;
 	u32 rx_zeroc_thresh;
