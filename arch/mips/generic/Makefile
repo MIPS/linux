@@ -13,5 +13,6 @@ obj-y += irq.o
 obj-y += proc.o
 
 obj-$(CONFIG_YAMON_DT_SHIM)		+= yamon-dt.o
+obj-$(CONFIG_LEGACY_BOARD_MALTA)	+= board-malta.o
 obj-$(CONFIG_LEGACY_BOARD_SEAD3)	+= board-sead3.o
 obj-$(CONFIG_KEXEC)			+= kexec.o
