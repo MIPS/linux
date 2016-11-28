@@ -32,6 +32,9 @@ void __init prom_init(void)
 {
 	plat_get_fdt();
 	BUG_ON(!fdt);
+
+	if (mach && mach->prom_init)
+		mach->prom_init();
 }
 
 void __init *plat_get_fdt(void)
