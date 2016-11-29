@@ -243,17 +243,24 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 	const __be32 *val;
 	bool big_endian;
 	u64 addr;
+	unsigned int flags;
 
 	spin_lock_init(&port->lock);
 	port->iotype = UPIO_MEM;
-	addr = of_flat_dt_translate_address(node);
+	addr = of_flat_dt_get_address(node, &flags);
 	if (addr == OF_BAD_ADDR) {
 		pr_warn("[%s] bad address\n", match->name);
 		return -ENXIO;
 	}
-	port->mapbase = addr;
 	port->uartclk = BASE_BAUD * 16;
-	port->membase = earlycon_map(port->mapbase, SZ_4K);
+
+	if (flags & IORESOURCE_IO) {
+		port->iotype = UPIO_PORT;
+		port->iobase = addr;
+	} else {
+		port->mapbase = addr;
+		port->membase = earlycon_map(port->mapbase, SZ_4K);
+	}
 
 	val = of_get_flat_dt_prop(node, "reg-offset", NULL);
 	if (val)
@@ -264,7 +271,11 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 	big_endian = of_get_flat_dt_prop(node, "big-endian", NULL) != NULL ||
 		(IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) &&
 		 of_get_flat_dt_prop(node, "native-endian", NULL) != NULL);
-	val = of_get_flat_dt_prop(node, "reg-io-width", NULL);
+
+	if (port->membase)
+		val = of_get_flat_dt_prop(node, "reg-io-width", NULL);
+	else
+		val = NULL;
 	if (val) {
 		switch (be32_to_cpu(*val)) {
 		case 1:
