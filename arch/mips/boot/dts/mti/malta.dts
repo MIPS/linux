@@ -43,6 +43,30 @@
 		#interrupt-cells = <1>;
 	};
 
+	msc01 {
+		status = "disabled";
+		compatible = "mti,msc01", "syscon", "simple-mfd";
+		reg = <0x1bd00000 0x4000>;
+		native-endian;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <>;
+
+		pci {
+			compatible = "mti,msc01-pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			#interrupt-cells = <1>;
+			interrupt-parent = <&i8259>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &i8259 10>,
+			                <0 0 0 2 &i8259 10>,
+			                <0 0 0 3 &i8259 11>,
+			                <0 0 0 4 &i8259 11>;
+		};
+	};
+
 	gic: interrupt-controller@1bdc0000 {
 		compatible = "mti,gic";
 		reg = <0x1bdc0000 0x20000>;
@@ -72,6 +96,30 @@
 
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	gt64120 {
+		status = "disabled";
+		compatible = "galileo,gt-64120", "syscon", "simple-mfd";
+		reg = <0x1be00000 0x2000>;
+		native-endian;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <>;
+
+		pci {
+			compatible = "galileo,gt-64120-pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			#interrupt-cells = <1>;
+			interrupt-parent = <&i8259>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &i8259 10>,
+			                <0 0 0 2 &i8259 10>,
+			                <0 0 0 3 &i8259 11>,
+			                <0 0 0 4 &i8259 11>;
+		};
 	};
 
 	flash@1e000000 {
