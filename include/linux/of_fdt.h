@@ -45,6 +45,8 @@ extern char __dtb_start[];
 extern char __dtb_end[];
 
 /* Other Prototypes */
+extern u64 fdt_get_address(const void *blob, int node_offset,
+			   unsigned int *flags);
 extern u64 of_flat_dt_translate_address(unsigned long node);
 extern u64 of_flat_dt_get_address(unsigned long node, unsigned int *flags);
 extern void of_fdt_limit_memory(int limit);
