@@ -15,6 +15,7 @@
 
 #define pr_fmt(fmt)	"OF: fdt: " fmt
 
+#include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/libfdt.h>
 #include <linux/of.h>
@@ -41,11 +42,13 @@ static void __init of_dump_addr(const char *s, const __be32 *addr, int na) { }
 
 /* Callbacks for bus specific translators */
 struct of_bus {
+	int		(*match)(const void *blob, int parentoffset);
 	void		(*count_cells)(const void *blob, int parentoffset,
 				int *addrc, int *sizec);
 	u64		(*map)(__be32 *addr, const __be32 *range,
 				int na, int ns, int pna);
 	int		(*translate)(__be32 *addr, u64 offset, int na);
+	unsigned int	(*get_flags)(const __be32 *addr);
 };
 
 /* Default translator (generic bus) */
@@ -100,15 +103,101 @@ static int __init fdt_bus_default_translate(__be32 *addr, u64 offset, int na)
 	return 0;
 }
 
+static unsigned int fdt_bus_default_get_flags(const __be32 *addr)
+{
+	return IORESOURCE_MEM;
+}
+
+/*
+ * ISA bus translator
+ */
+
+static int fdt_bus_isa_match(const void *blob, int parent)
+{
+	const char *name;
+
+	name = fdt_get_name(blob, parent, NULL);
+	return !strcmp(name, "isa");
+}
+
+static void __init fdt_bus_isa_count_cells(const void *blob, int parentoffset,
+					   int *addrc, int *sizec)
+{
+	if (addrc)
+		*addrc = 2;
+	if (sizec)
+		*sizec = 1;
+}
+
+static u64 __init fdt_bus_isa_map(__be32 *addr, const __be32 *range,
+				  int na, int ns, int pna)
+{
+	u64 cp, s, da;
+
+	/* Check address type match */
+	if ((addr[0] ^ range[0]) & cpu_to_be32(1))
+		return OF_BAD_ADDR;
+
+	/* Read address values, skipping high cell */
+	cp = of_read_number(range + 1, na - 1);
+	s  = of_read_number(range + na + pna, ns);
+	da = of_read_number(addr + 1, na - 1);
+
+	pr_debug("ISA map, cp=%llx, s=%llx, da=%llx\n",
+		 (unsigned long long)cp, (unsigned long long)s,
+		 (unsigned long long)da);
+
+	if (da < cp || da >= (cp + s))
+		return OF_BAD_ADDR;
+	return da - cp;
+}
+
+static int __init fdt_bus_isa_translate(__be32 *addr, u64 offset, int na)
+{
+	return fdt_bus_default_translate(addr + 1, offset, na - 1);
+}
+
+static unsigned int fdt_bus_isa_get_flags(const __be32 *addr)
+{
+	unsigned int flags = 0;
+	u32 w = be32_to_cpup(addr);
+
+	if (w & 1)
+		flags |= IORESOURCE_IO;
+	else
+		flags |= IORESOURCE_MEM;
+	return flags;
+}
+
 /* Array of bus specific translators */
 static const struct of_bus of_busses[] __initconst = {
+	/* ISA */
+	{
+		.match = fdt_bus_isa_match,
+		.count_cells = fdt_bus_isa_count_cells,
+		.map = fdt_bus_isa_map,
+		.translate = fdt_bus_isa_translate,
+		.get_flags = fdt_bus_isa_get_flags,
+	},
 	/* Default */
 	{
 		.count_cells = fdt_bus_default_count_cells,
 		.map = fdt_bus_default_map,
 		.translate = fdt_bus_default_translate,
+		.get_flags = fdt_bus_default_get_flags,
 	},
 };
+
+static const struct of_bus *fdt_match_bus(const void *blob, int parent)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(of_busses); i++)
+		if (!of_busses[i].match || of_busses[i].match(blob, parent))
+			return &of_busses[i];
+	BUG();
+	return NULL;
+}
 
 static int __init fdt_translate_one(const void *blob, int parent,
 				    const struct of_bus *bus,
@@ -164,7 +253,8 @@ static int __init fdt_translate_one(const void *blob, int parent,
  * that can be mapped to a cpu physical address). This is not really specified
  * that way, but this is traditionally the way IBM at least do things
  */
-static u64 __init fdt_translate_address(const void *blob, int node_offset)
+static u64 __init fdt_get_address(const void *blob, int node_offset,
+				  unsigned int *flags)
 {
 	int parent, len;
 	const struct of_bus *bus, *pbus;
@@ -187,7 +277,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 	parent = fdt_parent_offset(blob, node_offset);
 	if (parent < 0)
 		goto bail;
-	bus = &of_busses[0];
+	bus = fdt_match_bus(blob, parent);
 
 	/* Cound address cells & copy address locally */
 	bus->count_cells(blob, parent, &na, &ns);
@@ -201,6 +291,9 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 	pr_debug("bus (na=%d, ns=%d) on %s\n",
 		 na, ns, fdt_get_name(blob, parent, NULL));
 	of_dump_addr("translating address:", addr, na);
+
+	if (flags)
+		*flags = bus->get_flags(addr);
 
 	/* Translate */
 	for (;;) {
@@ -216,7 +309,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 		}
 
 		/* Get new parent bus and counts */
-		pbus = &of_busses[0];
+		pbus = fdt_match_bus(blob, parent);
 		pbus->count_cells(blob, parent, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
 			pr_err("Bad cell count for %s\n",
@@ -249,5 +342,15 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
  */
 u64 __init of_flat_dt_translate_address(unsigned long node)
 {
-	return fdt_translate_address(initial_boot_params, node);
+	return fdt_get_address(initial_boot_params, node, NULL);
+}
+
+/**
+ * of_flat_dt_get_address() - translate DT addr into CPU phys addr
+ * @node: node in the flat blob
+ * @flags: pointer at which to write resource flags
+ */
+u64 __init of_flat_dt_get_address(unsigned long node, unsigned int *flags)
+{
+	return fdt_get_address(initial_boot_params, node, flags);
 }
