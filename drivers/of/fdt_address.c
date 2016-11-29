@@ -253,8 +253,7 @@ static int __init fdt_translate_one(const void *blob, int parent,
  * that can be mapped to a cpu physical address). This is not really specified
  * that way, but this is traditionally the way IBM at least do things
  */
-static u64 __init fdt_get_address(const void *blob, int node_offset,
-				  unsigned int *flags)
+u64 __init fdt_get_address(const void *blob, int node_offset, unsigned int *flags)
 {
 	int parent, len;
 	const struct of_bus *bus, *pbus;
