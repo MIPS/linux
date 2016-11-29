@@ -36,4 +36,10 @@ config FIT_IMAGE_FDT_BOSTON
 	  enable this if you wish to boot on a MIPS Boston board, as it is
 	  expected by the bootloader.
 
+config FIT_IMAGE_FDT_CI40
+	bool "Include FDT for MIPS Creator Ci40 boards"
+	help
+	  Enable this to include the FDT for the MIPS Creator Ci40 development
+	  board from Imagination Technologies in the FIT kernel image.
+
 endif
