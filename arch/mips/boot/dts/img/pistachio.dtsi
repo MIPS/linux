@@ -904,6 +904,16 @@
 		};
 	};
 
+	cpc@1bde0000 {
+		compatible = "mti,mips-cpc";
+		reg = <0x1bde0000 0x8000>;
+	};
+
+	cdmm@1bdd0000 {
+		compatible = "mti,mips-cdmm";
+		reg = <0x1bdd0000 0x8000>;
+	};
+
 	usb_phy: usb-phy {
 		compatible = "img,pistachio-usb-phy";
 		clocks = <&clk_core CLK_USB_PHY>;
