@@ -98,6 +98,7 @@ extern void unflatten_and_copy_device_tree(void);
 extern void early_init_devtree(void *);
 extern void early_get_first_memblock_info(void *, phys_addr_t *);
 extern u64 of_flat_dt_translate_address(unsigned long node);
+extern u64 of_flat_dt_get_address(unsigned long node, unsigned int *flags);
 extern void of_fdt_limit_memory(int limit);
 #else /* CONFIG_OF_FLATTREE */
 static inline int early_init_dt_scan_chosen_stdout(void) { return -ENODEV; }
