@@ -125,6 +125,7 @@ quiet_cmd_cpp_its_S = ITS     $@
 			-DVMLINUX_COMPRESSION="\"$(2)\"" \
 			-DVMLINUX_LOAD_ADDRESS=$(VMLINUX_LOAD_ADDRESS) \
 			-DVMLINUX_ENTRY_ADDRESS=$(VMLINUX_ENTRY_ADDRESS) \
+			-DVMLINUX_ENDIANNESS="$(if $(CONFIG_CPU_BIG_ENDIAN),big-endian,little-endian)" \
 			-DADDR_BITS=$(ADDR_BITS) \
 			-DADDR_CELLS=$(itb_addr_cells)
 

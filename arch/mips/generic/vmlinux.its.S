@@ -14,6 +14,7 @@
 			compression = VMLINUX_COMPRESSION;
 			load = /bits/ ADDR_BITS <VMLINUX_LOAD_ADDRESS>;
 			entry = /bits/ ADDR_BITS <VMLINUX_ENTRY_ADDRESS>;
+			VMLINUX_ENDIANNESS;
 			hash@0 {
 				algo = "sha1";
 			};
