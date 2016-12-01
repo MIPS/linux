@@ -231,4 +231,13 @@ config PCI_GT64120
 	  certain MIPS CPUs from the late 90s, and most notably is used in some
 	  MIPS Malta configurations including that emulated by QEMU.
 
+config PCI_MSC01
+	bool "MIPS MSC01 PCI Controller"
+	depends on MIPS && OF
+	select MFD_SYSCON
+	help
+	  Say Y here if you want to enable support for the PCI controller found
+	  in the MIPS MSC01 system controller used in some configurations of
+	  the MIPS Malta development board.
+
 endmenu
