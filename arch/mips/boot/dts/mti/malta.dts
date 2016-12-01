@@ -98,6 +98,11 @@
 		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	cpc@1bde0000 {
+		compatible = "mti,mips-cpc";
+		reg = <0x1bde0000 0x8000>;
+	};
+
 	gt64120 {
 		status = "disabled";
 		compatible = "galileo,gt-64120", "syscon", "simple-mfd";
@@ -182,6 +187,11 @@
 
 		interrupt-parent = <&cpu_intc>;
 		interrupts = <4>;
+	};
+
+	cdmm@1fc10000 {
+		compatible = "mti,mips-cdmm";
+		reg = <0x1fc10000 0x8000>;
 	};
 
 	isa {
