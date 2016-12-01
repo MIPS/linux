@@ -281,5 +281,14 @@ config VMD
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmd.
 
+config PCI_MSC01
+	bool "MIPS MSC01 PCI Controller"
+	depends on MIPS && OF
+	select MFD_SYSCON
+	help
+	  Say Y here if you want to enable support for the PCI controller found
+	  in the MIPS MSC01 system controller used in some configurations of
+	  the MIPS Malta development board.
+
 source "drivers/pci/controller/dwc/Kconfig"
 endmenu
