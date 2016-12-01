@@ -21,6 +21,7 @@
  */
 #include <linux/smp.h>
 #include <linux/interrupt.h>
+#include <asm/setup.h>
 
 #ifdef CONFIG_MIPS_MT_SMP
 #define MIPS_CPU_IPI_RESCHED_IRQ 0	/* SW int 0 for resched */
