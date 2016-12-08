@@ -23,6 +23,11 @@ hostprogs-$(CONFIG_SYSTEM_EXTRA_CERTIFICATE) += insert-sys-cert
 
 HOSTCFLAGS_sortextable.o = -I$(srctree)/tools/include
 HOSTCFLAGS_asn1_compiler.o = -I$(srctree)/include
+
+ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
+HOSTCFLAGS_recordmcount.o = -DMCOUNT_INCLUDE_FUNCTION_SECTIONS
+endif
+
 HOSTLOADLIBES_sign-file = -lcrypto
 HOSTLOADLIBES_extract-cert = -lcrypto
 
