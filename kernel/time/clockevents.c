@@ -295,6 +295,8 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 		if (dev->set_next_event((unsigned long) clc, dev) == 0)
 			return 0;
 	}
+	printk_deferred(KERN_WARNING "CE: Reprogramming failure. Giving up\n");
+	dev->next_event = KTIME_MAX;
 	return -ETIME;
 }
 
