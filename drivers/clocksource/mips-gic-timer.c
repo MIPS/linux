@@ -24,11 +24,15 @@ static unsigned int gic_frequency;
 static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 {
 	u64 cnt;
-	int res;
+	int res, cpu;
 
+	cpu = cpumask_first(evt->cpumask);
 	cnt = gic_read_count();
 	cnt += (u64)delta;
-	gic_write_cpu_compare(cnt, cpumask_first(evt->cpumask));
+	if (likely(cpu == smp_processor_id()))
+		gic_write_compare(cnt);
+	else
+		gic_write_cpu_compare(cnt, cpu);
 	res = ((int)(gic_read_count() - cnt) >= 0) ? -ETIME : 0;
 	return res;
 }
