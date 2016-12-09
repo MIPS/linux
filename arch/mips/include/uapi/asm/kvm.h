@@ -228,4 +228,67 @@ struct kvm_mips_interrupt {
 	__u32 irq;
 };
 
+/* Output wired VTLB entries */
+#define KVM_MIPS_TLB_WIRED	(0u << 0)
+/* Output all VTLB entries */
+#define KVM_MIPS_TLB_VTLB	(1u << 1)
+/* Output all FTLB entries */
+#define KVM_MIPS_TLB_FTLB	(2u << 1)
+
+struct kvm_mips_r5_tlb_params {
+	/*
+	 * For mmu type KVM_MMU_MIPS_R5:
+	 *
+	 * - mask_in is a mask describing the contents of a TLB entry that
+	 *   should be read in by KVM (and the minimum that KVM should write
+	 *   out), and should be set to 0 or a value previously returned in
+	 *   fields_out.
+	 * - fields_out is a mask describing the TLB entries and their contents
+	 *   that KVM will write out, which may be a superset of the bits in
+	 *   mask_in. This should be set to 0, and KVM will write this with any
+	 *   additional bits to describe additional fields present in each
+	 *   entry. This should be saved along with TLB entries, and used as
+	 *   mask_in when restoring the TLB state.
+	 * - vtlb_size is the number of VTLB (fully associative) entries. It
+	 *   must be between 1 and 1024. It may be reduced by KVM depending on
+	 *   the capabilities of the underlying hardware.
+	 * - ftlb_sets is the number of FTLB sets per way. It must be a power of
+	 *   2 between 1 and 32768 (2^15). It may be changed by KVM depending on
+	 *   the capabilities of the underlying hardware.
+	 * - ftlb_ways is the number of FTLB ways. It must be between 2 and 8.
+	 *   It may be changed by KVM depending on the capabilities of the
+	 *   underlying hardware.
+	 * - reserved fields should be set to 0.
+	 *
+	 * Entries are indexed in the following order:
+	 *
+	 * - VTLB entries
+	 *   Entries 0 .. vtlb_size - 1
+	 *
+	 * - FTLB entries (arranged in ftlb_ways blocks of ftlb_sets entries)
+	 *   Entries vtlb_size .. vtlb_size + ftlb_ways * ftlb_sets - 1
+	 *   Entry for set x of way y = vtlb_size + y * ftlb_sets + x
+	 */
+	__u32 mask_in;
+	__u32 mask_out;
+	__u32 vtlb_size;
+	__u32 ftlb_sets;
+	__u32 ftlb_ways;
+	__u32 reserved[3];
+};
+
+struct kvm_mips_r5_tlb_entry {
+	/*
+	 * - If hi.EHINV is set, all other fields should be ignored and presumed
+	 *   to contain their reset values.
+	 * - lo0 and lo1 are always in 64-bit format, i.e. any RI/XI bits will
+	 *   be in bits 63/62 respectively.
+	 */
+	__u64 hi;
+	__u64 mask;
+	__u64 lo0;
+	__u64 lo1;
+	__u64 reserved[2];
+};
+
 #endif /* __LINUX_KVM_MIPS_H */

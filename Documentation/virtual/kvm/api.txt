@@ -1533,7 +1533,7 @@ work anyway.
 4.60 KVM_DIRTY_TLB
 
 Capability: KVM_CAP_SW_TLB
-Architectures: ppc
+Architectures: ppc, mips
 Type: vcpu ioctl
 Parameters: struct kvm_dirty_tlb (in)
 Returns: 0 on success, -1 on error
@@ -3840,7 +3840,7 @@ When this capability is enabled, KVM_EXIT_PAPR_HCALL can occur.
 
 6.3 KVM_CAP_SW_TLB
 
-Architectures: ppc
+Architectures: ppc, mips
 Target: vcpu
 Parameters: args[0] is the address of a struct kvm_config_tlb
 Returns: 0 on success; -1 on error
