@@ -300,6 +300,9 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 			 * We tried 10 times to program the device with the
 			 * given min_delta_ns. Get out of here.
 			 */
+			printk_deferred(KERN_WARNING
+					"CE: Reprogramming failure. Giving up\n");
+			dev->next_event = KTIME_MAX;
 			return -ETIME;
 		}
 	}
