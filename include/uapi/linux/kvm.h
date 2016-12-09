@@ -1007,6 +1007,7 @@ struct kvm_clock_data {
 
 #define KVM_MMU_FSL_BOOKE_NOHV		0
 #define KVM_MMU_FSL_BOOKE_HV		1
+#define KVM_MMU_MIPS_R5			2
 
 struct kvm_config_tlb {
 	__u64 params;
