@@ -17,6 +17,8 @@
 #include <linux/smp.h>
 #include <linux/time.h>
 
+#include <asm/mips-cm.h>
+
 static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
 static int gic_timer_irq;
 static unsigned int gic_frequency;
@@ -130,6 +132,11 @@ static u64 gic_hpt_read(struct clocksource *cs)
 	return gic_read_count();
 }
 
+static u64 gic_hpt_read_crosscluster(struct clocksource *cs)
+{
+	return gic_read_cluster_count(cpu_cluster(&boot_cpu_data));
+}
+
 static struct clocksource gic_clocksource = {
 	.name		= "GIC",
 	.read		= gic_hpt_read,
@@ -146,6 +153,9 @@ static int __init __gic_clocksource_init(void)
 
 	/* Calculate a somewhat reasonable rating value. */
 	gic_clocksource.rating = 200 + gic_frequency / 10000000;
+
+	if (mips_cm_using_multicluster())
+		gic_clocksource.read = gic_hpt_read_crosscluster;
 
 	ret = clocksource_register_hz(&gic_clocksource, gic_frequency);
 	if (ret < 0)
