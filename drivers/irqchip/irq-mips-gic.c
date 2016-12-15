@@ -289,6 +289,30 @@ u64 notrace gic_read_count(void)
 	return (((u64) hi) << 32) + lo;
 }
 
+u64 gic_read_cluster_count(unsigned int cluster)
+{
+	unsigned int hi, hi2, lo;
+	u64 count;
+
+	mips_cm_lock_other(cluster, 0, 0, BLOCK_GIC_SHARED_LOWER);
+
+	if (mips_cm_is64) {
+		count = (u64)gic_read(GIC_REG(VPE_OTHER, GIC_SH_COUNTER));
+	} else {
+		do {
+			hi = gic_read32(GIC_REG(VPE_OTHER, GIC_SH_COUNTER_63_32));
+			lo = gic_read32(GIC_REG(VPE_OTHER, GIC_SH_COUNTER_31_00));
+			hi2 = gic_read32(GIC_REG(VPE_OTHER, GIC_SH_COUNTER_63_32));
+		} while (hi2 != hi);
+
+		count = (((u64)hi) << 32) + lo;
+	}
+
+	mips_cm_unlock_other();
+
+	return count;
+}
+
 unsigned int gic_get_count_width(void)
 {
 	unsigned int bits, config;
