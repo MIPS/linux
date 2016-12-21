@@ -23,6 +23,7 @@ struct console_font;
 struct module;
 struct tty_struct;
 struct notifier_block;
+struct device;
 
 /*
  * this is what the terminal answers to a ESC-Z or csi0c query.
@@ -173,6 +174,7 @@ enum con_flush_mode {
 
 extern int add_preferred_console(char *name, int idx, char *options);
 extern void register_console(struct console *);
+extern void register_console_dev(struct console *, struct device *);
 extern int unregister_console(struct console *);
 extern struct console *console_drivers;
 extern void console_lock(void);
