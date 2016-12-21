@@ -21,6 +21,7 @@ struct console_font_op;
 struct console_font;
 struct module;
 struct tty_struct;
+struct device;
 
 /*
  * this is what the terminal answers to a ESC-Z or csi0c query.
@@ -160,6 +161,7 @@ extern struct console *early_console;
 
 extern int add_preferred_console(char *name, int idx, char *options);
 extern void register_console(struct console *);
+extern void register_console_dev(struct console *, struct device *);
 extern int unregister_console(struct console *);
 extern struct console *console_drivers;
 extern void console_lock(void);

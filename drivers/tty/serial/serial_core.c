@@ -2303,7 +2303,7 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 		 * It may be that the port was not available.
 		 */
 		if (port->cons && !(port->cons->flags & CON_ENABLED))
-			register_console(port->cons);
+			register_console_dev(port->cons, port->dev);
 
 		/*
 		 * Power down all ports by default, except the
