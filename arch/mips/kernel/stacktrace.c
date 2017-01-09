@@ -81,6 +81,9 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 
 	WARN_ON(trace->nr_entries || !trace->max_entries);
 
+	if (!try_get_task_stack(tsk))
+		return;
+
 	if (tsk != current) {
 		regs->regs[29] = tsk->thread.reg29;
 		regs->regs[31] = 0;
@@ -88,5 +91,7 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	} else
 		prepare_frametrace(regs);
 	save_context_stack(trace, tsk, regs, tsk == current);
+
+	put_task_stack(tsk);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
