@@ -602,7 +602,7 @@ static inline unsigned int mips_cm_numcores(unsigned int cluster)
 		cfg = read_gcr_config();
 	}
 
-	return ((cfg & CM_GCR_CONFIG_PCORES_MSK) >> CM_GCR_CONFIG_PCORES_SHF) + 1;
+	return ((cfg >> CM_GCR_CONFIG_PCORES_SHF) + 1) & CM_GCR_CONFIG_PCORES_MSK;
 }
 
 /**
