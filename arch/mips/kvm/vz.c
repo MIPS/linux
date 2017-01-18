@@ -305,6 +305,7 @@ static int kvm_vz_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 		if (cpu_has_guestctl2)
 			set_c0_guestctl2(irq);
 		else
+			/* FIXME stop timer? */
 			set_gc0_cause(irq);
 		break;
 
@@ -334,6 +335,7 @@ static int kvm_vz_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 			if (!(read_c0_guestctl2() & (irq << 14)))
 				clear_c0_guestctl2(irq);
 		} else {
+			/* FIXME stop timer? */
 			clear_gc0_cause(irq);
 		}
 		break;
@@ -346,6 +348,7 @@ static int kvm_vz_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 			if (!(read_c0_guestctl2() & (irq << 14)))
 				clear_c0_guestctl2(irq);
 		} else {
+			/* FIXME stop timer? */
 			clear_gc0_cause(irq);
 		}
 		break;
