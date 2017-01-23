@@ -254,6 +254,11 @@ int ptrace_set_watch_regs(struct task_struct *child,
 #ifdef CONFIG_32BIT
 		if (lt[i] & __UA_LIMIT)
 			return -EINVAL;
+
+#ifdef CONFIG_EVA
+		if (lt[i] >= PAGE_OFFSET)
+			return -EINVAL;
+#endif /* CONFIG_EVA */
 #else
 		if (test_tsk_thread_flag(child, TIF_32BIT_ADDR)) {
 			if (lt[i] & 0xffffffff80000000UL)
