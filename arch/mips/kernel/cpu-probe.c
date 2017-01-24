@@ -668,7 +668,8 @@ static inline unsigned int decode_config1(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_32FPR;
 	}
 	if (cpu_has_tlb) {
-		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >> 25) + 1;
+		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >>
+			      MIPS_CONF1_TLBS_SHIFT) + 1;
 		c->tlbsizevtlb = c->tlbsize;
 		c->tlbsizeftlbsets = 0;
 	}
