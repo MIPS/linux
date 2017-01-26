@@ -241,7 +241,12 @@ int mips_sc_init(void)
 	int found = mips_sc_probe();
 	if (found) {
 		mips_sc_enable();
-		mips_sc_prefetch_enable();
+		if (strstr(boot_command_line, "nol2prefetch")) {
+			mips_sc_prefetch_disable();
+			pr_info("L2 prefetch disabled\n");
+		} else {
+			mips_sc_prefetch_enable();
+		}
 		bcops = &mips_sc_ops;
 	}
 	return found;
