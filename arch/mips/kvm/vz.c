@@ -3784,6 +3784,7 @@ static void kvm_vz_vcpu_reenter(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	preserve_guest_tlb = kvm_vz_check_requests(vcpu, cpu);
 
 	if (preserve_guest_tlb) {
+		/* FIXME state isn't saved */
 		kvm_vz_save_cur_tlb(vcpu);
 		kvm_vz_vcpu_save_wired(vcpu);
 	}
@@ -3812,6 +3813,7 @@ static int kvm_vz_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	r = vcpu->arch.vcpu_run(run, vcpu);
 
+	/* FIXME state isn't saved */
 	kvm_vz_save_cur_tlb(vcpu);
 	kvm_vz_vcpu_save_wired(vcpu);
 
