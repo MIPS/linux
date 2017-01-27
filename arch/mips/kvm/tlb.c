@@ -121,6 +121,10 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 	int index = -1;
 	struct kvm_mips_tlb *tlb = vcpu->arch.guest_tlb;
 
+#ifdef CONFIG_KVM_MIPS_VZ
+	BUG_ON(cpu_has_vz);
+#endif
+
 	for (i = 0; i < KVM_MIPS_GUEST_TLB_SIZE; i++) {
 		if (TLB_HI_VPN2_HIT(tlb[i], entryhi) &&
 		    TLB_HI_ASID_HIT(tlb[i], entryhi)) {
