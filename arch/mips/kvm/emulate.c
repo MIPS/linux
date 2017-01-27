@@ -2174,6 +2174,10 @@ enum emulation_result kvm_mips_emulate_tlbinv_st(u32 cause,
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
 		(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 
+#ifdef CONFIG_KVM_MIPS_VZ
+	BUG_ON(cpu_has_vz);
+#endif
+
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
 		kvm_write_c0_guest_epc(cop0, arch->pc);
@@ -2214,6 +2218,10 @@ enum emulation_result kvm_mips_emulate_tlbmod(u32 cause,
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
 			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
+
+#ifdef CONFIG_KVM_MIPS_VZ
+	BUG_ON(cpu_has_vz);
+#endif
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -2633,6 +2641,10 @@ static enum emulation_result kvm_mips_emulate_exc(u32 cause,
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	enum emulation_result er = EMULATE_DONE;
 
+#ifdef CONFIG_KVM_MIPS_VZ
+	BUG_ON(cpu_has_vz);
+#endif
+
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
 		kvm_write_c0_guest_epc(cop0, arch->pc);
@@ -2771,6 +2783,9 @@ enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 	kvm_debug("kvm_mips_handle_tlbmiss: badvaddr: %#lx\n",
 		  vcpu->arch.host_cp0_badvaddr);
 
+#ifdef CONFIG_KVM_MIPS_VZ
+	BUG_ON(cpu_has_vz);
+#endif
 	/*
 	 * KVM would not have got the exception if this entry was valid in the
 	 * shadow host TLB. Check the Guest TLB, if the entry is not there then
