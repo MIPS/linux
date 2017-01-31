@@ -1139,10 +1139,12 @@ enum emulation_result kvm_mips_emul_tlbwr(struct kvm_vcpu *vcpu)
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_mips_tlb *tlb = NULL;
 	unsigned long pc = vcpu->arch.pc;
+	unsigned int wired;
 	int index;
 
 	get_random_bytes(&index, sizeof(index));
-	index &= (KVM_MIPS_GUEST_TLB_SIZE - 1);
+	wired = kvm_read_c0_guest_wired(cop0) & (KVM_MIPS_GUEST_TLB_SIZE - 1);
+	index = wired + index % (KVM_MIPS_GUEST_TLB_SIZE - wired);
 
 	tlb = &vcpu->arch.guest_tlb[index];
 
