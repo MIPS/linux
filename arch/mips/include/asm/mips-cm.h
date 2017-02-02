@@ -371,6 +371,23 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_L2_PFT_CONTROL_B_PORTID_SHF	0
 #define CM_GCR_L2_PFT_CONTROL_B_PORTID_MSK	(_ULCAST_(0xff) << 0)
 
+/* GCR_L2SM_COP register fields */
+#define CM_GCR_L2SM_COP_PRESENT			BIT(31)
+#define CM_GCR_L2SM_COP_RESULT_MSK		(_ULCAST_(0x7) << 6)
+#define CM_GCR_L2SM_COP_RESULT_DONE_NOERR	(_ULCAST_(0x1) << 6)
+#define CM_GCR_L2SM_COP_RUNNING			BIT(5)
+#define CM_GCR_L2SM_COP_TYPE_SHF		2
+#define CM_GCR_L2SM_COP_TYPE_MSK		(_ULCAST_(0x7) << 2)
+#define CM_GCR_L2SM_COP_TYPE_STORE_TAG		(_ULCAST_(0x1) << 2)
+#define CM_GCR_L2SM_COP_CMD_MSK			(_ULCAST_(0x3) << 0)
+#define CM_GCR_L2SM_COP_CMD_START		(_ULCAST_(0x1) << 0)
+
+/* GCR_L2SM_TAG_ADDR_COP register fields */
+#define CM_GCR_L2SM_TAG_ADDR_COP_NUM_SHF	48
+#define CM_GCR_L2SM_TAG_ADDR_COP_NUM_MSK	(_ULCAST_(0xffff) << 48)
+#define CM_GCR_L2SM_TAG_ADDR_COP_START_SHF	6
+#define CM_GCR_L2SM_TAG_ADDR_COP_START_MSK	(_ULCAST_(0x3ffffffffff) << 6)
+
 /* GCR_Cx_COHERENCE register fields */
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_SHF	0
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_MSK	(_ULCAST_(0xff) << 0)
@@ -715,5 +732,29 @@ __mips_cm_next_cluster(const struct cpumask *cpumask, unsigned int prev)
 	for ((cluster) = __mips_cm_first_cluster(cpu_possible_mask);		\
 	     (cluster) != UINT_MAX;						\
 	     (cluster) = __mips_cm_next_cluster(cpu_possible_mask, cluster))
+
+enum l2sm_cacheop {
+	L2SM_COP_INDEX_WBINV = 0,
+	L2SM_COP_INDEX_STORE_TAG = 1,
+	L2SM_COP_INDEX_STORE_TAG_DATA = 2,
+	L2SM_COP_HIT_INV = 4,
+	L2SM_COP_HIT_WBINV = 5,
+	L2SM_COP_HIT_WB = 6,
+	L2SM_COP_HIT_FETCH_LOCK = 7,
+};
+
+/**
+ * mips_cm_l2sm_cacheop() - Perform an L2 cacheop via the CM redirect region.
+ * @cop: The cacheop to perform
+ * @tag: The tag state
+ * @ecc: The ecc
+ *
+ * The target cluster BLOCK_GCR_GLOBAL should previously be locked via
+ * mips_cm_lock_other().
+ *
+ * Returns 0 on success or an error code
+ */
+extern int mips_cm_l2sm_cacheop(enum l2sm_cacheop cop, unsigned long tag,
+				unsigned long ecc);
 
 #endif /* __MIPS_ASM_MIPS_CM_H__ */

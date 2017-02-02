@@ -8,6 +8,7 @@
  * option) any later version.
  */
 
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/percpu.h>
 #include <linux/spinlock.h>
@@ -467,4 +468,47 @@ void mips_cm_error_report(void)
 
 	/* reprime cause register */
 	write_gcr_error_cause(0);
+}
+
+
+int mips_cm_l2sm_cacheop(enum l2sm_cacheop cop, unsigned long tag,
+			  unsigned long ecc)
+{
+	u32 l2sm_cop;
+
+	l2sm_cop = read_redir_gcr_l2sm_cop();
+	if ((mips_cm_revision() < CM_REV_CM3_5) ||
+	    !(l2sm_cop & CM_GCR_L2SM_COP_PRESENT)) {
+		return -ENODEV;
+	}
+
+	write_redir_gcr_l2_tag_state(tag);
+	write_redir_gcr_l2_ecc(ecc);
+
+	/*
+	 * Ensure L2 tag state & ECC register writes take
+	 * effect before we start the state machine
+	 */
+	mb();
+
+	while (l2sm_cop & CM_GCR_L2SM_COP_RUNNING) {
+		/* Wait for the L2 state machine to be idle */
+		l2sm_cop = read_redir_gcr_l2sm_cop();
+	}
+
+	write_redir_gcr_l2sm_cop((cop << CM_GCR_L2SM_COP_TYPE_SHF) |
+				 CM_GCR_L2SM_COP_CMD_START);
+	mb();
+
+	do {
+		mdelay(1); /*** TODO omitting this delay seems to occasionally hang the core */
+		l2sm_cop = read_redir_gcr_l2sm_cop();
+		l2sm_cop &= CM_GCR_L2SM_COP_RESULT_MSK;
+
+		if (l2sm_cop > CM_GCR_L2SM_COP_RESULT_DONE_NOERR)
+			panic("L2 State machine failed with error\n");
+
+	} while (l2sm_cop != CM_GCR_L2SM_COP_RESULT_DONE_NOERR);
+
+	return 0;
 }
