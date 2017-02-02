@@ -472,9 +472,11 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	 */
 	uasm_build_label(&l, p, lbl_disable_coherence);
 
-	/* Invalidate the L1 icache */
-	cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].icache,
-			      Index_Invalidate_I, lbl_invicache);
+	if (state != CPS_PM_POWER_GATED) {
+		/* Invalidate the L1 icache */
+		cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].icache,
+				      Index_Invalidate_I, lbl_invicache);
+	}
 
 	/* Writeback & invalidate the L1 dcache */
 	cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].dcache,
