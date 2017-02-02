@@ -364,8 +364,10 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		lbl_secondary_hang,
 		lbl_disable_coherence,
 		lbl_flush_fsb,
+		lbl_flushscache,
 		lbl_invicache,
 		lbl_flushdcache,
+		lbl_caches_clean,
 		lbl_hang,
 		lbl_set_cont,
 		lbl_secondary_cont,
@@ -472,6 +474,29 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	 */
 	uasm_build_label(&l, p, lbl_disable_coherence);
 
+	if (state == CPS_PM_POWER_GATED &&
+	    cpu_cluster(&cpu_data[cpu]) != cpu_cluster(&boot_cpu_data)) {
+		/*
+		 * TODO: Ideally we'd only flush the L2 if we know that this
+		 * is the last core in the cluster to power down. It should
+		 * be OK to do if only know that there's a chance of that
+		 * being true, since worst case we'd add some overhead to
+		 * another core that's just powering up, and the race ought
+		 * to be pretty unlikely.
+		 */
+
+		/* Invalidate the cluster's L2 cache */
+		cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].scache,
+				      Index_Writeback_Inv_SD, lbl_flushscache);
+
+		/*
+		 * Don't bother flushing the L1 dcache, since the L2 is
+		 * inclusive of it.
+		 */
+		uasm_il_b(&p, &r, lbl_caches_clean);
+		uasm_i_nop(&p);
+	}
+
 	if (state != CPS_PM_POWER_GATED) {
 		/* Invalidate the L1 icache */
 		cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].icache,
@@ -483,6 +508,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			      Index_Writeback_Inv_D, lbl_flushdcache);
 
 	/* Barrier ensuring previous cache invalidates are complete */
+	uasm_build_label(&l, p, lbl_caches_clean);
 	uasm_i_sync(&p, STYPE_SYNC);
 	uasm_i_ehb(&p);
 
