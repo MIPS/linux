@@ -1,0 +1,36 @@
+#include "boston.dts"
+
+&pci0 {
+	status = "disabled";
+};
+
+/ {
+	compatible = "img,boston-sleipnir", "img,boston";
+
+	cs_intc: interrupt-controller@10000000 {
+		compatible = "img,concord-sleipnir-passthrough";
+		reg = <0x10000000 0x2000000>,
+		      <0x17ffc000 0x1000>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 2 IRQ_TYPE_LEVEL_HIGH>;
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+};
+
+&pci1 {
+	interrupt-parent = <&cs_intc>;
+	interrupts = <1>;
+};
+
+&pci2 {
+	interrupt-parent = <&cs_intc>;
+	interrupts = <0>;
+};
+
+&uart0 {
+	interrupt-parent = <&cs_intc>;
+	interrupts = <3>;
+};
