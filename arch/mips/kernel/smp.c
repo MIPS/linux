@@ -180,7 +180,7 @@ void mips_smp_send_ipi_single(int cpu, unsigned int action)
 void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 {
 	unsigned long flags;
-	unsigned int core;
+	unsigned int core, cluster;
 	int cpu;
 
 	local_irq_save(flags);
@@ -200,13 +200,15 @@ void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 
 	if (mips_cpc_present()) {
 		for_each_cpu(cpu, mask) {
+			cluster = cpu_cluster(&cpu_data[cpu]);
 			core = cpu_data[cpu].core;
 
-			if (core == current_cpu_data.core)
+			if ((cluster == cpu_cluster(&current_cpu_data)) &&
+			    (core == current_cpu_data.core))
 				continue;
 
 			while (!cpumask_test_cpu(cpu, &cpu_coherent_mask)) {
-				mips_cm_lock_other(0, core, 0, BLOCK_CPC_CORE_LOCAL);
+				mips_cm_lock_other(cluster, core, 0, BLOCK_CPC_CORE_LOCAL);
 				mips_cpc_lock_other(core);
 				write_cpc_co_cmd(CPC_Cx_CMD_PWRUP);
 				mips_cpc_unlock_other();
