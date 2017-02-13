@@ -696,6 +696,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 
 	/* Allow threads to use FP again */
 	atomic_set(&task->mm->context.fp_mode_switching, 0);
+	wake_up_atomic_t(&task->mm->context.fp_mode_switching);
 	preempt_enable();
 
 	return 0;
