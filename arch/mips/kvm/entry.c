@@ -75,6 +75,16 @@
 #define ST0_KX_IF_64	0
 #endif
 
+/*
+ * Workaround buggy bitfiles (e.g. Daimyo CL 4534217) until fixed (supposedly in
+ * CL 4584538). JALR may sign extend $ra when UX=0 and KX=1, even when EXL=1.
+ */
+#ifdef CONFIG_KVM_MIPS_VZ
+#define KSU_USER_IF_TE	0
+#else
+#define KSU_USER_IF_TE	KSU_USER
+#endif
+
 static unsigned int scratch_vcpu[2] = { C0_DDATA_LO };
 static unsigned int scratch_tmp[2] = { C0_ERROREPC };
 
@@ -255,7 +265,7 @@ void *kvm_mips_build_vcpu_run(void *addr)
 	 * Setup status register for running the guest in UM, interrupts
 	 * are disabled
 	 */
-	UASM_i_LA(&p, K0, ST0_EXL | KSU_USER | ST0_BEV | ST0_KX_IF_64);
+	UASM_i_LA(&p, K0, ST0_EXL | KSU_USER_IF_TE | ST0_BEV | ST0_KX_IF_64);
 	uasm_i_mtc0(&p, K0, C0_STATUS);
 	uasm_i_ehb(&p);
 
@@ -268,7 +278,8 @@ void *kvm_mips_build_vcpu_run(void *addr)
 	 * interrupt mask as it was but make sure that timer interrupts
 	 * are enabled
 	 */
-	uasm_i_addiu(&p, K0, ZERO, ST0_EXL | KSU_USER | ST0_IE | ST0_KX_IF_64);
+	uasm_i_addiu(&p, K0, ZERO, ST0_EXL | KSU_USER_IF_TE | ST0_IE |
+				   ST0_KX_IF_64);
 	uasm_i_andi(&p, V0, V0, ST0_IM);
 	uasm_i_or(&p, K0, K0, V0);
 	uasm_i_mtc0(&p, K0, C0_STATUS);
@@ -884,7 +895,7 @@ static void *kvm_mips_build_ret_to_guest(void *addr)
 	build_set_exc_base(&p, T0);
 
 	/* Setup status register for running guest in UM */
-	uasm_i_ori(&p, V1, V1, ST0_EXL | KSU_USER | ST0_IE);
+	uasm_i_ori(&p, V1, V1, ST0_EXL | KSU_USER_IF_TE | ST0_IE);
 	UASM_i_LA(&p, AT, ~(ST0_CU0 | ST0_MX | ST0_SX | ST0_UX));
 	uasm_i_and(&p, V1, V1, AT);
 	uasm_i_mtc0(&p, V1, C0_STATUS);
