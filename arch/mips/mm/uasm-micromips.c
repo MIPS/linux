@@ -40,7 +40,7 @@
 
 #include "uasm.c"
 
-static struct insn insn_table_MM[] = {
+static const struct insn insn_table_MM[] = {
 	{ insn_addu, M(mm_pool32a_op, 0, 0, 0, 0, mm_addu32_op), RT | RS | RD },
 	{ insn_addiu, M(mm_addiu32_op, 0, 0, 0, 0, 0), RT | RS | SIMM },
 	{ insn_and, M(mm_pool32a_op, 0, 0, 0, 0, mm_and_op), RT | RS | RD },
@@ -156,7 +156,7 @@ static inline u32 build_jimm(u32 arg)
  */
 static void build_insn(u32 **buf, enum opcode opc, ...)
 {
-	struct insn *ip = NULL;
+	const struct insn *ip = NULL;
 	unsigned int i;
 	va_list ap;
 	u32 op;
