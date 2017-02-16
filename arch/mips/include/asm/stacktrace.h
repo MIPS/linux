@@ -1,6 +1,7 @@
 #ifndef _ASM_STACKTRACE_H
 #define _ASM_STACKTRACE_H
 
+#include <asm/asm.h>
 #include <asm/ptrace.h>
 
 #ifdef CONFIG_KALLSYMS
@@ -47,6 +48,8 @@ static __always_inline void prepare_frametrace(struct pt_regs *regs)
 		: "=m" (regs->cp0_epc),
 		"=m" (regs->regs[29]), "=m" (regs->regs[31])
 		: : "memory");
+	/* show_backtrace behaviour depends on user_mode(regs) */
+	regs->cp0_status = read_c0_status();
 }
 
 #endif /* _ASM_STACKTRACE_H */
