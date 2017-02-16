@@ -348,6 +348,7 @@ static int get_frame_info(struct mips_frame_info *info)
 	union mips_instruction insn, *ip, *ip_end;
 	const unsigned int max_insns = 128;
 	unsigned int i;
+	unsigned int last_insn_size = 0;
 
 	info->pc_offset = -1;
 	info->frame_size = 0;
@@ -358,15 +359,19 @@ static int get_frame_info(struct mips_frame_info *info)
 
 	ip_end = (void *)ip + info->func_size;
 
-	for (i = 0; i < max_insns && ip < ip_end; i++, ip++) {
+	for (i = 0; i < max_insns && ip < ip_end; i++) {
+		ip = (void*)ip + last_insn_size;
 		if (is_mmips && mm_insn_16bit(ip->halfword[0])) {
 			insn.halfword[0] = 0;
 			insn.halfword[1] = ip->halfword[0];
+			last_insn_size = sizeof(unsigned short);
 		} else if (is_mmips) {
 			insn.halfword[0] = ip->halfword[1];
 			insn.halfword[1] = ip->halfword[0];
+			last_insn_size = sizeof(unsigned int);
 		} else {
 			insn.word = ip->word;
+			last_insn_size = sizeof(unsigned int);
 		}
 
 		if (is_jump_ins(&insn))
