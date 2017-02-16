@@ -335,8 +335,9 @@ static int get_frame_info(struct mips_frame_info *info)
 
 					if (ip->halfword[0] & mm_addiusp_func)
 					{
-						tmp = (((ip->halfword[0] >> 1) & 0x1ff) << 2);
-						info->frame_size = -(signed short)(tmp | ((tmp & 0x100) ? 0xfe00 : 0));
+						tmp = (ip->halfword[0] >> 1) & 0x1ff;
+						tmp = tmp | ((tmp & 0x100) ? 0xfe00 : 0);
+						info->frame_size = -(signed short)(tmp << 2);
 					} else {
 						tmp = (ip->halfword[0] >> 1);
 						info->frame_size = -(signed short)(tmp & 0xf);
