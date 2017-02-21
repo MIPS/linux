@@ -164,6 +164,27 @@
 # endif
 #endif /* CONFIG_CPU_CAVIUM_OCTEON */
 
+#ifdef CONFIG_MIPS_MMID_SUPPORT
+
+/*
+ * stype 0x14 - A completion barrier to ensure completion of any preceding GINVI
+ * or GINVT operations.
+ * Older instructions which must reach the load/store ordering point before the
+ * SYNC instruction completes: Loads, Stores
+ * Younger instructions which must reach the load/store ordering point only
+ * after the SYNC instruction completes: Loads, Stores
+ * Older instructions which must be globally performed when the SYNC instruction
+ * completes: GINVI, GINVT, SYNCI
+ */
+
+# define STYPE_SYNC_GINV 0x14
+# define sync_ginv() \
+	__asm__ __volatile__("sync %0" : : "i"(STYPE_SYNC_GINV))
+#else /* !CONFIG_MIPS_MMID_SUPPORT */
+# define sync_ginv()	do { } while(0)
+#endif /* !CONFIG_MIPS_MMID_SUPPORT */
+
+
 #ifdef CONFIG_CPU_HAS_WB
 
 #include <asm/wbflush.h>
