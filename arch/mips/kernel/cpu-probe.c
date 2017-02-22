@@ -414,7 +414,6 @@ static int __init ftlb_disable(char *s)
 
 __setup("noftlb", ftlb_disable);
 
-
 static inline void check_errata(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
