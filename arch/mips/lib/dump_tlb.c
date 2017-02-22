@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 
 #include <asm/hazards.h>
+#include <asm/mmu_context.h>
 #include <asm/mipsregs.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -77,6 +78,12 @@ static void dump_tlb(int first, int last)
 	unsigned int s_index, s_pagemask, s_guestctl1 = 0;
 	unsigned int pagemask, guestctl1 = 0, c0, c1, i;
 	unsigned long asidmask = cpu_asid_mask(&current_cpu_data);
+	unsigned long s_mmid = 0, mmid = 0;
+#ifdef CONFIG_MIPS_MMID_SUPPORT
+	int mmidwidth = DIV_ROUND_UP(ilog2(mmid_mask) + 1, 4);
+#else
+	int mmidwidth = 0;
+#endif
 	int asidwidth = DIV_ROUND_UP(ilog2(asidmask) + 1, 4);
 #ifdef CONFIG_32BIT
 	bool xpa = cpu_has_xpa && (read_c0_pagegrain() & PG_ELPA);
@@ -92,6 +99,10 @@ static void dump_tlb(int first, int last)
 	s_entryhi = read_c0_entryhi();
 	s_index = read_c0_index();
 	asid = s_entryhi & asidmask;
+
+	if (cpu_has_mmid)
+		s_mmid = read_c0_memorymapid();
+
 	if (cpu_has_guestid)
 		s_guestctl1 = read_c0_guestctl1();
 
@@ -106,6 +117,9 @@ static void dump_tlb(int first, int last)
 		entrylo1 = read_c0_entrylo1();
 		if (cpu_has_guestid)
 			guestctl1 = read_c0_guestctl1();
+
+		if (cpu_has_mmid)
+			mmid = read_c0_memorymapid();
 
 		/* EHINV bit marks entire entry as invalid */
 		if (cpu_has_tlbinv && entryhi & MIPS_ENTRYHI_EHINV)
@@ -127,6 +141,9 @@ static void dump_tlb(int first, int last)
 		    (entryhi & asidmask) != asid)
 			continue;
 
+		if ((s_mmid ^ mmid) & mmid_mask)
+			continue;
+
 		/*
 		 * Only print entries in use
 		 */
@@ -135,9 +152,13 @@ static void dump_tlb(int first, int last)
 		c0 = (entrylo0 & ENTRYLO_C) >> ENTRYLO_C_SHIFT;
 		c1 = (entrylo1 & ENTRYLO_C) >> ENTRYLO_C_SHIFT;
 
-		pr_cont("va=%0*lx asid=%0*lx",
-			vwidth, (entryhi & ~0x1fffUL),
-			asidwidth, entryhi & asidmask);
+		pr_cont("va=%0*lx ", vwidth, (entryhi & ~0x1fffUL));
+
+		if (cpu_has_mmid)
+			pr_cont("mmid=%0*lx", mmidwidth, mmid);
+		else
+			pr_cont("asid=%0*lx", asidwidth, entryhi & asidmask);
+
 		if (cpu_has_guestid)
 			pr_cont(" gid=%02lx",
 				(guestctl1 & MIPS_GCTL1_RID)
@@ -177,8 +198,12 @@ static void dump_tlb(int first, int last)
 	write_c0_entryhi(s_entryhi);
 	write_c0_index(s_index);
 	write_c0_pagemask(s_pagemask);
+
 	if (cpu_has_guestid)
 		write_c0_guestctl1(s_guestctl1);
+
+	if (cpu_has_mmid)
+		write_c0_memorymapid(s_mmid);
 }
 
 void dump_tlb_all(void)
