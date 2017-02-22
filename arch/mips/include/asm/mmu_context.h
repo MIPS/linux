@@ -114,6 +114,12 @@ static unsigned long asid_first_version(unsigned int cpu)
 void switch_mmid(struct mm_struct *mm, unsigned int cpu);
 extern unsigned long mmid_mask;
 
+#ifdef CONFIG_MIPS_MMID_SUPPORT
+void setup_mmid(void);
+#else
+static inline void setup_mmid(void) {}
+#endif
+
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }
