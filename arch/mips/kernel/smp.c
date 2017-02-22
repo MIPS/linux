@@ -357,6 +357,7 @@ asmlinkage void start_secondary(void)
 	unsigned int cpu;
 
 	cpu_probe();
+	setup_mmid();
 	per_cpu_trap_init(false);
 	mips_clockevent_init();
 	mp_ops->init_secondary();

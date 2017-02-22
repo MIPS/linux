@@ -212,8 +212,51 @@ out:
 		flush_icache_all();
 }
 
+static int mips_mmid_disabled;
+
+static int __init mmid_disable(char *s)
+{
+	mips_mmid_disabled = 1;
+	return 1;
+}
+
+__setup("nommid", mmid_disable);
+
+void setup_mmid(void)
+{
+	unsigned int config5;
+
+	config5 = read_c0_config5();
+
+	if (IS_ENABLED(CONFIG_MIPS_MMID_SUPPORT) && !mips_mmid_disabled)
+		config5 |= MIPS_CONF5_MI;
+	else
+		config5 &= ~MIPS_CONF5_MI;
+
+	write_c0_config5(config5);
+	back_to_back_c0_hazard();
+	config5 = read_c0_config5();
+
+	if (config5 & MIPS_CONF5_MI) {
+		current_cpu_data.options |= MIPS_CPU_MMID;
+
+		/* We need support for MMID if we couldn't disable it */
+		WARN(!IS_ENABLED(CONFIG_MIPS_MMID_SUPPORT),
+		     "Unable to disable MMID support, but kernel support is disabled");
+
+		/* Ensure we match the boot CPU */
+		WARN(!cpu_has_mmid, "CPUs have differing MMID support");
+	} else {
+		/* Ensure we match the boot CPU */
+		WARN(cpu_has_mmid, "CPUs have differing MMID support");
+	}
+
+}
+
 int __init mmid_init(void)
 {
+	setup_mmid();
+
 	if (!cpu_has_mmid)
 		return 0;
 
