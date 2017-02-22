@@ -6,7 +6,11 @@
 #include <linux/wait.h>
 
 typedef struct {
-	unsigned long asid[NR_CPUS];
+	union {
+		unsigned long asid[NR_CPUS];
+		atomic64_t mmid;
+	};
+
 	void *vdso;
 	atomic_t fp_mode_switching;
 
