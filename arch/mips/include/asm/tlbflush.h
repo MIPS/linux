@@ -51,7 +51,7 @@ enum mips_global_tlb_invalidate_type {
 	invalidate_by_va_mmid,
 };
 
-#define ginvt_va(page, type)					\
+#define ginvt(page, type)					\
 do {								\
 	__asm__ __volatile__(					\
 		".set	push\n\t"				\
@@ -65,36 +65,23 @@ do {								\
 	);							\
 } while(0)
 
-#define ginvt(type)					\
-do {							\
-	__asm__ __volatile__(				\
-		".set	push\n\t"			\
-		".set	noat\n\t"			\
-		"# ginvt $0, " #type "\n\t"		\
-		".word	0x7c0000bd | (%0 << 8)\n\t"	\
-		".set	pop\n\t"			\
-	: /* No outputs */ 				\
-	: "i" (type) 					\
-	);						\
-} while(0)
-
 static inline void global_tlb_invalidate(
 	unsigned long page, unsigned long type)
 {
 	switch (type) {
 	case invalidate_all_tlb:
-		ginvt(invalidate_all_tlb);
+		ginvt(0, invalidate_all_tlb);
 		break;
 	case invalidate_by_va:
 		page &= (PAGE_MASK << 1);
-		ginvt_va(page, invalidate_by_va);
+		ginvt(page, invalidate_by_va);
 		break;
 	case invalidate_by_mmid:
-		ginvt(invalidate_by_mmid);
+		ginvt(0, invalidate_by_mmid);
 		break;
 	case invalidate_by_va_mmid:
 		page &= (PAGE_MASK << 1);
-		ginvt_va(page, invalidate_by_va_mmid);
+		ginvt(page, invalidate_by_va_mmid);
 		break;
 	}
 	sync_ginv();
