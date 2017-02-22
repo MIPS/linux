@@ -843,11 +843,38 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_RW_LLB;
 	if (config5 & MIPS_CONF5_MVH)
 		c->options |= MIPS_CPU_MVH;
-	if (cpu_has_mips_r6 && (config5 & MIPS_CONF5_VP))
+
+	if (!cpu_has_mips_r6)
+		goto out;
+
+	if (config5 & MIPS_CONF5_VP)
 		c->options |= MIPS_CPU_VP;
 	if (config5 & MIPS_CONF5_CA2)
 		c->ases |= MIPS_ASE_MIPS16E2;
 
+	if (IS_ENABLED(CONFIG_MIPS_MMID_SUPPORT))
+		config5 |= MIPS_CONF5_MI;
+	else
+		config5 &= ~MIPS_CONF5_MI;
+
+	write_c0_config5(config5);
+	back_to_back_c0_hazard();
+	config5 = read_c0_config5();
+
+	if (config5 & MIPS_CONF5_MI) {
+		c->options |= MIPS_CPU_MMID;
+
+		/* We need support for MMID if we couldn't disable it */
+		WARN(!IS_ENABLED(CONFIG_MIPS_MMID_SUPPORT),
+		     "Unable to disable MMID support, but kernel support is disabled");
+
+		/* Ensure we match the boot CPU */
+		WARN(!cpu_has_mmid, "CPUs have differing MMID support");
+	} else {
+		/* Ensure we match the boot CPU */
+		WARN(cpu_has_mmid, "CPUs have differing MMID support");
+	}
+out:
 	return config5 & MIPS_CONF_M;
 }
 
