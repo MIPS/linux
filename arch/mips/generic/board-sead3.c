@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/libfdt.h>
 #include <linux/printk.h>
+#include <linux/sizes.h>
 
 #include <asm/fw/fw.h>
 #include <asm/io.h>
@@ -26,12 +27,26 @@
 #define MIPS_REVISION_MACHINE		(0xf << 4)
 #define MIPS_REVISION_MACHINE_SEAD3	(0x4 << 4)
 
+/*
+ * Maximum 384MB RAM at physical address 0, preceding any I/O.
+ */
+static struct yamon_mem_region mem_regions[] __initdata = {
+	/* start	size */
+	{ 0,		SZ_256M + SZ_128M },
+	{}
+};
+
 static __init bool sead3_detect(void)
 {
 	uint32_t rev;
 
 	rev = __raw_readl((void *)MIPS_REVISION);
 	return (rev & MIPS_REVISION_MACHINE) == MIPS_REVISION_MACHINE_SEAD3;
+}
+
+static __init int append_memory(void *fdt)
+{
+	return yamon_dt_append_memory(fdt, mem_regions);
 }
 
 static __init int remove_gic(void *fdt)
@@ -125,7 +140,7 @@ static __init int remove_gic(void *fdt)
 
 static const struct mips_fdt_fixup sead3_fdt_fixups[] __initconst = {
 	{ yamon_dt_append_cmdline, "append command line" },
-	{ yamon_dt_append_memory, "append memory" },
+	{ append_memory, "append memory" },
 	{ remove_gic, "remove GIC when not present" },
 	{ yamon_dt_serial_config, "append serial configuration" },
 	{ },
