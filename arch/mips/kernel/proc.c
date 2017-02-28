@@ -36,6 +36,7 @@ int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v)
 static const char *const hwcap_str[] = {
 	"r6",
 	"msa",
+	"crc32",
 	NULL
 };
 
