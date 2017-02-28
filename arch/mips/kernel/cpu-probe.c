@@ -843,6 +843,9 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 	if (cpu_has_mips_r6 && (config5 & MIPS_CONF5_VP))
 		c->options |= MIPS_CPU_VP;
 
+	if (config5 & MIPS_CONF5_CRCP)
+		elf_hwcap |= HWCAP_MIPS_CRC32;
+
 	return config5 & MIPS_CONF_M;
 }
 
