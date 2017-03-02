@@ -509,6 +509,48 @@ static inline unsigned int mips_cm_vp_id(unsigned int cpu)
 	return (core * mips_cm_max_vp_width()) + vp;
 }
 
+/**
+ * mips_cm_numclusters() - return the number of clusters present in the system
+ *
+ * Returns the value of the NUM_CLUSTERS field of the GCR_CONFIG register where
+ * implemented, or 1 if the system doesn't support clusters or no Coherence
+ * Manager is present.
+ */
+static inline unsigned int mips_cm_numclusters(void)
+{
+	unsigned int cfg;
+
+	if (mips_cm_revision() < CM_REV_CM3_5)
+		return 1;
+
+	cfg = read_gcr_config();
+	cfg &= CM3_GCR_CONFIG_NUMCLUSTERS_MSK;
+	cfg >>= CM3_GCR_CONFIG_NUMCLUSTERS_SHF;
+
+	return cfg;
+}
+
+/**
+ * mips_cm_using_multicluster() - determine whether multiple clusters are in use
+ *
+ * Returns true if the system is using multiple clusters, otherwise false. This
+ * is useful for callers that can act more optimally if they know whether they
+ * need to act upon multiple clusters or not.
+ */
+static inline bool mips_cm_using_multicluster(void)
+{
+	unsigned int last_cpu;
+
+	/*
+	 * We rely upon CPUs being probed in each cluster in order, with CPUs
+	 * in secondary clusters coming after the boot cluster (cluster 0). This
+	 * means that we can determine whether multiple clusters are in use purely
+	 * by examining whether the last possible CPU is in the boot cluster.
+	 */
+	last_cpu = find_last_bit(cpumask_bits(cpu_possible_mask), nr_cpumask_bits);
+	return cpu_cluster(&cpu_data[last_cpu]) != 0;
+}
+
 #ifdef CONFIG_MIPS_CM
 
 /**
