@@ -178,14 +178,34 @@ void switch_mmid(struct mm_struct *mm, unsigned int cpu)
 		atomic64_set(&mm->context.mmid, mmid);
 	}
 
-	if (cpumask_test_and_clear_cpu(cpu, &tlb_flush_pending))
+	if (cpumask_test_cpu(cpu, &tlb_flush_pending)) {
 		local_flush_tlb_all();
+		cpumask_clear_cpu(cpu, &tlb_flush_pending);
+	}
 
 	atomic64_set(&per_cpu(active_mmids, cpu), mmid);
 	raw_spin_unlock_irqrestore(&cpu_mmid_lock, flags);
 
 	/* Set the MemoryMapID */
 	write_c0_memorymapid(mmid & mmid_mask);
+
+#ifdef CONFIG_SMP
+	/*
+	 * If this CPU shares FTLB entries with its siblings and one or more
+	 * of those siblings hasn't yet invalidated/flushed its TLB following
+	 * the start of a new generation then we need to invalidate any TLB
+	 * entries for our new MMID that we might otherwise pick up from a
+	 * sibling.
+	 */
+	if (cpu_has_shared_ftlb_entries &&
+	    cpumask_intersects(&tlb_flush_pending, &cpu_sibling_map[cpu])) {
+		/* Ensure the new MMID takes effect */
+		mtc0_tlbw_hazard();
+
+		/* Invalidate TLB entries for our new MMID */
+		global_tlb_invalidate(0, invalidate_by_mmid);
+	}
+#endif
 
 out:
 	if (cpu_has_vtag_icache)
