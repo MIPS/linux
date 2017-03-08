@@ -504,7 +504,7 @@ static void flush_tlb_mmid(struct mm_struct *mm,
 	local_irq_save(flags);
 	htw_stop();
 	mmid = read_c0_memorymapid();
-	write_c0_memorymapid(atomic64_read(&mm->context.mmid));
+	write_c0_memorymapid(atomic64_read(&mm->context.mmid) & mmid_mask);
 	mtc0_tlbw_hazard();
 
 	start = round_down(start, PAGE_SIZE << 1);

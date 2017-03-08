@@ -166,7 +166,7 @@ void switch_mmid(struct mm_struct *mm, unsigned int cpu)
 	 */
 	if (!((mmid ^ atomic64_read(&mmid_generation)) >> mmid_bits)
 	    && atomic64_xchg_relaxed(&per_cpu(active_mmids, cpu), mmid)) {
-		write_c0_memorymapid(mmid);
+		write_c0_memorymapid(mmid & mmid_mask);
 		goto out;
 	}
 
@@ -222,6 +222,16 @@ static int __init mmid_disable(char *s)
 
 __setup("nommid", mmid_disable);
 
+static unsigned int mmid_max_bits;
+
+static int __init setup_mmid_max_bits(char *s)
+{
+	int err = kstrtouint(s, 0, &mmid_max_bits);
+
+	return err ?: 1;
+}
+__setup("mmid_max_bits=", setup_mmid_max_bits);
+
 void setup_mmid(void)
 {
 	unsigned int config5;
@@ -263,6 +273,9 @@ int __init mmid_init(void)
 	write_c0_memorymapid(~0);
 	back_to_back_c0_hazard();
 	mmid_mask = read_c0_memorymapid();
+
+	if (mmid_max_bits && (mmid_mask >= BIT(mmid_max_bits)))
+		mmid_mask = GENMASK(mmid_max_bits - 1, 0);
 
 	mmid_bits = min(get_bitmask_order(mmid_mask), MAX_MMID_BITS);
 
