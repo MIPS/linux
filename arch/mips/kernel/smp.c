@@ -464,6 +464,11 @@ static void flush_tlb_all_ipi(void *info)
 
 void flush_tlb_all(void)
 {
+	if (cpu_has_mmid) {
+		global_tlb_invalidate(0, invalidate_all_tlb);
+		return;
+	}
+
 	on_each_cpu(flush_tlb_all_ipi, NULL, 1);
 }
 
