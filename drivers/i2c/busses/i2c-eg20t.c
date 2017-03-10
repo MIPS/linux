@@ -792,8 +792,14 @@ static int pch_i2c_probe(struct pci_dev *pdev,
 		pch_adap->dev.parent = &pdev->dev;
 	}
 
-	ret = request_irq(pdev->irq, pch_i2c_handler, IRQF_SHARED,
-		  KBUILD_MODNAME, adap_info);
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+	if (ret <= 0) {
+		pch_pci_err(pdev, "pci_alloc_irq_vectors failed with %d\n", ret);
+		goto err_alloc_irq;
+	}
+
+	ret = request_irq(pci_irq_vector(pdev, 0), pch_i2c_handler, IRQF_SHARED,
+			  KBUILD_MODNAME, adap_info);
 	if (ret) {
 		pch_pci_err(pdev, "request_irq FAILED\n");
 		goto err_request_irq;
@@ -819,7 +825,9 @@ static int pch_i2c_probe(struct pci_dev *pdev,
 err_add_adapter:
 	for (j = 0; j < i; j++)
 		i2c_del_adapter(&adap_info->pch_data[j].pch_adapter);
-	free_irq(pdev->irq, adap_info);
+	pci_free_irq_vectors(pdev);
+err_alloc_irq:
+	free_irq(pci_irq_vector(pdev, 0), adap_info);
 err_request_irq:
 	pci_iounmap(pdev, base_addr);
 err_pci_iomap:
@@ -836,7 +844,7 @@ static void pch_i2c_remove(struct pci_dev *pdev)
 	int i;
 	struct adapter_info *adap_info = pci_get_drvdata(pdev);
 
-	free_irq(pdev->irq, adap_info);
+	free_irq(pci_irq_vector(pdev, 0), adap_info);
 
 	for (i = 0; i < adap_info->ch_num; i++) {
 		pch_i2c_disbl_int(&adap_info->pch_data[i]);
