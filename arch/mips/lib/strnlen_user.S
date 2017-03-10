@@ -28,13 +28,11 @@
  */
 	.macro __BUILD_STRNLEN_ASM func
 LEAF(__strnlen_\func\()_asm)
-EXPORT_SYMBOL(__strnlen_\func\()_asm)
 	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?
 	and		v0, a0
 	bnez		v0, .Lfault\@
 
 FEXPORT(__strnlen_\func\()_nocheck_asm)
-EXPORT_SYMBOL(__strnlen_\func\()_nocheck_asm)
 	move		v0, a0
 	PTR_ADDU	a1, a0			# stop pointer
 1:
@@ -84,3 +82,8 @@ __BUILD_STRNLEN_ASM kernel
 __BUILD_STRNLEN_ASM user
 	.set pop
 #endif
+
+EXPORT_SYMBOL(__strnlen_kernel_asm)
+EXPORT_SYMBOL(__strnlen_kernel_nocheck_asm)
+EXPORT_SYMBOL(__strnlen_user_asm)
+EXPORT_SYMBOL(__strnlen_user_nocheck_asm)

@@ -25,7 +25,6 @@
  */
 	.macro __BUILD_STRLEN_ASM func
 LEAF(__strlen_\func\()_asm)
-EXPORT_SYMBOL(__strlen_\func\()_asm)
 	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?
 	and		v0, a0
 	bnez		v0, .Lfault\@
@@ -61,3 +60,6 @@ __BUILD_STRLEN_ASM kernel
 __BUILD_STRLEN_ASM user
 	.set pop
 #endif
+
+EXPORT_SYMBOL(__strlen_kernel_asm)
+EXPORT_SYMBOL(__strlen_user_asm)
