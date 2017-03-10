@@ -1512,7 +1512,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	host->quirks = chip->quirks;
 	host->quirks2 = chip->quirks2;
 
-	host->irq = pdev->irq;
+	host->irq = pci_irq_vector(pdev, 0);
 
 	ret = pcim_iomap_regions(pdev, BIT(bar), mmc_hostname(host->mmc));
 	if (ret) {
@@ -1694,6 +1694,12 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 
 	slots = chip->num_slots;	/* Quirk may have changed this */
 
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret <= 0) {
+		dev_err(&pdev->dev, "pci_alloc_irq_vectors failed with %d\n", ret);
+		return ret;
+	}
+
 	for (i = 0; i < slots; i++) {
 		slot = sdhci_pci_probe_slot(pdev, chip, first_bar, i);
 		if (IS_ERR(slot)) {
@@ -1721,6 +1727,8 @@ static void sdhci_pci_remove(struct pci_dev *pdev)
 
 	for (i = 0; i < chip->num_slots; i++)
 		sdhci_pci_remove_slot(chip->slots[i]);
+
+	pci_free_irq_vectors(pdev);
 }
 
 static struct pci_driver sdhci_driver = {
