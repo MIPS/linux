@@ -46,6 +46,7 @@
 #define CP0_ENTRYLO0 $2
 #define CP0_ENTRYLO1 $3
 #define CP0_CONF $3
+#define CP0_GLOBALNUMBER $3, 1
 #define CP0_CONTEXT $4
 #define CP0_PAGEMASK $5
 #define CP0_SEGCTL0 $5, 2
@@ -1386,6 +1387,8 @@ do {									\
 
 #define read_c0_conf()		__read_32bit_c0_register($3, 0)
 #define write_c0_conf(val)	__write_32bit_c0_register($3, 0, val)
+
+#define read_c0_globalnumber()	__read_32bit_c0_register($3, 1)
 
 #define read_c0_context()	__read_ulong_c0_register($4, 0)
 #define write_c0_context(val)	__write_ulong_c0_register($4, 0, val)
