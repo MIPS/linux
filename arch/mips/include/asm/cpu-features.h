@@ -542,6 +542,14 @@
 # endif
 #endif
 
+#ifndef cpu_has_ginvi
+# ifdef CONFIG_MIPS_GINVI_SUPPORT
+#  define cpu_has_ginvi		(cpu_data[0].options & MIPS_CPU_GINVI)
+# else
+#  define cpu_has_ginvi		0
+# endif
+#endif
+
 /*
  * Guest capabilities
  */
