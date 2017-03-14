@@ -1094,6 +1094,7 @@ config CSRC_IOASIC
 
 config CSRC_R4K
 	bool
+	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
 
 config CSRC_SB1250
 	bool
