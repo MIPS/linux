@@ -747,4 +747,24 @@ __BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, , )
 __BUILD_BLAST_CACHE_RANGE(inv_d, dcache, Hit_Invalidate_D, , )
 __BUILD_BLAST_CACHE_RANGE(inv_s, scache, Hit_Invalidate_SD, , )
 
+/* Globally invalidate specified caches */
+static inline void ginvi(unsigned long id)
+{
+	__asm__ __volatile__(
+		".set	push\n\t"
+#ifdef TOOLCHAIN_SUPPORTS_GINV
+		".set	ginv\n\t"
+		"ginvi	%0\n\t"
+#else	/* TOOLCHAIN_SUPPORTS_GINV */
+		".set	noat\n\t"
+		"move\t$1, %0\n\t"
+		"# ginvi $1\n\t"
+		_ASM_INSN_IF_MIPS(0x7c20003d)
+		_ASM_INSN32_IF_MM(0x0001617c)
+#endif	/* !TOOLCHAIN_SUPPORTS_GINV */
+		".set	pop\n\t"
+	: /* No outputs */
+	: "r" (id));
+}
+
 #endif /* _ASM_R4KCACHE_H */

@@ -2018,6 +2018,7 @@ config CPU_MIPSR6
 	select MIPS_ASID_BITS_VARIABLE
 	select MIPS_MMID_SUPPORT
 	select MIPS_SPRAM
+	select MIPS_GINVI_SUPPORT
 
 config EVA
 	bool
@@ -2492,6 +2493,13 @@ config MIPS_MMID_SUPPORT
 	  spaces. Note that if this option is enabled and the CPU supports
 	  it, the use of ASIDs for TLB mappings will be disabled and replaced
 	  with this scheme.
+
+config MIPS_GINVI_SUPPORT
+	bool
+	help
+	  Select this option to enable use of global instruction cache
+	  invalidate, which is a single instruction that invalidates all
+	  of instruction caches in a CPU.
 
 #
 # - Highmem only makes sense for the 32-bit kernel.
