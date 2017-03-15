@@ -634,6 +634,9 @@
 #ifndef cpu_guest_has_vp
 #define cpu_guest_has_vp	(cpu_data[0].guest.options & MIPS_CPU_VP)
 #endif
+#ifndef cpu_guest_has_ginvi
+#define cpu_guest_has_ginvi	(cpu_data[0].guest.options & MIPS_CPU_GINVI)
+#endif
 
 /*
  * Guest dynamic capabilities
