@@ -1316,7 +1316,9 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 						ARRAY_SIZE(vcpu->arch.maar));
 				val = vcpu->arch.maar[
 					kvm_read_sw_gc0_maari(cop0)];
-			} else if ((rd == MIPS_CP0_PRID &&
+			} else if ((rd == MIPS_CP0_TLB_LO1 &&
+				    sel == 1) ||	/* Global Number */
+				   (rd == MIPS_CP0_PRID &&
 				    (sel == 0 ||	/* PRid */
 				     sel == 2 ||	/* CDMMBase */
 				     sel == 3)) ||	/* CMGCRBase */
@@ -1413,8 +1415,10 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				   cpu_guest_has_maar &&
 				   !cpu_guest_has_dyn_maar) {
 				kvm_write_maari(vcpu, val);
-			} else if (rd == MIPS_CP0_ERRCTL &&
-				   (sel == 0)) {	/* ErrCtl */
+			} else if ((rd == MIPS_CP0_TLB_LO1 &&
+				    sel == 1) ||	/* Global Number */
+				   (rd == MIPS_CP0_ERRCTL &&
+				    (sel == 0))) {	/* ErrCtl */
 				/* ignore the written value */
 			} else {
 				er = EMULATE_FAIL;
@@ -2073,6 +2077,9 @@ static u64 kvm_vz_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_INDEX,
 	KVM_REG_MIPS_CP0_ENTRYLO0,
 	KVM_REG_MIPS_CP0_ENTRYLO1,
+#ifdef CONFIG_CPU_MIPSR6
+	KVM_REG_MIPS_CP0_GLOBALNUMBER,
+#endif
 	KVM_REG_MIPS_CP0_CONTEXT,
 	KVM_REG_MIPS_CP0_PAGEMASK,
 	KVM_REG_MIPS_CP0_PAGEGRAIN,
@@ -2325,6 +2332,11 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_ENTRYLO1:
 		*v = entrylo_kvm_to_user(read_gc0_entrylo1());
 		break;
+#ifdef CONFIG_CPU_MIPSR6
+	case KVM_REG_MIPS_CP0_GLOBALNUMBER:
+		*v = (long)kvm_read_sw_gc0_globalnumber(cop0);
+		break;
+#endif
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		*v = (long)read_gc0_context();
 		break;
@@ -2603,6 +2615,11 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_ENTRYLO1:
 		write_gc0_entrylo1(entrylo_user_to_kvm(v));
 		break;
+#ifdef CONFIG_CPU_MIPSR6
+	case KVM_REG_MIPS_CP0_GLOBALNUMBER:
+		kvm_write_sw_gc0_globalnumber(cop0, v);
+		break;
+#endif
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		write_gc0_context(v);
 		break;
@@ -3641,6 +3658,10 @@ static int kvm_vz_vcpu_setup(struct kvm_vcpu *vcpu)
 	kvm_write_sw_gc0_prid(cop0, boot_cpu_data.processor_id);
 	/* EBase */
 	kvm_write_sw_gc0_ebase(cop0, (s32)0x80000000 | vcpu->vcpu_id);
+#ifdef CONFIG_CPU_MIPSR6
+	/* Global Number */
+	kvm_write_sw_gc0_globalnumber(cop0, vcpu->vcpu_id << 8);
+#endif
 	/* Config */
 	kvm_save_gc0_config(cop0);
 	/* architecturally writable (e.g. from guest) */
