@@ -16,6 +16,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -381,11 +382,14 @@ static const struct irq_domain_ops intx_domain_ops = {
  *
  * Return: IRQ_HANDLED on success and IRQ_NONE on failure
  */
-static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
+static void xilinx_pcie_intr_handler(struct irq_desc *desc)
 {
-	struct xilinx_pcie_port *port = (struct xilinx_pcie_port *)data;
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct xilinx_pcie_port *port = irq_desc_get_handler_data(desc);
 	struct device *dev = port->dev;
 	u32 val, mask, status;
+
+	chained_irq_enter(chip, desc);
 
 	/* Read interrupt decode and mask registers */
 	val = pcie_read(port, XILINX_PCIE_REG_IDR);
@@ -393,7 +397,7 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 
 	status = val & mask;
 	if (!status)
-		return IRQ_NONE;
+		goto out;
 
 	if (status & XILINX_PCIE_INTR_LINK_DOWN)
 		dev_warn(dev, "Link Down\n");
@@ -484,8 +488,8 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 error:
 	/* Clear the Interrupt Decode register */
 	pcie_write(port, status, XILINX_PCIE_REG_IDR);
-
-	return IRQ_HANDLED;
+out:
+	chained_irq_exit(chip, desc);
 }
 
 /**
@@ -594,14 +598,10 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 		return PTR_ERR(port->reg_base);
 
 	port->irq = irq_of_parse_and_map(node, 0);
-	err = devm_request_irq(dev, port->irq, xilinx_pcie_intr_handler,
-			       IRQF_SHARED | IRQF_NO_THREAD,
-			       "xilinx-pcie", port);
-	if (err) {
-		dev_err(dev, "unable to request irq %d\n", port->irq);
-		return err;
-	}
 
+	irq_set_chained_handler_and_data(port->irq,
+					 xilinx_pcie_intr_handler,
+					 port);
 	return 0;
 }
 
