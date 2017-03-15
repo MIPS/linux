@@ -1571,6 +1571,32 @@ enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 
 			er = update_pc(vcpu, cause);
 			break;
+		case ginv_op:
+			if (!(inst.spec3_format.simmediate & 1)) {
+				/* GINVI */
+				if (!cpu_guest_has_ginvi ||
+				    inst.spec3_format.rt ||
+				    inst.spec3_format.simmediate)
+					goto unknown;
+
+				/*
+				 * If guest supports GINVI, its reasonable to
+				 * assume that root will too.
+				 */
+				WARN_ON(!cpu_has_ginvi);
+
+				/* Convert to global (use implicit $0) */
+				__asm__ __volatile__(".insn\n\t"
+						     "# ginvi\n\t"
+						     ".word	0x7c00003d");
+				sync_ginv();
+
+				er = update_pc(vcpu, cause);
+				break;
+			} else {
+				/* GINVT */
+			}
+			goto unknown;
 		default:
 			goto unknown;
 		};
