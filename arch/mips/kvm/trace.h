@@ -162,6 +162,7 @@ TRACE_EVENT(kvm_exit,
 	{ KVM_TRACE_COP0( 0, 0),	"Index" },		\
 	{ KVM_TRACE_COP0( 2, 0),	"EntryLo0" },		\
 	{ KVM_TRACE_COP0( 3, 0),	"EntryLo1" },		\
+	{ KVM_TRACE_COP0( 3, 1),	"GlobalNumber" },	\
 	{ KVM_TRACE_COP0( 4, 0),	"Context" },		\
 	{ KVM_TRACE_COP0( 4, 2),	"UserLocal" },		\
 	{ KVM_TRACE_COP0( 5, 0),	"PageMask" },		\
