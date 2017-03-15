@@ -1520,6 +1520,23 @@ static enum emulation_result kvm_vz_gpsi_cache(union mips_instruction inst,
 	return EMULATE_FAIL;
 }
 
+static enum emulation_result kvm_vz_gpsi_ginvi(union mips_instruction inst,
+					       u32 *opc, u32 cause,
+					       struct kvm_run *run,
+					       struct kvm_vcpu *vcpu)
+{
+	/*
+	 * If guest supports GINVI, its reasonable to assume that root will too.
+	 */
+	WARN_ON(!cpu_has_ginvi);
+
+	/* Convert to full invalidate of all caches */
+	ginvi_all();
+	sync_ginv();
+
+	return update_pc(vcpu, cause);
+}
+
 static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 						     struct kvm_vcpu *vcpu)
 {
@@ -1580,6 +1597,21 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 				      KVM_TRACE_HWR(rd, sel), arch->gprs[rt]);
 
 			er = update_pc(vcpu, cause);
+			break;
+		case ginv_op:
+			if (!(inst.spec3_format.simmediate & 1)) {
+				/* GINVI */
+				if (!cpu_guest_has_ginvi ||
+				    inst.spec3_format.rt ||
+				    inst.spec3_format.simmediate)
+					goto unknown;
+
+				er = kvm_vz_gpsi_ginvi(inst, opc, cause, run,
+						       vcpu);
+			} else {
+				/* GINVT */
+				goto unknown;
+			}
 			break;
 		default:
 			goto unknown;
