@@ -553,6 +553,9 @@
 #ifndef cpu_guest_has_userlocal
 #define cpu_guest_has_userlocal	(cpu_data[0].guest.options & MIPS_CPU_ULRI)
 #endif
+#ifndef cpu_guest_has_ginvi
+#define cpu_guest_has_ginvi	(cpu_data[0].guest.options & MIPS_CPU_GINVI)
+#endif
 
 /*
  * Guest dynamic capabilities
