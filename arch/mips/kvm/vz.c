@@ -1316,7 +1316,10 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 						ARRAY_SIZE(vcpu->arch.maar));
 				val = vcpu->arch.maar[
 					kvm_read_sw_gc0_maari(cop0)];
-			} else if ((rd == MIPS_CP0_PRID &&
+			} else if ((rd == MIPS_CP0_TLB_LO1 &&
+				    sel == 1 &&		/* Global Number */
+				    cpu_has_mips_r6 && cpu_guest_has_vp) ||
+				   (rd == MIPS_CP0_PRID &&
 				    (sel == 0 ||	/* PRid */
 				     sel == 2 ||	/* CDMMBase */
 				     sel == 3)) ||	/* CMGCRBase */
@@ -1413,8 +1416,11 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				   cpu_guest_has_maar &&
 				   !cpu_guest_has_dyn_maar) {
 				kvm_write_maari(vcpu, val);
-			} else if (rd == MIPS_CP0_ERRCTL &&
-				   (sel == 0)) {	/* ErrCtl */
+			} else if ((rd == MIPS_CP0_TLB_LO1 &&
+				    sel == 1 &&		/* Global Number */
+				    cpu_has_mips_r6 && cpu_guest_has_vp) ||
+				   (rd == MIPS_CP0_ERRCTL &&
+				    (sel == 0))) {	/* ErrCtl */
 				/* ignore the written value */
 			} else {
 				er = EMULATE_FAIL;
@@ -2175,6 +2181,8 @@ static unsigned long kvm_vz_num_regs(struct kvm_vcpu *vcpu)
 		++ret;
 	if (cpu_guest_has_badinstrp)
 		++ret;
+	if (cpu_has_mips_r6 && cpu_guest_has_vp)
+		++ret;
 	if (cpu_guest_has_contextconfig)
 		ret += ARRAY_SIZE(kvm_vz_get_one_regs_contextconfig);
 	if (cpu_guest_has_watch)
@@ -2216,6 +2224,12 @@ static int kvm_vz_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 	}
 	if (cpu_guest_has_badinstrp) {
 		index = KVM_REG_MIPS_CP0_BADINSTRP;
+		if (copy_to_user(indices, &index, sizeof(index)))
+			return -EFAULT;
+		++indices;
+	}
+	if (cpu_has_mips_r6 && cpu_guest_has_vp) {
+		index = KVM_REG_MIPS_CP0_GLOBALNUMBER;
 		if (copy_to_user(indices, &index, sizeof(index)))
 			return -EFAULT;
 		++indices;
@@ -2325,6 +2339,11 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_ENTRYLO1:
 		*v = entrylo_kvm_to_user(read_gc0_entrylo1());
+		break;
+	case KVM_REG_MIPS_CP0_GLOBALNUMBER:
+		if (!cpu_has_mips_r6 || !cpu_guest_has_vp)
+			return -EINVAL;
+		*v = (long)kvm_read_sw_gc0_globalnumber(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		*v = (long)read_gc0_context();
@@ -2604,6 +2623,11 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_ENTRYLO1:
 		write_gc0_entrylo1(entrylo_user_to_kvm(v));
+		break;
+	case KVM_REG_MIPS_CP0_GLOBALNUMBER:
+		if (!cpu_has_mips_r6 || !cpu_guest_has_vp)
+			return -EINVAL;
+		kvm_write_sw_gc0_globalnumber(cop0, v);
 		break;
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		write_gc0_context(v);
@@ -3644,6 +3668,9 @@ static int kvm_vz_vcpu_setup(struct kvm_vcpu *vcpu)
 	kvm_write_sw_gc0_prid(cop0, boot_cpu_data.processor_id);
 	/* EBase */
 	kvm_write_sw_gc0_ebase(cop0, (s32)0x80000000 | vcpu->vcpu_id);
+	/* Global Number */
+	if (cpu_has_mips_r6 && cpu_guest_has_vp)
+		kvm_write_sw_gc0_globalnumber(cop0, vcpu->vcpu_id << 8);
 	/* Config */
 	kvm_save_gc0_config(cop0);
 	/* architecturally writable (e.g. from guest) */
