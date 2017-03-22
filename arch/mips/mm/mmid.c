@@ -105,7 +105,7 @@ static bool check_update_reserved_mmid(u64 mmid, u64 newmmid)
 
 static u64 refresh_context(struct mm_struct *mm, unsigned int cpu)
 {
-	static u32 cur_idx;
+	static u32 cur_idx = 1;
 	u64 mmid = atomic64_read(&mm->context.mmid);
 	u64 generation = atomic64_read(&mmid_generation);
 
@@ -131,6 +131,10 @@ static u64 refresh_context(struct mm_struct *mm, unsigned int cpu)
 	/*
 	 * Allocate a free MMID. If we can't find one, take a note of the
 	 * currently active MMIDs and mark the TLBs as requiring flushes.
+	 *
+	 * We don't allocate MMID #0 in the first generation such that we
+	 * can use cpu_context()==0 to indicate that a struct mm has never
+	 * been used.
 	 */
 	mmid = find_next_zero_bit(mmid_map, NUM_USER_MMIDS, cur_idx);
 	if (mmid != NUM_USER_MMIDS)
