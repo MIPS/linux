@@ -238,9 +238,9 @@ __setup("mmid_max_bits=", setup_mmid_max_bits);
 
 void setup_mmid(void)
 {
-	unsigned int config5;
+	unsigned int orig, config5;
 
-	config5 = read_c0_config5();
+	orig = config5 = read_c0_config5();
 
 	if (IS_ENABLED(CONFIG_MIPS_MMID_SUPPORT) && !mips_mmid_disabled)
 		config5 |= MIPS_CONF5_MI;
@@ -265,6 +265,9 @@ void setup_mmid(void)
 		WARN(cpu_has_mmid, "CPUs have differing MMID support");
 	}
 
+	/* TLB state is unpredictable after changing Config5.MI */
+	if ((orig ^ config5) & MIPS_CONF5_MI)
+		local_flush_tlb_all();
 }
 
 int __init mmid_init(void)
