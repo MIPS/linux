@@ -101,7 +101,7 @@ static void mips_mt_send_ipi(struct irq_data *d, unsigned int cpu)
 	local_irq_save(flags);
 
 	/* We can only send IPIs to VPEs within the local core */
-	WARN_ON(cpu_data[cpu].core != current_cpu_data.core);
+	WARN_ON(!cpus_are_siblings(cpu, smp_processor_id()));
 
 	vpflags = dvpe();
 	settc(cpu_vpe_id(&cpu_data[cpu]));
