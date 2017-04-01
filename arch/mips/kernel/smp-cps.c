@@ -538,7 +538,7 @@ static inline int mips_cps_get_online_sibling(unsigned int cpu)
 	int sibling;
 
 	for_each_online_cpu(sibling)
-		if (cpu_data[sibling].core == cpu_data[cpu].core)
+		if (cpus_are_siblings(sibling, cpu))
 			return sibling;
 
 	return -1;
@@ -585,13 +585,12 @@ static void mips_cps_halt_sibling(void *ptr_cpu)
 
 int mips_cps_halt_and_return_cpu(unsigned int cpu)
 {
-	unsigned int core = cpu_data[cpu].core;
 	unsigned int vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 
 	if (!cpu_stolen(cpu))
 		return -EINVAL;
 
-	if (cpu_has_mipsmt && (core == cpu_data[smp_processor_id()].core))
+	if (cpu_has_mipsmt && cpus_are_siblings(cpu, smp_processor_id()))
 		mips_cps_halt_sibling((void *)(unsigned long)cpu);
 	else if (cpu_has_mipsmt) {
 		int sibling = mips_cps_get_online_sibling(cpu);
