@@ -12,6 +12,7 @@
 #include <linux/percpu.h>
 #include <linux/spinlock.h>
 
+#include <asm/cpufeature.h>
 #include <asm/mips-cm.h>
 #include <asm/mipsregs.h>
 
@@ -255,6 +256,9 @@ int mips_cm_probe(void)
 
 	for_each_possible_cpu(cpu)
 		spin_lock_init(&per_cpu(cm_core_lock, cpu));
+
+	if (mips_cm_itu_present())
+		elf_hwcap |= HWCAP_MIPS_ITU;
 
 	return 0;
 }
