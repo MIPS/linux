@@ -441,7 +441,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 * online until the counters are synchronised.
 	 */
 	if (!wait_for_completion_timeout(&cpu_running,
-					 msecs_to_jiffies(1000))) {
+					 msecs_to_jiffies(2000))) {
 		pr_crit("CPU%u: failed to start\n", cpu);
 		return -EIO;
 	}
