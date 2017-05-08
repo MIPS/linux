@@ -664,6 +664,10 @@ int mips_get_process_fp_mode(struct task_struct *task)
 {
 	int value = 0;
 
+	/* We can do nothing sensible if we have no FP support */
+	if (!IS_ENABLED(CONFIG_FP_SUPPORT))
+		return -EOPNOTSUPP;
+
 	if (!test_tsk_thread_flag(task, TIF_32BIT_FPREGS))
 		value |= PR_FP_MODE_FR;
 	if (test_tsk_thread_flag(task, TIF_HYBRID_FPREGS))
@@ -685,6 +689,10 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	const unsigned int known_bits = PR_FP_MODE_FR | PR_FP_MODE_FRE;
 	struct task_struct *t;
 	int max_users;
+
+	/* We can do nothing sensible if we have no FP support */
+	if (!IS_ENABLED(CONFIG_FP_SUPPORT))
+		return -EOPNOTSUPP;
 
 	/* Check the value is valid */
 	if (value & ~known_bits)
