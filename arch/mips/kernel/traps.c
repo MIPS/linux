@@ -1571,6 +1571,11 @@ asmlinkage void do_mt(struct pt_regs *regs)
 {
 	int subcode;
 
+	if (WARN_ON(!cpu_has_mipsmt)) {
+		force_sig(SIGILL, current);
+		return;
+	}
+
 	subcode = (read_vpe_c0_vpecontrol() & VPECONTROL_EXCPT)
 			>> VPECONTROL_EXCPT_SHIFT;
 	switch (subcode) {
@@ -2409,7 +2414,7 @@ void __init trap_init(void)
 	set_except_vector(EXCCODE_SYS, handle_sys);
 	set_except_vector(EXCCODE_BP, handle_bp);
 
-	if (rdhwr_noopt)
+	if (rdhwr_noopt || IS_ENABLED(CONFIG_CPU_NANOMIPS))
 		set_except_vector(EXCCODE_RI, handle_ri);
 	else {
 		if (cpu_has_vtag_icache)

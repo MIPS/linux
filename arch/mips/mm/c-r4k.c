@@ -1078,7 +1078,7 @@ static inline void rm7k_erratum31(void)
 		__asm__ __volatile__ (
 			".set push\n\t"
 			".set noreorder\n\t"
-			".set mips3\n\t"
+			".set " MIPS_ISA_LEVEL "\n\t"
 			"cache\t%1, 0(%0)\n\t"
 			"cache\t%1, 0x1000(%0)\n\t"
 			"cache\t%1, 0x2000(%0)\n\t"
@@ -1736,9 +1736,7 @@ static void setup_scache(void)
 		return;
 
 	default:
-		if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M32R2 |
-				    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R1 |
-				    MIPS_CPU_ISA_M64R2 | MIPS_CPU_ISA_M64R6)) {
+		if (cpu_has_mips_r) {
 #ifdef CONFIG_MIPS_CPU_SCACHE
 			if (mips_sc_init ()) {
 				scache_size = c->scache.ways * c->scache.sets * c->scache.linesz;

@@ -1298,7 +1298,7 @@ static void build_r4000_tlb_refill_handler(void)
 	struct mips_huge_tlb_info htlb_info __maybe_unused;
 	enum vmalloc64_mode vmalloc_mode __maybe_unused;
 
-	if (config_enabled(CONFIG_CPU_MICROMIPS) && cpu_has_mips_r6) {
+	if (IS_ENABLED(CONFIG_CPU_NANOMIPS)) {
 		extern u16 handle_tlb_refill[];
 		void *ptr = (void *)((ulong)handle_tlb_refill & ~0x1ul);
 		memcpy((void *)ebase, ptr, 0x100);
@@ -2619,10 +2619,11 @@ void build_tlb_refill_handler(void)
 		break;
 
 	default:
+is_r4k:
 		if (cpu_has_ldpte)
 			setup_pw();
 
-		if (!run_once && !IS_ENABLED(CONFIG_NANOMIPS)) {
+		if (!run_once && !IS_ENABLED(CONFIG_CPU_NANOMIPS)) {
 			scratch_reg = allocate_kscratch();
 			build_setup_pgd();
 			build_r4000_tlb_load_handler();

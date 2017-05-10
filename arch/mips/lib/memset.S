@@ -111,7 +111,7 @@
 	.set		at
 #endif
 
-#ifndef __mips_isa_rev >= 6
+#if __mips_isa_rev < 6
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
@@ -121,7 +121,7 @@
 	PTR_SUBU	a0, t0			/* long align ptr */
 	PTR_ADDU	a2, t0			/* correct size */
 
-#else /* __mips_isa_rev < 6 */
+#else /* __mips_isa_rev >= 6 */
 #define STORE_BYTE(N)				\
 	EX(sb, a1, N(a0), .Lbyte_fixup\@);	\
 	beqz		t0, 0f;			\
@@ -144,7 +144,7 @@
 	ori		a0, STORMASK
 	xori		a0, STORMASK
 	PTR_ADDIU	a0, STORSIZE
-#endif /* __mips_isa_rev < 6 */
+#endif /* __mips_isa_rev >= 6 */
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
 	andi		t0, a2, 0x40-STORSIZE

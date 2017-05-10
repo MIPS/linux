@@ -15,6 +15,7 @@
 
 #include <linux/linkage.h>
 #include <linux/types.h>
+#include <asm/compiler.h>
 #include <asm/hazards.h>
 #include <asm/war.h>
 
@@ -1246,9 +1247,10 @@ do {								\
 			: "=r" (__res));				\
 	else								\
 		__asm__ __volatile__(					\
-			".set\tmips32\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"mfc0\t%0, " #source ", " #sel "\n\t"		\
-			".set\tmips0\n\t"				\
+			".set\tpop\n\t"					\
 			: "=r" (__res));				\
 	__res;								\
 })
@@ -1259,15 +1261,17 @@ do {								\
 		__res = __read_64bit_c0_split(source, sel);		\
 	else if (sel == 0)						\
 		__asm__ __volatile__(					\
-			".set\tmips3\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"dmfc0\t%0, " #source "\n\t"			\
-			".set\tmips0"					\
+			".set\tpop"					\
 			: "=r" (__res));				\
 	else								\
 		__asm__ __volatile__(					\
-			".set\tmips64\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"dmfc0\t%0, " #source ", " #sel "\n\t"		\
-			".set\tmips0"					\
+			".set\tpop"					\
 			: "=r" (__res));				\
 	__res;								\
 })
@@ -1280,9 +1284,10 @@ do {									\
 			: : "Jr" ((unsigned int)(value)));		\
 	else								\
 		__asm__ __volatile__(					\
-			".set\tmips32\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"mtc0\t%z0, " #register ", " #sel "\n\t"	\
-			".set\tmips0"					\
+			".set\tpop"					\
 			: : "Jr" ((unsigned int)(value)));		\
 } while (0)
 
@@ -1292,15 +1297,17 @@ do {									\
 		__write_64bit_c0_split(register, sel, value);		\
 	else if (sel == 0)						\
 		__asm__ __volatile__(					\
-			".set\tmips3\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"dmtc0\t%z0, " #register "\n\t"			\
-			".set\tmips0"					\
+			".set\tpop"					\
 			: : "Jr" (value));				\
 	else								\
 		__asm__ __volatile__(					\
-			".set\tmips64\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"dmtc0\t%z0, " #register ", " #sel "\n\t"	\
-			".set\tmips0"					\
+			".set\tpop"					\
 			: : "Jr" (value));				\
 } while (0)
 
@@ -1345,23 +1352,27 @@ do {									\
 	unsigned long __flags;						\
 									\
 	local_irq_save(__flags);					\
-	if (sel == 0)							\
+	if (WARN_ON(IS_ENABLED(CONFIG_CPU_NANOMIPS))) {			\
+		__val = 0;						\
+	} else if (sel == 0)						\
 		__asm__ __volatile__(					\
-			".set\tmips64\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"dmfc0\t%M0, " #source "\n\t"			\
 			"dsll\t%L0, %M0, 32\n\t"			\
 			"dsra\t%M0, %M0, 32\n\t"			\
 			"dsra\t%L0, %L0, 32\n\t"			\
-			".set\tmips0"					\
+			".set\tpop"					\
 			: "=r" (__val));				\
 	else								\
 		__asm__ __volatile__(					\
-			".set\tmips64\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"dmfc0\t%M0, " #source ", " #sel "\n\t"		\
 			"dsll\t%L0, %M0, 32\n\t"			\
 			"dsra\t%M0, %M0, 32\n\t"			\
 			"dsra\t%L0, %L0, 32\n\t"			\
-			".set\tmips0"					\
+			".set\tpop"					\
 			: "=r" (__val));				\
 	local_irq_restore(__flags);					\
 									\
@@ -1373,25 +1384,29 @@ do {									\
 	unsigned long __flags;						\
 									\
 	local_irq_save(__flags);					\
-	if (sel == 0)							\
+	if (WARN_ON(IS_ENABLED(CONFIG_CPU_NANOMIPS))) {			\
+		(void)(val);						\
+	} else if (sel == 0)						\
 		__asm__ __volatile__(					\
-			".set\tmips64\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"dsll\t%L0, %L0, 32\n\t"			\
 			"dsrl\t%L0, %L0, 32\n\t"			\
 			"dsll\t%M0, %M0, 32\n\t"			\
 			"or\t%L0, %L0, %M0\n\t"				\
 			"dmtc0\t%L0, " #source "\n\t"			\
-			".set\tmips0"					\
+			".set\tpop"					\
 			: : "r" (val));					\
 	else								\
 		__asm__ __volatile__(					\
-			".set\tmips64\n\t"				\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
 			"dsll\t%L0, %L0, 32\n\t"			\
 			"dsrl\t%L0, %L0, 32\n\t"			\
 			"dsll\t%M0, %M0, 32\n\t"			\
 			"or\t%L0, %L0, %M0\n\t"				\
 			"dmtc0\t%L0, " #source ", " #sel "\n\t"		\
-			".set\tmips0"					\
+			".set\tpop"					\
 			: : "r" (val));					\
 	local_irq_restore(__flags);					\
 } while (0)
@@ -1403,7 +1418,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
-	"	.set	mips32r2				\n"	\
+	"	.set	" MIPS_ISA_LEVEL "			\n"	\
 	"	# mfhc0 $1, %1					\n"	\
 	_ASM_INSN_IF_MIPS(0x40410000 | ((%1 & 0x1f) << 11))		\
 	_ASM_INSN32_IF_MM(0x002000f4 | ((%1 & 0x1f) << 16))		\
@@ -1419,7 +1434,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
-	"	.set	mips32r2				\n"	\
+	"	.set	" MIPS_ISA_LEVEL "			\n"	\
 	"	move	$1, %0					\n"	\
 	"	# mthc0 $1, %1					\n"	\
 	_ASM_INSN_IF_MIPS(0x40c10000 | ((%1 & 0x1f) << 11))		\
@@ -1826,7 +1841,7 @@ do {									\
 ({ int __res;								\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
-		".set\tmips32r2\n\t"					\
+		".set\t" MIPS_ISA_LEVEL "\n\t"				\
 		".set\tvirt\n\t"					\
 		"mfgc0\t%0, $%1, %2\n\t"				\
 		".set\tpop"						\
@@ -1839,9 +1854,9 @@ do {									\
 ({ unsigned long long __res;						\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
-		".set\tmips64r2\n\t"					\
+		".set\t" MIPS_ISA_LEVEL "\n\t"				\
 		".set\tvirt\n\t"					\
-		"dmfgc0\t%0, $%1, %2\n\t"			\
+		"dmfgc0\t%0, $%1, %2\n\t"				\
 		".set\tpop"						\
 		: "=r" (__res)						\
 		: "i" (source), "i" (sel));				\
@@ -1852,7 +1867,7 @@ do {									\
 do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
-		".set\tmips32r2\n\t"					\
+		".set\t" MIPS_ISA_LEVEL "\n\t"				\
 		".set\tvirt\n\t"					\
 		"mtgc0\t%z0, $%1, %2\n\t"				\
 		".set\tpop"						\
@@ -1864,7 +1879,7 @@ do {									\
 do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
-		".set\tmips64r2\n\t"					\
+		".set\t" MIPS_ISA_LEVEL "\n\t"				\
 		".set\tvirt\n\t"					\
 		"dmtgc0\t%z0, $%1, %2\n\t"				\
 		".set\tpop"						\
@@ -2161,7 +2176,7 @@ do {									\
 	"	.set	reorder					\n"	\
 	"	# gas fails to assemble cfc1 for some archs,	\n"	\
 	"	# like Octeon.					\n"	\
-	"	.set	mips1					\n"	\
+	"	.set	" MIPS_ISA_LEVEL "			\n"	\
 	"	"STR(gas_hardfloat)"				\n"	\
 	"	cfc1	%0,"STR(source)"			\n"	\
 	"	.set	pop					\n"	\

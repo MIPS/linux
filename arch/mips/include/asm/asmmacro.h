@@ -104,7 +104,7 @@
 
 	.macro	fpu_save_16odd thread
 	.set	push
-	.set	mips64r2
+	.set	MIPS_ISA_LEVEL_RAW
 	SET_HARDFLOAT
 	sdc1	$f1,  THREAD_FPR1(\thread)
 	sdc1	$f3,  THREAD_FPR3(\thread)
@@ -162,7 +162,7 @@
 
 	.macro	fpu_restore_16odd thread
 	.set	push
-	.set	mips64r2
+	.set	MIPS_ISA_LEVEL_RAW
 	SET_HARDFLOAT
 	ldc1	$f1,  THREAD_FPR1(\thread)
 	ldc1	$f3,  THREAD_FPR3(\thread)
@@ -239,7 +239,7 @@
 
 	.macro	_cfcmsa	rd, cs
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	cfcmsa	\rd, $\cs
@@ -248,7 +248,7 @@
 
 	.macro	_ctcmsa	cd, rs
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	ctcmsa	$\cd, \rs
@@ -257,7 +257,7 @@
 
 	.macro	ld_b	wd, off, base
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	ld.b	$w\wd, \off(\base)
@@ -266,7 +266,7 @@
 
 	.macro	ld_h	wd, off, base
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	ld.h	$w\wd, \off(\base)
@@ -275,7 +275,7 @@
 
 	.macro	ld_w	wd, off, base
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	ld.w	$w\wd, \off(\base)
@@ -284,7 +284,7 @@
 
 	.macro	ld_d	wd, off, base
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	ld.d	$w\wd, \off(\base)
@@ -293,7 +293,7 @@
 
 	.macro	st_b	wd, off, base
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	st.b	$w\wd, \off(\base)
@@ -302,7 +302,7 @@
 
 	.macro	st_h	wd, off, base
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	st.h	$w\wd, \off(\base)
@@ -311,7 +311,7 @@
 
 	.macro	st_w	wd, off, base
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	st.w	$w\wd, \off(\base)
@@ -320,7 +320,7 @@
 
 	.macro	st_d	wd, off, base
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	st.d	$w\wd, \off(\base)
@@ -329,7 +329,7 @@
 
 	.macro	copy_s_w	ws, n
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	copy_s.w $1, $w\ws[\n]
@@ -338,7 +338,7 @@
 
 	.macro	copy_s_d	ws, n
 	.set	push
-	.set	mips64r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	copy_s.d $1, $w\ws[\n]
@@ -347,7 +347,7 @@
 
 	.macro	insert_w	wd, n
 	.set	push
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	insert.w $w\wd[\n], $1
@@ -356,7 +356,7 @@
 
 	.macro	insert_d	wd, n
 	.set	push
-	.set	mips64r2
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	fp=64
 	.set	msa
 	insert.d $w\wd[\n], $1

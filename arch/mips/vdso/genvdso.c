@@ -45,6 +45,9 @@
 #ifndef SHT_MIPS_ABIFLAGS
 # define SHT_MIPS_ABIFLAGS	0x7000002a
 #endif
+#ifndef EM_NANOMIPS
+# define EM_NANOMIPS		0x5237
+#endif
 
 enum {
 	ABI_O32 = (1 << 0),
@@ -168,7 +171,8 @@ static void *map_vdso(const char *path, size_t *_size)
 		return NULL;
 	}
 
-	if (swap_uint16(ehdr->e_machine) != EM_MIPS) {
+	if (swap_uint16(ehdr->e_machine) != EM_MIPS &&
+	    swap_uint16(ehdr->e_machine) != EM_NANOMIPS) {
 		fprintf(stderr,
 			"%s: '%s' has invalid ELF machine (expected EM_MIPS)\n",
 			program_name, path);

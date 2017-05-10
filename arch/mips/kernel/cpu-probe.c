@@ -44,8 +44,12 @@ static inline unsigned long cpu_get_fpu_id(void)
 	unsigned long tmp, fpu_id;
 
 	tmp = read_c0_status();
-	__enable_fpu(FPU_AS_IS);
-	fpu_id = read_32bit_cp1_register(CP1_REVISION);
+	if (!__enable_fpu(FPU_AS_IS)) {
+		fpu_id = read_32bit_cp1_register(CP1_REVISION);
+	} else {
+		/* We were unable to enable the FPU */
+		fpu_id = 0;
+	}
 	write_c0_status(tmp);
 	return fpu_id;
 }
@@ -505,6 +509,11 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	case MIPS_CPU_ISA_II:
 		c->isa_level |= MIPS_CPU_ISA_II;
 		break;
+
+	/* nanoMIPS is backwards incompatible */
+	case MIPS_CPU_ISA_NANO32R6:
+		c->isa_level |= MIPS_CPU_ISA_NANO32R6;
+		break;
 	}
 }
 
@@ -617,6 +626,9 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 		case 2:
 			set_isa(c, MIPS_CPU_ISA_M32R6);
 			break;
+		case 3:
+			set_isa(c, MIPS_CPU_ISA_NANO32R6);
+			break;
 		default:
 			goto unknown;
 		}
@@ -662,7 +674,7 @@ static inline unsigned int decode_config1(struct cpuinfo_mips *c)
 		c->ases |= MIPS_ASE_MIPS16;
 	if (config1 & MIPS_CONF1_EP)
 		c->options |= MIPS_CPU_EJTAG;
-	if (config1 & MIPS_CONF1_FP) {
+	if (IS_ENABLED(CONFIG_FP_SUPPORT) && (config1 & MIPS_CONF1_FP)) {
 		c->options |= MIPS_CPU_FPU;
 		c->options |= MIPS_CPU_32FPR;
 	}
@@ -1629,7 +1641,14 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 
 	decode_configs(c);
 
-	spram_config();
+	if (!IS_ENABLED(CONFIG_CPU_NANOMIPS)) {
+		/*
+		 * nanoMIPS toolchain seems to miscompile spram_config()...
+		 * 
+		 * TODO: Remove this once fixed.
+		 */
+		spram_config();
+	}
 }
 
 static inline void cpu_probe_alchemy(struct cpuinfo_mips *c, unsigned int cpu)

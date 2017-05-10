@@ -2229,6 +2229,7 @@ config CPU_GENERIC_DUMP_TLB
 
 config FP_SUPPORT
 	bool "Floating Point Support"
+	depends on !CPU_NANOMIPS
 	default y
 	help
 	  Select this to enable support for programs which make use of floating
@@ -2412,16 +2413,21 @@ config SB1_PASS_2_1_WORKAROUNDS
 config ARCH_PHYS_ADDR_T_64BIT
        bool
 
-choice
-	prompt "SmartMIPS or microMIPS ASE support"
-
-config CPU_NEEDS_NO_SMARTMIPS_OR_MICROMIPS
-	bool "None"
+config CPU_MICROMIPS
+	depends on 32BIT && SYS_SUPPORTS_MICROMIPS && !CPU_MIPSR6
+	bool "Compile targeting microMIPS"
 	help
-	  Select this if you want neither microMIPS nor SmartMIPS support
+	  When this option is enabled the kernel will be built using the
+	  microMIPS ISA.
+
+config CPU_NANOMIPS
+	depends on 32BIT && CPU_MIPSR6
+	bool "Compile targeting nanoMIPS"
+	help
+	  Select this to build a kernel which targets the nanoMIPS ISA.
 
 config CPU_HAS_SMARTMIPS
-	depends on SYS_SUPPORTS_SMARTMIPS
+	depends on SYS_SUPPORTS_SMARTMIPS && !CPU_MICROMIPS && !CPU_NANOMIPS
 	bool "SmartMIPS"
 	help
 	  SmartMIPS is a extension of the MIPS32 architecture aimed at
@@ -2431,15 +2437,6 @@ config CPU_HAS_SMARTMIPS
 	  this option will not work on a MIPS core without SmartMIPS core.  If
 	  you don't know you probably don't have SmartMIPS and should say N
 	  here.
-
-config CPU_MICROMIPS
-	depends on 32BIT && SYS_SUPPORTS_MICROMIPS && !CPU_MIPSR6
-	bool "microMIPS"
-	help
-	  When this option is enabled the kernel will be built using the
-	  microMIPS ISA
-
-endchoice
 
 config CPU_HAS_MSA
 	bool "Support for the MIPS SIMD Architecture"

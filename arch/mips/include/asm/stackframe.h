@@ -220,8 +220,13 @@
 		sll	k0, 3		/* extract cu0 bit */
 		bltz	k0, 9f
 
+#if __mips_isa_rev >= 2
+		move	$28, sp
+		ins	$28, zero, 0, _THREAD_MASK_BITS
+#else
 		ori	$28, sp, _THREAD_MASK
 		xori	$28, _THREAD_MASK
+#endif
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 		.set    mips64
 		pref    0, 0($28)       /* Prefetch the current pointer */

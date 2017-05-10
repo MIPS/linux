@@ -276,9 +276,10 @@ static inline void emt(int previous)
 static inline void ehb(void)
 {
 	__asm__ __volatile__(
-	"	.set	mips32r2				\n"
+	"	.set	push					\n"
+	"	.set	" MIPS_ISA_LEVEL "			\n"
 	"	ehb						\n"
-	"	.set	mips0					\n");
+	"	.set	pop					\n");
 }
 
 #define mftc0(rt,sel)							\

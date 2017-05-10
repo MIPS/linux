@@ -26,8 +26,6 @@
 
 .extern mips_cm_base
 
-.set noreorder
-
 #ifdef CONFIG_64BIT
 # define STATUS_BITDEPS		ST0_KX
 #else
@@ -39,7 +37,6 @@
 #define DUMP_EXCEP(name)		\
 	PTR_LA	a0, 8f;			\
 	jal	mips_cps_bev_dump;	\
-	 nop;				\
 	TEXT(name)
 
 #else /* !CONFIG_MIPS_CPS_NS16550 */
@@ -55,12 +52,11 @@
 	.macro	has_mt	dest, nomt
 	mfc0	\dest, CP0_CONFIG, 1
 	bgez	\dest, \nomt
-	 mfc0	\dest, CP0_CONFIG, 2
+	mfc0	\dest, CP0_CONFIG, 2
 	bgez	\dest, \nomt
-	 mfc0	\dest, CP0_CONFIG, 3
+	mfc0	\dest, CP0_CONFIG, 3
 	andi	\dest, \dest, MIPS_CONF3_MT
 	beqz	\dest, \nomt
-	 nop
 	.endm
 
 	/*
@@ -71,16 +67,15 @@
 	.macro	has_vp	dest, nomt
 	mfc0	\dest, CP0_CONFIG, 1
 	bgez	\dest, \nomt
-	 mfc0	\dest, CP0_CONFIG, 2
+	mfc0	\dest, CP0_CONFIG, 2
 	bgez	\dest, \nomt
-	 mfc0	\dest, CP0_CONFIG, 3
+	mfc0	\dest, CP0_CONFIG, 3
 	bgez	\dest, \nomt
-	 mfc0	\dest, CP0_CONFIG, 4
+	mfc0	\dest, CP0_CONFIG, 4
 	bgez	\dest, \nomt
-	 mfc0	\dest, CP0_CONFIG, 5
+	mfc0	\dest, CP0_CONFIG, 5
 	andi	\dest, \dest, MIPS_CONF5_VP
 	beqz	\dest, \nomt
-	 nop
 	.endm
 
 	/* Calculate an uncached address for the CM GCRs */
@@ -108,12 +103,10 @@ LEAF(mips_cps_core_entry)
 	mfc0	k0, CP0_STATUS
 	and	k0, k0, ST0_NMI
 	beqz	k0, not_nmi
-	 nop
 
 	/* This is an NMI */
 	PTR_LA	k0, nmi_handler
 	jr	k0
-	 nop
 
 not_nmi:
 	/* Setup Cause */
@@ -128,11 +121,9 @@ not_nmi:
 	cmgcrb	v1
 	lw	s7, GCR_CL_COHERENCE_OFS(v1)
 	bnez	s7, 1f
-	 nop
 
 	/* Initialize the L1 caches */
 	jal	mips_cps_cache_init
-	 nop
 
 	/* Enter the coherent domain */
 	li	t0, 0xff
@@ -150,7 +141,6 @@ not_nmi:
 	/* Jump to kseg0 */
 	PTR_LA	t0, 1f
 	jr	t0
-	 nop
 
 	/*
 	 * We're up, cached & coherent. Perform any EVA initialization necessary
@@ -160,72 +150,62 @@ not_nmi:
 
 	/* Retrieve boot configuration pointers */
 	jal	mips_cps_get_bootcfg
-	 nop
 
 	/* Skip core-level init if we started up coherent */
 	bnez	s7, 1f
-	 nop
 
 	/* Perform any further required core-level initialisation */
 	jal	mips_cps_core_init
-	 nop
 
 	/*
 	 * Boot any other VPEs within this core that should be online, and
 	 * deactivate this VPE if it should be offline.
 	 */
+	move	a0, v0
 	move	a1, t9
 	jal	mips_cps_boot_vpes
-	 move	a0, v0
 
 	/* Off we go! */
 1:	PTR_L	t1, VPEBOOTCFG_PC(v1)
 	PTR_L	gp, VPEBOOTCFG_GP(v1)
 	PTR_L	sp, VPEBOOTCFG_SP(v1)
 	jr	t1
-	 nop
 	END(mips_cps_core_entry)
 
 .org 0x200
 LEAF(excep_tlbfill)
 	DUMP_EXCEP("TLB Fill")
 	b	.
-	 nop
 	END(excep_tlbfill)
 
 .org 0x280
 LEAF(excep_xtlbfill)
 	DUMP_EXCEP("XTLB Fill")
 	b	.
-	 nop
 	END(excep_xtlbfill)
 
 .org 0x300
 LEAF(excep_cache)
 	DUMP_EXCEP("Cache")
 	b	.
-	 nop
 	END(excep_cache)
 
 .org 0x380
 LEAF(excep_genex)
 	DUMP_EXCEP("General")
 	b	.
-	 nop
 	END(excep_genex)
 
 .org 0x400
 LEAF(excep_intex)
 	DUMP_EXCEP("Interrupt")
 	b	.
-	 nop
 	END(excep_intex)
 
 .org 0x480
 LEAF(excep_ejtag)
 	PTR_LA	k0, ejtag_debug_handler
 	jr	k0
-	 nop
 	END(excep_ejtag)
 
 LEAF(mips_cps_core_init)
@@ -243,7 +223,6 @@ LEAF(mips_cps_core_init)
 	dvpe
 	PTR_LA	t1, 1f
 	jr.hb	t1
-	 nop
 
 	/* Enter VPE configuration state */
 1:	mfc0	t0, CP0_MVPCONTROL
@@ -258,7 +237,6 @@ LEAF(mips_cps_core_init)
 
 	/* If there's only 1, we're done */
 	beqz	t0, 2f
-	 nop
 
 	/* Loop through each VPE within this core */
 	li	ta1, 1
@@ -287,7 +265,6 @@ LEAF(mips_cps_core_init)
 	addiu	ta1, ta1, 1
 	slt	t0, ta1, ta3
 	bnez	t0, 1b
-	 nop
 
 	/* Leave VPE configuration state */
 2:	mfc0	t0, CP0_MVPCONTROL
@@ -297,7 +274,6 @@ LEAF(mips_cps_core_init)
 3:	.set	pop
 #endif
 	jr	ra
-	 nop
 	END(mips_cps_core_init)
 
 /**
@@ -357,7 +333,6 @@ LEAF(mips_cps_get_bootcfg)
 	PTR_ADDU v1, v1, ta3
 
 	jr	ra
-	 nop
 	END(mips_cps_get_bootcfg)
 
 LEAF(mips_cps_boot_vpes)
@@ -392,7 +367,6 @@ LEAF(mips_cps_boot_vpes)
 	dvpe
 	PTR_LA	t1, 1f
 	jr.hb	t1
-	 nop
 1:	mfc0	t1, CP0_MVPCONTROL
 	ori	t1, t1, MVPCONTROL_VPC
 	mtc0	t1, CP0_MVPCONTROL
@@ -405,7 +379,6 @@ LEAF(mips_cps_boot_vpes)
 	/* Check whether the VPE should be running. If not, skip it */
 1:	andi	t0, ta2, 1
 	beqz	t0, 2f
-	 nop
 
 	/* Operate on the appropriate TC */
 	mfc0	t0, CP0_VPECONTROL
@@ -418,7 +391,6 @@ LEAF(mips_cps_boot_vpes)
 	/* Skip the VPE if its TC is not halted */
 	mftc0	t0, CP0_TCHALT
 	beqz	t0, 2f
-	 nop
 
 	/* Calculate a pointer to the VPEs struct vpe_boot_config */
 	li	t0, VPEBOOTCFG_SIZE
@@ -448,7 +420,6 @@ LEAF(mips_cps_boot_vpes)
 	mfc0	t0, CP0_CONFIG, 3
 	and	t0, t0, MIPS_CONF3_SC
 	beqz	t0, 3f
-	 nop
 	mfc0    t0, CP0_SEGCTL0
 	mttc0	t0, CP0_SEGCTL0
 	mfc0    t0, CP0_SEGCTL1
@@ -479,7 +450,6 @@ LEAF(mips_cps_boot_vpes)
 2:	srl	ta2, ta2, 1
 	addiu	ta1, ta1, 1
 	bnez	ta2, 1b
-	 nop
 
 	/* Leave VPE configuration state */
 	mfc0	t1, CP0_MVPCONTROL
@@ -493,14 +463,12 @@ LEAF(mips_cps_boot_vpes)
 	sll	t0, t0, a1
 	and	t0, t0, t8
 	bnez	t0, 2f
-	 nop
 
 	/* This VPE should be offline, halt the TC */
 	li	t0, TCHALT_H
 	mtc0	t0, CP0_TCHALT
 	PTR_LA	t0, 1f
 1:	jr.hb	t0
-	 nop
 
 2:	.set	pop
 
@@ -508,7 +476,6 @@ LEAF(mips_cps_boot_vpes)
 
 	/* Return */
 5:	jr	ra
-	 nop
 	END(mips_cps_boot_vpes)
 
 LEAF(mips_cps_cache_init)
@@ -529,15 +496,15 @@ LEAF(mips_cps_cache_init)
 
 	/* Detect I-cache line size */
 	_EXT	t0, v0, MIPS_CONF1_IL_SHF, MIPS_CONF1_IL_SZ
+	li	t1, 2
 	beqz	t0, icache_done
-	 li	t1, 2
 	sllv	t0, t1, t0
 
 	/* Detect I-cache size */
 	_EXT	t1, v0, MIPS_CONF1_IS_SHF, MIPS_CONF1_IS_SZ
 	xori	t2, t1, 0x7
+	li	t3, 32
 	beqz	t2, 1f
-	 li	t3, 32
 	addiu	t1, t1, 1
 	sllv	t1, t3, t1
 1:	/* At this point t1 == I-cache sets per way */
@@ -551,20 +518,19 @@ LEAF(mips_cps_cache_init)
 1:	cache	Index_Store_Tag_I, 0(a0)
 	PTR_ADD	a0, a0, t0
 	bne	a0, a1, 1b
-	 nop
 icache_done:
 
 	/* Detect D-cache line size */
 	_EXT	t0, v0, MIPS_CONF1_DL_SHF, MIPS_CONF1_DL_SZ
+	li	t1, 2
 	beqz	t0, dcache_done
-	 li	t1, 2
 	sllv	t0, t1, t0
 
 	/* Detect D-cache size */
 	_EXT	t1, v0, MIPS_CONF1_DS_SHF, MIPS_CONF1_DS_SZ
 	xori	t2, t1, 0x7
+	li	t3, 32
 	beqz	t2, 1f
-	 li	t3, 32
 	addiu	t1, t1, 1
 	sllv	t1, t3, t1
 1:	/* At this point t1 == D-cache sets per way */
@@ -575,14 +541,12 @@ icache_done:
 
 	li	a0, CKSEG0
 	PTR_ADDU a1, a0, t1
-	PTR_SUBU a1, a1, t0
 1:	cache	Index_Store_Tag_D, 0(a0)
+	PTR_ADD a0, a0, t0
 	bne	a0, a1, 1b
-	 PTR_ADD a0, a0, t0
 dcache_done:
 
 	jr	ra
-	 nop
 	END(mips_cps_cache_init)
 
 #if defined(CONFIG_MIPS_CPS_PM) && defined(CONFIG_CPU_PM)
@@ -607,7 +571,6 @@ LEAF(mips_cps_pm_save)
 	psstate	t1
 	SUSPEND_SAVE_STATIC
 	jr	v0
-	 nop
 	END(mips_cps_pm_save)
 
 LEAF(mips_cps_pm_restore)

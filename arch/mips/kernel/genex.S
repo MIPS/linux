@@ -45,6 +45,8 @@ NESTED(except_vec3_generic, 0, sp)
 	.set	pop
 	END(except_vec3_generic)
 
+#if __mips_isa_rev < 6
+
 /*
  * General exception handler for CPUs with virtual coherency exception.
  *
@@ -105,33 +107,24 @@ handle_vcei:
 	.set	pop
 	END(except_vec3_r4000)
 
+#endif /* __mips_isa_rev < 6 */
+
 	__FINIT
 
 	.align	5	/* 32 byte rollback region */
 LEAF(__r4k_wait)
-	.set	push
-	.set	noreorder
 	/* start of rollback region */
 	LONG_L	t0, TI_FLAGS($28)
 	nop
 	andi	t0, _TIF_NEED_RESCHED
 	bnez	t0, 1f
-	 nop
-	nop
-	nop
-#ifdef CONFIG_CPU_MICROMIPS
-	nop
-	nop
-	nop
-	nop
-#endif
+	.set	push
 	.set	MIPS_ISA_ARCH_LEVEL_RAW
 	wait
+	.set	pop
 	/* end of rollback region (the region size must be power of two) */
 1:
 	jr	ra
-	 nop
-	.set	pop
 	END(__r4k_wait)
 
 	.macro	BUILD_ROLLBACK_PROLOGUE handler
@@ -364,7 +357,7 @@ NESTED(ejtag_debug_handler, PT_SIZE, sp)
 
 ejtag_return:
 	MFC0	k0, CP0_DESAVE
-	.set	mips32
+	.set	MIPS_ISA_LEVEL_RAW
 	deret
 	.set	pop
 	END(ejtag_debug_handler)
@@ -431,7 +424,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.macro	__build_clear_fpe
 	.set	push
 	/* gas fails to assemble cfc1 for some archs (octeon).*/ \
-	.set	mips1
+	.set	MIPS_ISA_LEVEL_RAW
 	SET_HARDFLOAT
 	cfc1	a1, fcr31
 	.set	pop
@@ -522,6 +515,8 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER dsp dsp sti silent		/* #26 */
 	BUILD_HANDLER reserved reserved sti verbose	/* others */
 
+#ifndef CONFIG_CPU_NANOMIPS
+
 	.align	5
 	LEAF(handle_ri_rdhwr_tlbp)
 	.set	push
@@ -605,6 +600,8 @@ isrdhwr:
 #endif
 	.set	pop
 	END(handle_ri_rdhwr)
+
+#endif /* !CONFIG_CPU_NANOMIPS */
 
 #ifdef CONFIG_64BIT
 /* A temporary overflow handler used by check_daddi(). */

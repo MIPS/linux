@@ -92,13 +92,18 @@ all-$(CONFIG_SYS_SUPPORTS_ZBOOT)+= vmlinuz
 #
 cflags-y			+= -G 0 -mno-abicalls -fno-pic -pipe
 cflags-y			+= -msoft-float
-LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
+ifndef CONFIG_CPU_NANOMIPS
+LDFLAGS_vmlinux			+= -G 0
+endif
+LDFLAGS_vmlinux			+= -static -n -nostdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
 ifeq ($(CONFIG_RELOCATABLE),y)
 LDFLAGS_vmlinux			+= --emit-relocs
 endif
+
+cflags-$(CONFIG_CPU_NANOMIPS)	+= -mlong-calls
 
 #
 # pass -msoft-float to GAS if it supports it.  However on newer binutils
@@ -209,6 +214,17 @@ endif
 ifeq ($(CONFIG_CPU_MICROMIPS),y)
 micromips-ase				:= $(call cc-option-yn,$(mips-cflags) -mmicromips)
 cflags-$(micromips-ase)			+= -mmicromips
+endif
+ifeq ($(CONFIG_CPU_NANOMIPS),y)
+# TODO: Tidy this up when r6 vs r7 is settled
+cflags-y				:= $(filter-out -march=mips32r6,$(cflags-y))
+cflags-y				+= -march=mips32r7 -mmicromips
+
+# TODO: Use a Linux targeted toolchain when available
+cflags-y				+= -D__linux__
+
+# TODO: Switch to p32 when available
+#cflags-y				+= -mret-in-args
 endif
 ifeq ($(CONFIG_CPU_HAS_MSA),y)
 toolchain-msa				:= $(call cc-option-yn,$(mips-cflags) -mhard-float -mfp64 -Wa$(comma)-mmsa)

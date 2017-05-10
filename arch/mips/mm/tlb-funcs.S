@@ -14,26 +14,27 @@
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/mipsregs.h>
-#include <asm/pgtable-bits.h>
 #include <asm/regdef.h>
+#include <asm/thread_info.h>
 
 #define FASTPATH_SIZE	128
 
 .set	noat
 
-#if defined(CONFIG_CPU_MICROMIPS) && defined(CONFIG_CPU_MIPSR6)
+#if defined(CONFIG_CPU_NANOMIPS)
 
 #define CP0_KSCRATCH $31
 #define KSCRATCH_PGD 2
 #define KSCRATCH_TLBEX_TMP 3
 
+EXPORT(tlbmiss_handler_setup_pgd_start)
 LEAF(tlbmiss_handler_setup_pgd)
 	.set	push
 	.set	at
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 	la	t0, pgd_current
 #ifdef CONFIG_SMP
-	mfc0	t1, SMP_CPUID_REG
+	mfc0	t1, $SMP_CPUID_REG
 	srl	t1, t1, SMP_CPUID_PTRSHIFT
 	addu	t0, t0, t1
 #endif
@@ -43,6 +44,7 @@ LEAF(tlbmiss_handler_setup_pgd)
 	jr	ra
 	.set	pop
 END(tlbmiss_handler_setup_pgd)
+EXPORT(tlbmiss_handler_setup_pgd_end)
 
 .macro tlbchange_head
 	mtc0	$1, CP0_KSCRATCH, KSCRATCH_TLBEX_TMP
@@ -51,8 +53,12 @@ END(tlbmiss_handler_setup_pgd)
 	srl	$1, k1, _PGDIR_SHIFT
 	lsa	k0, $1, k0, _PGD_T_LOG2
 	lw	k0, 0(k0)
+#if 0
 	srl	k1, k1, _PAGE_SHIFT + _PTE_ORDER - _PTE_T_LOG2
 	andi	k1, k1, (_PTRS_PER_PTE - 1) << _PTE_T_LOG2
+#else
+	ext	k1, k1, _PAGE_SHIFT + _PTE_ORDER, _PAGE_SHIFT + _PTE_ORDER - _PTE_T_LOG2
+#endif
 	addu	k0, k0, k1
 	lw	k1, 0(k0)
 	tlbp
@@ -62,13 +68,13 @@ END(tlbmiss_handler_setup_pgd)
 	ori	k0, k0, _PTE_T_SIZE
 
 	lw	$1, -_PTE_T_SIZE(k0)
-	srl	$1, $1, _PAGE_NO_EXEC_SHIFT
-	rotr	$1, $1, _PAGE_GLOBAL_SHIFT - _PAGE_NO_EXEC_SHIFT
+	srl	$1, $1, __PAGE_NO_EXEC_SHIFT
+	rotr	$1, $1, __PAGE_GLOBAL_SHIFT - __PAGE_NO_EXEC_SHIFT
 	mtc0	$1, CP0_ENTRYLO0
 
 	lw	k1, 0(k0)
-	srl	k1, k1, _PAGE_NO_EXEC_SHIFT
-	rotr	k1, k1, _PAGE_GLOBAL_SHIFT - _PAGE_NO_EXEC_SHIFT
+	srl	k1, k1, __PAGE_NO_EXEC_SHIFT
+	rotr	k1, k1, __PAGE_GLOBAL_SHIFT - __PAGE_NO_EXEC_SHIFT
 	mtc0	k1, CP0_ENTRYLO1
 
 	ehb
@@ -81,10 +87,10 @@ END(tlbmiss_handler_setup_pgd)
 LEAF(handle_tlbm)
 	tlbchange_head
 
-	andi	$1, k1, _PAGE_WRITE
+	andi	$1, k1, __PAGE_WRITE
 	beqz	$1, 1f
 
-	ori	k1, k1, _PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID | _PAGE_DIRTY
+	ori	k1, k1, __PAGE_ACCESSED | __PAGE_MODIFIED | __PAGE_VALID | __PAGE_DIRTY
 	sw	k1, 0(k0)
 
 	tlbchange_tail
@@ -92,15 +98,16 @@ LEAF(handle_tlbm)
 	mfc0	$1, CP0_KSCRATCH, KSCRATCH_TLBEX_TMP
 	j	tlb_do_page_fault_1
 END(handle_tlbm)
+EXPORT(handle_tlbm_end)
 
 LEAF(handle_tlbs)
 	tlbchange_head
 
-	andi	$1, k1, _PAGE_PRESENT | _PAGE_WRITE
-	xori	$1, $1, _PAGE_PRESENT | _PAGE_WRITE
+	andi	$1, k1, __PAGE_PRESENT | __PAGE_WRITE
+	xori	$1, $1, __PAGE_PRESENT | __PAGE_WRITE
 	bnez	$1, 1f
 
-	ori	k1, k1, _PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID | _PAGE_DIRTY
+	ori	k1, k1, __PAGE_ACCESSED | __PAGE_MODIFIED | __PAGE_VALID | __PAGE_DIRTY
 	sw	k1, 0(k0)
 
 	tlbchange_tail
@@ -108,14 +115,15 @@ LEAF(handle_tlbs)
 	mfc0	$1, CP0_KSCRATCH, KSCRATCH_TLBEX_TMP
 	j	tlb_do_page_fault_1
 END(handle_tlbs)
+EXPORT(handle_tlbs_end)
 
 LEAF(handle_tlbl)
 	tlbchange_head
 
-	andi	$1, k1, _PAGE_PRESENT
+	andi	$1, k1, __PAGE_PRESENT
 	beqz	$1, 1f
 
-	ori	k1, k1, _PAGE_ACCESSED | _PAGE_VALID
+	ori	k1, k1, __PAGE_ACCESSED | __PAGE_VALID
 	sw	k1, 0(k0)
 
 	tlbchange_tail
@@ -123,6 +131,7 @@ LEAF(handle_tlbl)
 	mfc0	$1, CP0_KSCRATCH, KSCRATCH_TLBEX_TMP
 	j	tlb_do_page_fault_0
 END(handle_tlbl)
+EXPORT(handle_tlbl_end)
 
 LEAF(handle_tlb_refill)
 	mfc0	k0, CP0_KSCRATCH, KSCRATCH_PGD
@@ -135,14 +144,14 @@ LEAF(handle_tlb_refill)
 	mfc0	k1, CP0_BADVADDR
 	ext	k1, k1, _PAGE_SHIFT + 1, _PGDIR_SHIFT - _PAGE_SHIFT - 1
 	lsa	k1, k1, k0, _PTE_T_LOG2 + 1
-	lwp	k0, 0(k1)
+	llwp	k0, k1, (k1)
 
-	srl	k0, k0, _PAGE_NO_EXEC_SHIFT
-	rotr	k0, k0, _PAGE_GLOBAL_SHIFT - _PAGE_NO_EXEC_SHIFT
+	srl	k0, k0, __PAGE_NO_EXEC_SHIFT
+	rotr	k0, k0, __PAGE_GLOBAL_SHIFT - __PAGE_NO_EXEC_SHIFT
 	mtc0	k0, CP0_ENTRYLO0
 
-	srl	k1, k1, _PAGE_NO_EXEC_SHIFT
-	rotr	k1, k1, _PAGE_GLOBAL_SHIFT - _PAGE_NO_EXEC_SHIFT
+	srl	k1, k1, __PAGE_NO_EXEC_SHIFT
+	rotr	k1, k1, __PAGE_GLOBAL_SHIFT - __PAGE_NO_EXEC_SHIFT
 	mtc0	k1, CP0_ENTRYLO1
 
 	ehb

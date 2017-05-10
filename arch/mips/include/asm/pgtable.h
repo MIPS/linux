@@ -210,7 +210,7 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 		 * this atomically.
 		 */
 		unsigned long page_global = _PAGE_GLOBAL;
-		unsigned long tmp;
+		unsigned long tmp, tmp2;
 
 		if (kernel_uses_llsc && R10000_LLSC_WAR) {
 			__asm__ __volatile__ (
@@ -230,19 +230,17 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 			: [global] "r" (page_global));
 		} else if (kernel_uses_llsc) {
 			__asm__ __volatile__ (
-			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
 			"	.set	push				\n"
-			"	.set	noreorder			\n"
+			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
 			"1:"	__LL	"%[tmp], %[buddy]		\n"
+			"	or	%[tmp2], %[tmp], %[global]	\n"
 			"	bnez	%[tmp], 2f			\n"
-			"	 or	%[tmp], %[tmp], %[global]	\n"
-				__SC	"%[tmp], %[buddy]		\n"
-			"	beqz	%[tmp], 1b			\n"
+				__SC	"%[tmp2], %[buddy]		\n"
+			"	beqz	%[tmp2], 1b			\n"
 			"	nop					\n"
 			"2:						\n"
 			"	.set	pop				\n"
-			"	.set	mips0				\n"
-			: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
+			: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp), [tmp2] "=&r" (tmp2)
 			: [global] "r" (page_global));
 		}
 #else /* !CONFIG_SMP */
