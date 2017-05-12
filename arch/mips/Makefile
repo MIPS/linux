@@ -225,6 +225,10 @@ cflags-y				+= -D__linux__
 
 # TODO: Switch to p32 when available
 #cflags-y				+= -mret-in-args
+
+# TODO: Tail call optimisation is broken in v48 toolchain
+# https://dmz-portal.imgtec.com/bugz/show_bug.cgi?id=2579
+cflags-y				+= -fno-optimize-sibling-calls
 endif
 ifeq ($(CONFIG_CPU_HAS_MSA),y)
 toolchain-msa				:= $(call cc-option-yn,$(mips-cflags) -mhard-float -mfp64 -Wa$(comma)-mmsa)
