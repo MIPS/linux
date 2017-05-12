@@ -255,7 +255,11 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 #elif defined(__MIPSEL__)
 #define ELF_DATA	ELFDATA2LSB
 #endif
+#ifdef CONFIG_CPU_NANOMIPS
+#define ELF_ARCH	EM_NANOMIPS
+#else
 #define ELF_ARCH	EM_MIPS
+#endif
 
 #endif /* !defined(ELF_ARCH) */
 
@@ -271,7 +275,7 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 # define __MIPS_O32_FP64_MUST_BE_ZERO	EF_MIPS_FP64
 #endif
 
-#define mips_elf_check_machine(x) ((x)->e_machine == EM_MIPS)
+#define mips_elf_check_machine(x) ((x)->e_machine == ELF_ARCH)
 
 #define vmcore_elf32_check_arch mips_elf_check_machine
 #define vmcore_elf64_check_arch mips_elf_check_machine

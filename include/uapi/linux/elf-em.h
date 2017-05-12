@@ -56,5 +56,6 @@
 /* Also Panasonic/MEI MN10300, AM33 */
 #define EM_CYGNUS_MN10300 0xbeef
 
+#define EM_NANOMIPS	0x5237	/* nanoMIPS */
 
 #endif /* _LINUX_ELF_EM_H */
