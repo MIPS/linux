@@ -144,7 +144,8 @@ LEAF(handle_tlb_refill)
 	mfc0	k1, CP0_BADVADDR
 	ext	k1, k1, _PAGE_SHIFT + 1, _PGDIR_SHIFT - _PAGE_SHIFT - 1
 	lsa	k1, k1, k0, _PTE_T_LOG2 + 1
-	llwp	k0, k1, (k1)
+	lw	k0, 0(k1)
+	lw	k1, _PTE_T_SIZE(k1)
 
 	srl	k0, k0, __PAGE_NO_EXEC_SHIFT
 	rotr	k0, k0, __PAGE_GLOBAL_SHIFT - __PAGE_NO_EXEC_SHIFT
