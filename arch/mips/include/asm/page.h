@@ -72,9 +72,6 @@ static inline unsigned int page_size_ftlb(unsigned int mmuextdef)
 
 #include <linux/pfn.h>
 
-extern void build_clear_page(void);
-extern void build_copy_page(void);
-
 /*
  * It's normally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.
@@ -82,8 +79,20 @@ extern void build_copy_page(void);
  */
 #define ARCH_PFN_OFFSET		PFN_UP(PHYS_OFFSET)
 
+#ifdef CONFIG_CPU_NANOMIPS
+#include <linux/string.h>
+
+#define build_clear_page()	do {} while (0)
+#define build_copy_page()	do {} while (0)
+#define clear_page(page)	memset((page), 0, PAGE_SIZE)
+#define copy_page(to,from)	memcpy((to), (from), PAGE_SIZE)
+#else
+extern void build_clear_page(void);
+extern void build_copy_page(void);
+
 extern void clear_page(void * page);
 extern void copy_page(void * to, void * from);
+#endif
 
 extern unsigned long shm_align_mask;
 

@@ -1884,8 +1884,6 @@ static void r4k_cache_error_setup(void)
 
 void r4k_cache_init(void)
 {
-	extern void build_clear_page(void);
-	extern void build_copy_page(void);
 	struct cpuinfo_mips *c = &current_cpu_data;
 
 	probe_pcache();
