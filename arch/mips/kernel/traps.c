@@ -1958,13 +1958,33 @@ void __init *set_except_vector(int n, void *addr)
 	old_handler = xchg(&exception_handlers[n], handler);
 
 	if (n == 0 && cpu_has_divec) {
+		unsigned int k0 = 26;
+#ifdef CONFIG_CPU_NANOMIPS
+		u16 *buf = (u16 *)(ebase + 0x200);
+		long offs = handler - (ebase + 0x204);
+		/* FIXME convert to uasm of some sort */
+		if (offs < (1l << 25) && offs >= -(1l << 25)) {
+			/* BC[32] handler */
+			u32 insn32 = (0x28000000 |
+				      (offs < 0) |
+				      (offs & ((1l << 25) - 1)));
+			*(buf++) = insn32 >> 16;
+			*(buf++) = insn32 & 0xffff;
+		} else {
+			/* LI[48] k0, handler */
+			*(buf++) = 0x6000 | k0 << 5;
+			*(buf++) = handler & 0xffff;
+			*(buf++) = handler >> 16;
+			/* JRC k0 */
+			*(buf++) = 0xd800 | k0 << 5;
+		}
+#else
 #ifdef CONFIG_CPU_MICROMIPS
 		unsigned long jump_mask = ~((1 << 27) - 1);
 #else
 		unsigned long jump_mask = ~((1 << 28) - 1);
 #endif
 		u32 *buf = (u32 *)(ebase + 0x200);
-		unsigned int k0 = 26;
 		if ((handler & jump_mask) == ((ebase + 0x200) & jump_mask)) {
 			uasm_i_j(&buf, handler & ~jump_mask);
 			uasm_i_nop(&buf);
@@ -1973,6 +1993,7 @@ void __init *set_except_vector(int n, void *addr)
 			uasm_i_jr(&buf, k0);
 			uasm_i_nop(&buf);
 		}
+#endif
 		local_flush_icache_range(ebase + 0x200, (unsigned long)buf);
 	}
 	return (void *)old_handler;
