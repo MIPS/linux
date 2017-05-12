@@ -175,6 +175,9 @@ static void cpu_set_nofpu_2008(struct cpuinfo_mips *c)
 
 	switch (ieee754) {
 	case STRICT:
+#ifdef CONFIG_CPU_NANOMIPS
+		c->options |= MIPS_CPU_NAN_2008;
+#else
 		if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 				    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
 				    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
@@ -183,6 +186,7 @@ static void cpu_set_nofpu_2008(struct cpuinfo_mips *c)
 			c->options |= MIPS_CPU_NAN_LEGACY;
 			c->fpu_msk31 |= FPU_CSR_ABS2008 | FPU_CSR_NAN2008;
 		}
+#endif
 		break;
 	case LEGACY:
 		c->options |= MIPS_CPU_NAN_LEGACY;
