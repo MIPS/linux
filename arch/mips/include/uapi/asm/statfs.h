@@ -8,6 +8,10 @@
 #ifndef _ASM_STATFS_H
 #define _ASM_STATFS_H
 
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
+
 #include <linux/posix_types.h>
 #include <asm/sgidefs.h>
 
@@ -36,6 +40,8 @@ struct statfs {
 	long		f_flags;
 	long		f_spare[5];
 };
+
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32, _MIPS_SIM_NABI32, or _MIPS_SIM_ABI64  */
 
 #if (_MIPS_SIM == _MIPS_SIM_ABI32) || (_MIPS_SIM == _MIPS_SIM_NABI32)
 
@@ -96,5 +102,12 @@ struct compat_statfs64 {
 };
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
+
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+
+/* p32 uses the generic statfs structs */
+#include <asm-generic/statfs.h>
+
+#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
 
 #endif /* _ASM_STATFS_H */
