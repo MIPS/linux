@@ -271,6 +271,7 @@ symbol		=	value
 #define INT_SUB		sub
 #define INT_SUBU	subu
 #define INT_L		lw
+#define INT_LXS		lwxs
 #define INT_S		sw
 #define INT_SLL		sll
 #define INT_SLLV	sllv
@@ -288,6 +289,7 @@ symbol		=	value
 #define INT_SUB		dsub
 #define INT_SUBU	dsubu
 #define INT_L		ld
+#define INT_LXS		ldxs
 #define INT_S		sd
 #define INT_SLL		dsll
 #define INT_SLLV	dsllv
@@ -308,6 +310,7 @@ symbol		=	value
 #define LONG_SUB	sub
 #define LONG_SUBU	subu
 #define LONG_L		lw
+#define LONG_LXS	lwxs
 #define LONG_S		sw
 #define LONG_SP		swp
 #define LONG_SLL	sll
@@ -331,6 +334,7 @@ symbol		=	value
 #define LONG_SUB	dsub
 #define LONG_SUBU	dsubu
 #define LONG_L		ld
+#define LONG_LXS	ldxs
 #define LONG_S		sd
 #define LONG_SP		sdp
 #define LONG_SLL	dsll
@@ -357,6 +361,7 @@ symbol		=	value
 #define PTR_SUB		sub
 #define PTR_SUBU	subu
 #define PTR_L		lw
+#define PTR_LXS		lwxs
 #define PTR_S		sw
 #define PTR_LA		la
 #define PTR_LI		li
@@ -382,6 +387,7 @@ symbol		=	value
 #define PTR_SUB		dsub
 #define PTR_SUBU	dsubu
 #define PTR_L		ld
+#define PTR_LXS		ldxs
 #define PTR_S		sd
 #define PTR_LA		dla
 #define PTR_LI		dli
