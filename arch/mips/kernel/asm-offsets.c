@@ -223,7 +223,7 @@ void output_mm_defines(void)
 	BLANK();
 }
 
-#ifdef CONFIG_32BIT
+#if defined(CONFIG_32BIT) && !defined(CONFIG_CPU_NANOMIPS)
 void output_sc_defines(void)
 {
 	COMMENT("Linux sigcontext offsets.");
@@ -245,7 +245,7 @@ void output_sc_defines(void)
 }
 #endif
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_NANOMIPS)
 void output_sc_defines(void)
 {
 	COMMENT("Linux sigcontext offsets.");
