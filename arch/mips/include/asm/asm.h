@@ -223,7 +223,9 @@ symbol		=	value
 #define ALSZ	7
 #define ALMASK	~7
 #endif
-#if (_MIPS_SIM == _MIPS_SIM_NABI32) || (_MIPS_SIM == _MIPS_SIM_ABI64)
+#if (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64) || \
+    (_MIPS_SIM == _MIPS_SIM_PABI32)
 #define ALSZ	15
 #define ALMASK	~15
 #endif
@@ -245,7 +247,7 @@ symbol		=	value
  * Use the following macros in assemblercode to load/store registers,
  * pointers etc.
  */
-#if (_MIPS_SIM == _MIPS_SIM_ABI32)
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || (_MIPS_SIM == _MIPS_SIM_PABI32)
 #define REG_S		sw
 #define REG_L		lw
 #define REG_SUBU	subu
@@ -400,7 +402,7 @@ symbol		=	value
 /*
  * Some cp0 registers were extended to 64bit for MIPS III.
  */
-#if (_MIPS_SIM == _MIPS_SIM_ABI32)
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || (_MIPS_SIM == _MIPS_SIM_PABI32)
 #define MFC0		mfc0
 #define MTC0		mtc0
 #endif

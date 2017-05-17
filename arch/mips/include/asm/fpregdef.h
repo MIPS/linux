@@ -28,7 +28,8 @@
 #define SET_HARDFLOAT
 #endif
 
-#if _MIPS_SIM == _MIPS_SIM_ABI32
+/* FIXME this may need changing when we get proper P32 */
+#if _MIPS_SIM == _MIPS_SIM_ABI32 || _MIPS_SIM == _MIPS_SIM_PABI32
 
 /*
  * These definitions only cover the R3000-ish 16/32 register model.
@@ -69,7 +70,7 @@
 
 #define fcr31	$31	 /* FPU status register */
 
-#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 || _MIPS_SIM == _MIPS_SIM_PABI32 */
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32
 
