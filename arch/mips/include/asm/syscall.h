@@ -43,12 +43,10 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 
 		return 0;
 
-#ifdef CONFIG_32BIT
+#if defined(CONFIG_32BIT) && !defined(CONFIG_CPU_NANOMIPS)
 	case 4: case 5: case 6: case 7:
 		return get_user(*arg, (int *)usp + n);
-#endif
-
-#ifdef CONFIG_64BIT
+#else
 	case 4: case 5: case 6: case 7:
 #ifdef CONFIG_MIPS32_O32
 		if (test_thread_flag(TIF_32BIT_REGS))
@@ -70,7 +68,11 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 static inline long syscall_get_return_value(struct task_struct *task,
 					    struct pt_regs *regs)
 {
+#ifdef CONFIG_CPU_NANOMIPS
+	return regs->regs[4];
+#else
 	return regs->regs[2];
+#endif
 }
 
 static inline void syscall_rollback(struct task_struct *task,
@@ -83,6 +85,12 @@ static inline void syscall_set_return_value(struct task_struct *task,
 					    struct pt_regs *regs,
 					    int error, long val)
 {
+#ifdef CONFIG_CPU_NANOMIPS
+	if (error)
+		regs->regs[4] = error;
+	else
+		regs->regs[4] = val;
+#else
 	if (error) {
 		regs->regs[2] = -error;
 		regs->regs[7] = -1;
@@ -90,6 +98,7 @@ static inline void syscall_set_return_value(struct task_struct *task,
 		regs->regs[2] = val;
 		regs->regs[7] = 0;
 	}
+#endif
 }
 
 static inline void syscall_get_arguments(struct task_struct *task,
@@ -99,7 +108,8 @@ static inline void syscall_get_arguments(struct task_struct *task,
 {
 	int ret;
 	/* O32 ABI syscall() - Either 64-bit with O32 or 32-bit */
-	if ((IS_ENABLED(CONFIG_32BIT) ||
+	if (!IS_ENABLED(CONFIG_CPU_NANOMIPS) &&
+	    (IS_ENABLED(CONFIG_32BIT) ||
 	    test_tsk_thread_flag(task, TIF_32BIT_REGS)) &&
 	    (regs->regs[2] == __NR_syscall))
 		i++;

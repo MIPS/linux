@@ -150,8 +150,12 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 
 	/* user thread */
 	*childregs = *regs;
+#ifdef CONFIG_CPU_NANOMIPS
+	childregs->regs[4] = 0; /* Child gets zero as return value */
+#else
 	childregs->regs[7] = 0; /* Clear error flag */
 	childregs->regs[2] = 0; /* Child gets zero as return value */
+#endif
 	if (usp)
 		childregs->regs[29] = usp;
 	ti->addr_limit = USER_DS;

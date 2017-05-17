@@ -780,25 +780,38 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	 */
 	dsemul_thread_rollback(regs);
 
-	if (regs->regs[0]) {
+	if (regs->regs[0] && !is_syscall_success(regs)) {
+#ifdef CONFIG_CPU_NANOMIPS
+		switch(-regs->regs[4]) {
+#else
 		switch(regs->regs[2]) {
-		case ERESTART_RESTARTBLOCK:
-		case ERESTARTNOHAND:
-			regs->regs[2] = EINTR;
-			break;
+#endif
 		case ERESTARTSYS:
 			if (!(ksig->ka.sa.sa_flags & SA_RESTART)) {
+			case ERESTART_RESTARTBLOCK:
+				/* FIXME horrible pile of hacks if no handler? */
+			case ERESTARTNOHAND:
+#ifdef CONFIG_CPU_NANOMIPS
+				regs->regs[4] = -EINTR;
+#else
 				regs->regs[2] = EINTR;
+#endif
 				break;
 			}
 		/* fallthrough */
 		case ERESTARTNOINTR:
+#ifdef CONFIG_CPU_NANOMIPS
+			regs->regs[4] = regs->regs[26];
+			/* FIXME assume short encoding */
+			regs->cp0_epc -= 2;
+#else
 			regs->regs[7] = regs->regs[26];
 			regs->regs[2] = regs->regs[0];
 			regs->cp0_epc -= 4;
+#endif
 		}
 
-		regs->regs[0] = 0;		/* Don't deal with this again.	*/
+		regs->regs[0] = 0;	/* Don't deal with this again.	*/
 	}
 
 	if (sig_uses_siginfo(&ksig->ka, abi))
@@ -821,20 +834,37 @@ static void do_signal(struct pt_regs *regs)
 		return;
 	}
 
-	if (regs->regs[0]) {
-		switch (regs->regs[2]) {
+	if (regs->regs[0] && !is_syscall_success(regs)) {
+#ifdef CONFIG_CPU_NANOMIPS
+		switch(-regs->regs[4]) {
+#else
+		switch(regs->regs[2]) {
+#endif
 		case ERESTARTNOHAND:
 		case ERESTARTSYS:
 		case ERESTARTNOINTR:
+#ifdef CONFIG_CPU_NANOMIPS
+			regs->regs[4] = regs->regs[26];
+			/* FIXME assume short encoding */
+			regs->cp0_epc -= 2;
+#else
 			regs->regs[2] = regs->regs[0];
 			regs->regs[7] = regs->regs[26];
 			regs->cp0_epc -= 4;
+#endif
 			break;
 
 		case ERESTART_RESTARTBLOCK:
+#ifdef CONFIG_CPU_NANOMIPS
+			regs->regs[11] = current->thread.abi->restart;
+			regs->regs[4] = regs->regs[26];
+			/* FIXME assume short encoding */
+			regs->cp0_epc -= 2;
+#else
 			regs->regs[2] = current->thread.abi->restart;
 			regs->regs[7] = regs->regs[26];
 			regs->cp0_epc -= 4;
+#endif
 			break;
 		}
 		regs->regs[0] = 0;	/* Don't deal with this again.	*/
