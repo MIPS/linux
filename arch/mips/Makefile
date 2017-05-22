@@ -65,7 +65,9 @@ ld-emul			= $(32bit-emul)
 vmlinux-32		= vmlinux
 vmlinux-64		= vmlinux.64
 
-cflags-y		+= -mabi=32
+abi-y				:= 32
+abi-$(CONFIG_CPU_NANOMIPS)	:= p32
+cflags-y			+= -mabi=$(abi-y)
 endif
 
 ifdef CONFIG_64BIT
