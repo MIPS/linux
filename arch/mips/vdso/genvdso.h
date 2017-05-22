@@ -144,6 +144,8 @@ static inline bool FUNC(get_symbols)(const char *path, void *vdso)
 		elf_abi = ABI_N64;
 	else if (flags & EF_MIPS_ABI2)
 		elf_abi = ABI_N32;
+	else if ((flags & EF_MIPS_ABI) == EF_MIPS_ABI_P32)
+		elf_abi = ABI_P32;
 	else
 		elf_abi = ABI_O32;
 

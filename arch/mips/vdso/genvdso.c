@@ -48,13 +48,20 @@
 #ifndef EM_NANOMIPS
 # define EM_NANOMIPS		0x5237
 #endif
+#ifndef EF_MIPS_ABI
+# define EF_MIPS_ABI		0xf000
+#endif
+#ifndef EF_MIPS_ABI_P32
+# define EF_MIPS_ABI_P32	0x5000
+#endif
 
 enum {
 	ABI_O32 = (1 << 0),
 	ABI_N32 = (1 << 1),
 	ABI_N64 = (1 << 2),
+	ABI_P32 = (1 << 3),
 
-	ABI_ALL = ABI_O32 | ABI_N32 | ABI_N64,
+	ABI_ALL = ABI_O32 | ABI_N32 | ABI_N64 | ABI_P32,
 };
 
 /* Symbols the kernel requires offsets for. */
