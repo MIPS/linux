@@ -8,6 +8,10 @@
 #ifndef _UAPI_ASM_FCNTL_H
 #define _UAPI_ASM_FCNTL_H
 
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
+
 #include <asm/sgidefs.h>
 
 #define O_APPEND	0x0008
@@ -73,6 +77,8 @@ struct flock {
 #define HAVE_ARCH_STRUCT_FLOCK
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
+
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32, _MIPS_SIM_NABI32, or _MIPS_SIM_ABI64 */
 
 #include <asm-generic/fcntl.h>
 
