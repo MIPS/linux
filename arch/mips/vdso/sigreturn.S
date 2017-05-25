@@ -25,7 +25,7 @@ LEAF(__vdso_rt_sigreturn)
 	.fmask	0x00000000, 0
 	.cfi_signal_frame
 
-	li	v0, __NR_rt_sigreturn
+	li	scn, __NR_rt_sigreturn
 	syscall
 
 	.cfi_endproc
@@ -40,7 +40,7 @@ LEAF(__vdso_sigreturn)
 	.fmask	0x00000000, 0
 	.cfi_signal_frame
 
-	li	v0, __NR_sigreturn
+	li	scn, __NR_sigreturn
 	syscall
 
 	.cfi_endproc
