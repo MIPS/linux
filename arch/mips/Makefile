@@ -218,10 +218,6 @@ micromips-ase				:= $(call cc-option-yn,$(mips-cflags) -mmicromips)
 cflags-$(micromips-ase)			+= -mmicromips
 endif
 ifeq ($(CONFIG_CPU_NANOMIPS),y)
-# TODO: Tidy this up when r6 vs r7 is settled
-cflags-y				:= $(filter-out -march=mips32r6,$(cflags-y))
-cflags-y				+= -march=mips32r7 -mmicromips
-
 # TODO: Use a Linux targeted toolchain when available
 cflags-y				+= -D__linux__
 endif
