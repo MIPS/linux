@@ -148,20 +148,20 @@ symbol		=	value
 
 #define PREF(hint,addr)					\
 		.set	push;				\
-		.set	arch=r5000;			\
+		.set	MIPS_ISA_LEVEL_RAW;		\
 		pref	hint, addr;			\
 		.set	pop
 
 #define PREFE(hint, addr)				\
 		.set	push;				\
-		.set	mips0;				\
+		.set	MIPS_ISA_LEVEL_RAW;		\
 		.set	eva;				\
 		prefe	hint, addr;			\
 		.set	pop
 
 #define PREFX(hint,addr)				\
 		.set	push;				\
-		.set	arch=r5000;			\
+		.set	MIPS_ISA_LEVEL_RAW;		\
 		prefx	hint, addr;			\
 		.set	pop
 
