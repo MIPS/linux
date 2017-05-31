@@ -17,6 +17,7 @@
 #include <asm/asmmacro.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
+#include <asm/sgidefs.h>
 #include <asm/thread_info.h>
 
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
@@ -33,41 +34,52 @@
 		.endm
 
 		.macro	SAVE_TEMP
-#ifdef CONFIG_CPU_HAS_SMARTMIPS
+#if _MIPS_ABI == _MIPS_ABI_PABI32
+		LONG_S	$2, PT_R2(sp)
+		LONG_S	$3, PT_R3(sp)
+		LONG_S	$12, PT_R12(sp)
+		LONG_S	$13, PT_R13(sp)
+		LONG_S	$14, PT_R14(sp)
+		LONG_S	$15, PT_R15(sp)
+		LONG_S	$24, PT_R24(sp)
+		LONG_S	$25, PT_R25(sp)
+#else
+# ifdef CONFIG_CPU_HAS_SMARTMIPS
 		mflhxu	v1
 		LONG_S	v1, PT_LO(sp)
 		mflhxu	v1
 		LONG_S	v1, PT_HI(sp)
 		mflhxu	v1
 		LONG_S	v1, PT_ACX(sp)
-#elif !defined(CONFIG_CPU_MIPSR6)
+# elif !defined(CONFIG_CPU_MIPSR6)
 		mfhi	v1
-#endif
-#ifdef CONFIG_32BIT
+# endif
+# ifdef CONFIG_32BIT
 		LONG_S	$8, PT_R8(sp)
 		LONG_S	$9, PT_R9(sp)
-#endif
+# endif
 		LONG_S	$10, PT_R10(sp)
 		LONG_S	$11, PT_R11(sp)
 		LONG_S	$12, PT_R12(sp)
-#if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
+# if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
 		LONG_S	v1, PT_HI(sp)
 		mflo	v1
-#endif
+# endif
 		LONG_S	$13, PT_R13(sp)
 		LONG_S	$14, PT_R14(sp)
 		LONG_S	$15, PT_R15(sp)
 		LONG_S	$24, PT_R24(sp)
-#if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
+# if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
 		LONG_S	v1, PT_LO(sp)
-#endif
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
+# endif
+# ifdef CONFIG_CPU_CAVIUM_OCTEON
 		/*
 		 * The Octeon multiplier state is affected by general
 		 * multiply instructions. It must be saved before and
 		 * kernel code might corrupt it
 		 */
 		jal     octeon_mult_save
+# endif
 #endif
 		.endm
 
@@ -189,29 +201,39 @@
 		move	sp, k1
 #endif
 		LONG_S	k0, PT_R29(sp)
+#if _MIPS_ABI != _MIPS_ABI_PABI32
 		LONG_S	$3, PT_R3(sp)
+#endif
 		/*
 		 * You might think that you don't need to save $0,
 		 * but the FPU emulator and gdb remote debug stub
 		 * need it to operate correctly
 		 */
 		LONG_S	$0, PT_R0(sp)
-		mfc0	v1, CP0_STATUS
+		mfc0	k0, CP0_STATUS
+#if _MIPS_ABI != _MIPS_ABI_PABI32
 		LONG_S	$2, PT_R2(sp)
-		LONG_S	v1, PT_STATUS(sp)
+#endif
+		LONG_S	k0, PT_STATUS(sp)
 		LONG_S	$4, PT_R4(sp)
-		mfc0	v1, CP0_CAUSE
+		mfc0	k0, CP0_CAUSE
 		LONG_S	$5, PT_R5(sp)
-		LONG_S	v1, PT_CAUSE(sp)
+		LONG_S	k0, PT_CAUSE(sp)
 		LONG_S	$6, PT_R6(sp)
-		MFC0	v1, CP0_EPC
+		MFC0	k0, CP0_EPC
 		LONG_S	$7, PT_R7(sp)
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) || (_MIPS_ABI == _MIPS_ABI_PABI32)
 		LONG_S	$8, PT_R8(sp)
 		LONG_S	$9, PT_R9(sp)
 #endif
-		LONG_S	v1, PT_EPC(sp)
+#if _MIPS_ABI == _MIPS_ABI_PABI32
+		LONG_S	$10, PT_R10(sp)
+		LONG_S	$11, PT_R11(sp)
+#endif
+		LONG_S	k0, PT_EPC(sp)
+#if _MIPS_ABI != _MIPS_ABI_PABI32
 		LONG_S	$25, PT_R25(sp)
+#endif
 		LONG_S	$28, PT_R28(sp)
 		LONG_S	$31, PT_R31(sp)
 
@@ -250,27 +272,37 @@
 		.endm
 
 		.macro	RESTORE_TEMP
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
+#if _MIPS_ABI == _MIPS_ABI_PABI32
+		LONG_L	$2, PT_R2(sp)
+		LONG_L	$3, PT_R3(sp)
+		LONG_L	$12, PT_R12(sp)
+		LONG_L	$13, PT_R13(sp)
+		LONG_L	$14, PT_R14(sp)
+		LONG_L	$15, PT_R15(sp)
+		LONG_L	$24, PT_R24(sp)
+		LONG_L	$25, PT_R25(sp)
+#else
+# ifdef CONFIG_CPU_CAVIUM_OCTEON
 		/* Restore the Octeon multiplier state */
 		jal	octeon_mult_restore
-#endif
-#ifdef CONFIG_CPU_HAS_SMARTMIPS
+# endif
+# ifdef CONFIG_CPU_HAS_SMARTMIPS
 		LONG_L	$24, PT_ACX(sp)
 		mtlhx	$24
 		LONG_L	$24, PT_HI(sp)
 		mtlhx	$24
 		LONG_L	$24, PT_LO(sp)
 		mtlhx	$24
-#elif !defined(CONFIG_CPU_MIPSR6)
+# elif !defined(CONFIG_CPU_MIPSR6)
 		LONG_L	$24, PT_LO(sp)
 		mtlo	$24
 		LONG_L	$24, PT_HI(sp)
 		mthi	$24
-#endif
-#ifdef CONFIG_32BIT
+# endif
+# ifdef CONFIG_32BIT
 		LONG_L	$8, PT_R8(sp)
 		LONG_L	$9, PT_R9(sp)
-#endif
+# endif
 		LONG_L	$10, PT_R10(sp)
 		LONG_L	$11, PT_R11(sp)
 		LONG_L	$12, PT_R12(sp)
@@ -278,6 +310,7 @@
 		LONG_L	$14, PT_R14(sp)
 		LONG_L	$15, PT_R15(sp)
 		LONG_L	$24, PT_R24(sp)
+#endif
 		.endm
 
 		.macro	RESTORE_STATIC
@@ -329,6 +362,40 @@
 		jr	k0
 		 rfe
 		.set	pop
+		.endm
+
+#elif _MIPS_ABI == _MIPS_ABI_PABI32
+
+		.macro	RESTORE_SOME
+		.set	push
+		.set	reorder
+		.set	noat
+		LONG_L	a2, PT_STATUS(sp)
+		mfc0	a0, CP0_STATUS
+		li	a1, ST0_CU1 | ST0_FR | ST0_IM
+		and	a0, a0, a1
+		or	a2, a2, a1
+		xor	a2, a2, a1
+		LONG_L	a1, PT_EPC(sp)
+		or	a2, a0
+		mtc0	a2, CP0_STATUS
+		MTC0	a1, CP0_EPC
+		LONG_L	$31, PT_R31(sp)
+		LONG_L	$28, PT_R28(sp)
+		LONG_L	$11, PT_R11(sp)
+		LONG_L	$10, PT_R10(sp)
+		LONG_L	$9, PT_R9(sp)
+		LONG_L	$8, PT_R8(sp)
+		LONG_L	$7,  PT_R7(sp)
+		LONG_L	$6,  PT_R6(sp)
+		LONG_L	$5,  PT_R5(sp)
+		LONG_L	$4,  PT_R4(sp)
+		.set	pop
+		.endm
+
+		.macro	RESTORE_SP_AND_RET
+		LONG_L	sp, PT_R29(sp)
+		eretnc
 		.endm
 
 #else
