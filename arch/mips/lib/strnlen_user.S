@@ -28,33 +28,33 @@
  */
 	.macro __BUILD_STRNLEN_ASM func
 LEAF(__strnlen_\func\()_asm)
-	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?
-	and		v0, a0
-	bnez		v0, .Lfault\@
+	LONG_L		t0, TI_ADDR_LIMIT($28)	# pointer ok?
+	and		t0, a0
+	bnez		t0, .Lfault\@
 
 FEXPORT(__strnlen_\func\()_nocheck_asm)
-	move		v0, a0
-	PTR_ADDU	a1, a0			# stop pointer
-	beq		v0, a1, 2f		# limit reached?
+	move		t0, a0
+	PTR_ADDU	t1, a1, a0			# stop pointer
+	beq		t0, t1, 2f		# limit reached?
 1:
 #ifdef CONFIG_CPU_DADDI_WORKAROUNDS
 	.set		noat
 	li		AT, 1
 #endif
 .ifeqs "\func", "kernel"
-	EX(lb, t0, (v0), .Lfault\@)
+	EX(lb, t2, (t0), .Lfault\@)
 .else
-	EX(lbe, t0, (v0), .Lfault\@)
+	EX(lbe, t2, (t0), .Lfault\@)
 .endif
 #ifndef CONFIG_CPU_DADDI_WORKAROUNDS
-	PTR_ADDIU	v0, 1
+	PTR_ADDIU	t0, 1
 #else
-	PTR_ADDU	v0, AT
+	PTR_ADDU	t0, AT
 	.set		at
 #endif
-	beq		v0, a1, 2f		# limit reached?
-	bnez		t0, 1b
-2:	PTR_SUBU	v0, a0
+	beq		t0, t1, 2f		# limit reached?
+	bnez		t2, 1b
+2:	PTR_SUBU	v0, t0, a0
 	jr		ra
 	END(__strnlen_\func\()_asm)
 

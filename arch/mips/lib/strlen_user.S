@@ -25,19 +25,19 @@
  */
 	.macro __BUILD_STRLEN_ASM func
 LEAF(__strlen_\func\()_asm)
-	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?
-	and		v0, a0
-	bnez		v0, .Lfault\@
+	LONG_L		t0, TI_ADDR_LIMIT($28)	# pointer ok?
+	and		t0, a0
+	bnez		t0, .Lfault\@
 
-	move		v0, a0
+	move		t0, a0
 .ifeqs "\func", "kernel"
-1:	EX(lbu, v1, (v0), .Lfault\@)
+1:	EX(lbu, t1, (t0), .Lfault\@)
 .else
-1:	EX(lbue, v1, (v0), .Lfault\@)
+1:	EX(lbue, t1, (t0), .Lfault\@)
 .endif
-	PTR_ADDIU	v0, 1
-	bnez		v1, 1b
-	PTR_SUBU	v0, a0
+	PTR_ADDIU	t0, 1
+	bnez		t1, 1b
+	PTR_SUBU	t0, a0
 	jr		ra
 	END(__strlen_\func\()_asm)
 

@@ -202,7 +202,7 @@
 #endif
 0:
 #endif /* __mips_isa_rev >= 6 */
-1:	move		a2, zero
+1:	move		v0, zero
 	jr		ra
 
 .Lsmall_memset\@:
@@ -214,7 +214,7 @@
 	sb		a1, -1(a0)
 	bne		t1, a0, 1b
 
-2:	move		a2, zero
+2:	move		v0, zero
 	jr		ra			/* done */
 	.if __memset == 1
 	END(memset)
@@ -224,8 +224,8 @@
 
 #if __mips_isa_rev >= 6
 .Lbyte_fixup\@:
-	PTR_SUBU	a2, $0, t0
-	PTR_ADDIU	a2, 1
+	PTR_SUBU	v0, $0, t0
+	PTR_ADDIU	v0, 1
 	jr		ra
 #endif /* __mips_isa_rev >= 6 */
 
@@ -237,7 +237,7 @@
 	andi		a2, 0x3f
 	LONG_L		t0, THREAD_BUADDR(t0)
 	LONG_ADDU	a2, t1
-	LONG_SUBU	a2, t0
+	LONG_SUBU	v0, a2, t0
 	jr		ra
 
 .Lpartial_fixup\@:
@@ -245,10 +245,11 @@
 	andi		a2, STORMASK
 	LONG_L		t0, THREAD_BUADDR(t0)
 	LONG_ADDU	a2, t1
-	LONG_SUBU	a2, t0
+	LONG_SUBU	v0, a2, t0
 	jr		ra
 
 .Llast_fixup\@:
+	move		v0, a2
 	andi		v1, a2, STORMASK
 	jr		ra
 

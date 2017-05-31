@@ -787,21 +787,6 @@ do {									\
 extern void __put_user_unaligned_unknown(void);
 #endif
 
-/*
- * We're generating jump to subroutines which will be outside the range of
- * jump instructions
- */
-#ifdef MODULE
-#define __MODULE_JAL(destination)					\
-	".set\tnoat\n\t"						\
-	__UA_LA "\t$1, " #destination "\n\t"				\
-	"jalr\t$1\n\t"							\
-	".set\tat\n\t"
-#else
-#define __MODULE_JAL(destination)					\
-	"jal\t" #destination "\n\t"
-#endif
-
 extern size_t __copy_user(void *to, const void *from, size_t n,
 			  const void *from_end);
 extern size_t __copy_from_user_eva(void *to, const void *from, size_t n,
@@ -841,8 +826,8 @@ raw_copy_in_user(void __user*to, const void __user *from, unsigned long n)
 		return __copy_user(to, from, n, from + n);
 }
 
-extern __kernel_size_t __bzero_kernel(void __user *addr, __kernel_size_t size);
-extern __kernel_size_t __bzero(void __user *addr, __kernel_size_t size);
+extern __kernel_size_t __bzero_kernel(void __user *addr, int val, __kernel_size_t size);
+extern __kernel_size_t __bzero(void __user *addr, int val, __kernel_size_t size);
 
 /*
  * __clear_user: - Zero a block of memory in user space, with less checking.
@@ -858,32 +843,11 @@ extern __kernel_size_t __bzero(void __user *addr, __kernel_size_t size);
 static inline __kernel_size_t
 __clear_user(void __user *addr, __kernel_size_t size)
 {
-	__kernel_size_t res;
+	if (eva_kernel_access())
+		return __bzero_kernel(addr, 0, size);
 
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, $0\n\t"
-			"move\t$6, %2\n\t"
-			__MODULE_JAL(__bzero_kernel)
-			"move\t%0, $6"
-			: "=r" (res)
-			: "r" (addr), "r" (size)
-			: "$4", "$5", "$6", __UA_t0, __UA_t1, "$31");
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, $0\n\t"
-			"move\t$6, %2\n\t"
-			__MODULE_JAL(__bzero)
-			"move\t%0, $6"
-			: "=r" (res)
-			: "r" (addr), "r" (size)
-			: "$4", "$5", "$6", __UA_t0, __UA_t1, "$31");
-	}
-
-	return res;
+	might_fault();
+	return __bzero(addr, 0, size);
 }
 
 #define clear_user(addr,n)						\
@@ -922,32 +886,11 @@ extern long __strncpy_from_user_nocheck_asm(char *__to, const char __user *__fro
 static inline long
 __strncpy_from_user(char *__to, const char __user *__from, long __len)
 {
-	long res;
+	if (eva_kernel_access())
+		return __strncpy_from_kernel_nocheck_asm(__to, __from, __len);
 
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			"move\t$6, %3\n\t"
-			__MODULE_JAL(__strncpy_from_kernel_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (__to), "r" (__from), "r" (__len)
-			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			"move\t$6, %3\n\t"
-			__MODULE_JAL(__strncpy_from_user_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (__to), "r" (__from), "r" (__len)
-			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
-	}
-
-	return res;
+	might_fault();
+	return __strncpy_from_user_nocheck_asm(__to, __from, __len);
 }
 
 extern long __strncpy_from_kernel_asm(char *__to, const char __user *__from, long __len);
@@ -974,32 +917,11 @@ extern long __strncpy_from_user_asm(char *__to, const char __user *__from, long 
 static inline long
 strncpy_from_user(char *__to, const char __user *__from, long __len)
 {
-	long res;
+	if (eva_kernel_access())
+		return __strncpy_from_kernel_asm(__to, __from, __len);
 
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			"move\t$6, %3\n\t"
-			__MODULE_JAL(__strncpy_from_kernel_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (__to), "r" (__from), "r" (__len)
-			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			"move\t$6, %3\n\t"
-			__MODULE_JAL(__strncpy_from_user_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (__to), "r" (__from), "r" (__len)
-			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
-	}
-
-	return res;
+	might_fault();
+	return __strncpy_from_user_asm(__to, __from, __len);
 }
 
 extern long __strlen_kernel_asm(const char __user *s);
@@ -1022,28 +944,11 @@ extern long __strlen_user_asm(const char __user *s);
  */
 static inline long strlen_user(const char __user *s)
 {
-	long res;
+	if (eva_kernel_access())
+		return __strlen_kernel_asm(s);
 
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			__MODULE_JAL(__strlen_kernel_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s)
-			: "$2", "$4", __UA_t0, "$31");
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			__MODULE_JAL(__strlen_user_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s)
-			: "$2", "$4", __UA_t0, "$31");
-	}
-
-	return res;
+	might_fault();
+	return __strlen_user_asm(s);
 }
 
 extern long __strnlen_kernel_nocheck_asm(const char __user *s, long n);
@@ -1052,30 +957,11 @@ extern long __strnlen_user_nocheck_asm(const char __user *s, long n);
 /* Returns: 0 if bad, string length+1 (memory size) of string if ok */
 static inline long __strnlen_user(const char __user *s, long n)
 {
-	long res;
+	if (eva_kernel_access())
+		return __strnlen_kernel_nocheck_asm(s, n);
 
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			__MODULE_JAL(__strnlen_kernel_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s), "r" (n)
-			: "$2", "$4", "$5", __UA_t0, "$31");
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			__MODULE_JAL(__strnlen_user_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s), "r" (n)
-			: "$2", "$4", "$5", __UA_t0, "$31");
-	}
-
-	return res;
+	might_fault();
+	return __strnlen_user_nocheck_asm(s, n);
 }
 
 extern long __strnlen_kernel_asm(const char __user *s, long n);
@@ -1096,30 +982,12 @@ extern long __strnlen_user_asm(const char __user *s, long n);
  */
 static inline long strnlen_user(const char __user *s, long n)
 {
-	long res;
-
 	might_fault();
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			__MODULE_JAL(__strnlen_kernel_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s), "r" (n)
-			: "$2", "$4", "$5", __UA_t0, "$31");
-	} else {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			__MODULE_JAL(__strnlen_user_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s), "r" (n)
-			: "$2", "$4", "$5", __UA_t0, "$31");
-	}
 
-	return res;
+	if (eva_kernel_access())
+		return __strnlen_kernel_asm(s, n);
+
+	return __strnlen_user_asm(s, n);
 }
 
 #endif /* _ASM_UACCESS_H */

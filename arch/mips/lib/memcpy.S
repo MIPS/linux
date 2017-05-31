@@ -33,8 +33,8 @@
 #include <asm/asm-offsets.h>
 #include <asm/export.h>
 #include <asm/regdef.h>
+#include <asm/sgidefs.h>
 
-#define dst a0
 #define src a1
 #define len a2
 
@@ -234,13 +234,13 @@
 	 * from : Source operand. USEROP or KERNELOP
 	 * to   : Destination operand. USEROP or KERNELOP
 	 */
-	.macro __BUILD_COPY_USER mode, from, to, uncopied
+	.macro __BUILD_COPY_USER mode, from, to, dst, uncopied
 
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
 	 * Temps
 	 */
-#define rem t8
+#define rem ta2
 
 	R10KCBARRIER(0(ra))
 	/*
@@ -251,15 +251,15 @@
 	 * If len < NBYTES use byte operations.
 	 */
 	PREFS(	0, 0(src) )
-	PREFD(	1, 0(dst) )
+	PREFD(	1, 0(\dst) )
 	sltu	t2, len, NBYTES
-	and	t1, dst, ADDRMASK
+	and	t1, \dst, ADDRMASK
 	PREFS(	0, 1*32(src) )
-	PREFD(	1, 1*32(dst) )
+	PREFD(	1, 1*32(\dst) )
 	and	t0, src, ADDRMASK
 	bnez	t2, .Lcopy_bytes_checklen\@
 	PREFS(	0, 2*32(src) )
-	PREFD(	1, 2*32(dst) )
+	PREFD(	1, 2*32(\dst) )
 #ifndef CONFIG_CPU_MIPSR6
 	bnez	t1, .Ldst_unaligned\@
 	bnez	t0, .Lsrc_unaligned_dst_aligned\@
@@ -275,8 +275,7 @@
 	and	rem, len, (8*NBYTES-1)	 # rem = len % (8*NBYTES)
 	beqz	t0, .Lcleanup_both_aligned\@ # len < 8*NBYTES
 	PREFS(	0, 3*32(src) )
-	PREFD(	1, 3*32(dst) )
-	.align	4
+	PREFD(	1, 3*32(\dst) )
 1:
 	R10KCBARRIER(0(ra))
 	LOAD(t0, UNIT(0)(src), .Ll_exc\@)
@@ -286,20 +285,20 @@
 	SUB	len, len, 8*NBYTES
 	LOAD(ta0, UNIT(4)(src), .Ll_exc_copy\@)
 	LOAD(ta1, UNIT(5)(src), .Ll_exc_copy\@)
-	STORE(t0, UNIT(0)(dst),	.Ls_exc_p8u\@)
-	STORE(t1, UNIT(1)(dst),	.Ls_exc_p7u\@)
+	STORE(t0, UNIT(0)(\dst),	.Ls_exc_p8u\@)
+	STORE(t1, UNIT(1)(\dst),	.Ls_exc_p7u\@)
 	LOAD(t0, UNIT(6)(src), .Ll_exc_copy\@)
 	LOAD(t1, UNIT(7)(src), .Ll_exc_copy\@)
 	ADD	src, src, 8*NBYTES
-	ADD	dst, dst, 8*NBYTES
-	STORE(t2, UNIT(-6)(dst), .Ls_exc_p6u\@)
-	STORE(t3, UNIT(-5)(dst), .Ls_exc_p5u\@)
-	STORE(ta0, UNIT(-4)(dst), .Ls_exc_p4u\@)
-	STORE(ta1, UNIT(-3)(dst), .Ls_exc_p3u\@)
-	STORE(t0, UNIT(-2)(dst), .Ls_exc_p2u\@)
-	STORE(t1, UNIT(-1)(dst), .Ls_exc_p1u\@)
+	ADD	\dst, \dst, 8*NBYTES
+	STORE(t2, UNIT(-6)(\dst), .Ls_exc_p6u\@)
+	STORE(t3, UNIT(-5)(\dst), .Ls_exc_p5u\@)
+	STORE(ta0, UNIT(-4)(\dst), .Ls_exc_p4u\@)
+	STORE(ta1, UNIT(-3)(\dst), .Ls_exc_p3u\@)
+	STORE(t0, UNIT(-2)(\dst), .Ls_exc_p2u\@)
+	STORE(t1, UNIT(-1)(\dst), .Ls_exc_p1u\@)
 	PREFS(	0, 8*32(src) )
-	PREFD(	1, 8*32(dst) )
+	PREFD(	1, 8*32(\dst) )
 	bne	len, rem, 1b
 
 	/*
@@ -320,11 +319,11 @@
 	SUB	len, len, 4*NBYTES
 	ADD	src, src, 4*NBYTES
 	R10KCBARRIER(0(ra))
-	STORE(t0, UNIT(0)(dst),	.Ls_exc_p4u\@)
-	STORE(t1, UNIT(1)(dst),	.Ls_exc_p3u\@)
-	STORE(t2, UNIT(2)(dst),	.Ls_exc_p2u\@)
-	STORE(t3, UNIT(3)(dst),	.Ls_exc_p1u\@)
-	ADD	dst, dst, 4*NBYTES
+	STORE(t0, UNIT(0)(\dst),	.Ls_exc_p4u\@)
+	STORE(t1, UNIT(1)(\dst),	.Ls_exc_p3u\@)
+	STORE(t2, UNIT(2)(\dst),	.Ls_exc_p2u\@)
+	STORE(t3, UNIT(3)(\dst),	.Ls_exc_p1u\@)
+	ADD	\dst, \dst, 4*NBYTES
 	beqz	len, .Ldone\@
 .Lless_than_4units\@:
 	/*
@@ -336,8 +335,8 @@
 	LOAD(t0, 0(src), .Ll_exc\@)
 	ADD	src, src, NBYTES
 	SUB	len, len, NBYTES
-	STORE(t0, 0(dst), .Ls_exc_p1u\@)
-	ADD	dst, dst, NBYTES
+	STORE(t0, 0(\dst), .Ls_exc_p1u\@)
+	ADD	\dst, \dst, NBYTES
 	bne	rem, len, 1b
 
 #ifndef CONFIG_CPU_MIPSR6
@@ -353,7 +352,7 @@
 	 * more instruction-level parallelism.
 	 */
 #define bits t2
-	ADD	t1, dst, len	# t1 is just past last byte of dst
+	ADD	t1, \dst, len	# t1 is just past last byte of dst
 	beqz	len, .Ldone\@
 	li	bits, 8*NBYTES
 	SLL	rem, len, 3	# rem = number of bits to keep
@@ -381,10 +380,10 @@
 	SUB	t2, t2, t1	# t2 = number of bytes copied
 	xor	match, t0, t1
 	R10KCBARRIER(0(ra))
-	STFIRST(t3, FIRST(0)(dst), .Ls_exc\@)
+	STFIRST(t3, FIRST(0)(\dst), .Ls_exc\@)
 	SUB	len, len, t2
 	beqz	len, .Ldone\@
-	ADD	dst, dst, t2
+	ADD	\dst, \dst, t2
 	ADD	src, src, t2
 	beqz	match, .Lboth_aligned\@
 
@@ -393,7 +392,7 @@
 	PREFS(	0, 3*32(src) )
 	and	rem, len, (4*NBYTES-1)	 # rem = len % 4*NBYTES
 	beqz	t0, .Lcleanup_src_unaligned\@
-	PREFD(	1, 3*32(dst) )
+	PREFD(	1, 3*32(\dst) )
 1:
 /*
  * Avoid consecutive LD*'s to the same register since some mips
@@ -416,12 +415,12 @@
 #ifdef CONFIG_CPU_SB1
 	nop				# improves slotting
 #endif
-	STORE(t0, UNIT(0)(dst),	.Ls_exc_p4u\@)
-	STORE(t1, UNIT(1)(dst),	.Ls_exc_p3u\@)
-	STORE(t2, UNIT(2)(dst),	.Ls_exc_p2u\@)
-	STORE(t3, UNIT(3)(dst),	.Ls_exc_p1u\@)
-	PREFD(	1, 9*32(dst) )		# 1 is PREF_STORE (not streamed)
-	ADD	dst, dst, 4*NBYTES
+	STORE(t0, UNIT(0)(\dst),	.Ls_exc_p4u\@)
+	STORE(t1, UNIT(1)(\dst),	.Ls_exc_p3u\@)
+	STORE(t2, UNIT(2)(\dst),	.Ls_exc_p2u\@)
+	STORE(t3, UNIT(3)(\dst),	.Ls_exc_p1u\@)
+	PREFD(	1, 9*32(\dst) )		# 1 is PREF_STORE (not streamed)
+	ADD	\dst, \dst, 4*NBYTES
 	bne	len, rem, 1b
 
 .Lcleanup_src_unaligned\@:
@@ -434,8 +433,8 @@
 	LDREST(t0, REST(0)(src), .Ll_exc_copy\@)
 	ADD	src, src, NBYTES
 	SUB	len, len, NBYTES
-	STORE(t0, 0(dst), .Ls_exc_p1u\@)
-	ADD	dst, dst, NBYTES
+	STORE(t0, 0(\dst), .Ls_exc_p1u\@)
+	ADD	\dst, \dst, NBYTES
 	bne	len, rem, 1b
 
 #endif /* !CONFIG_CPU_MIPSR6 */
@@ -447,7 +446,7 @@
 #define COPY_BYTE(N)			\
 	LOADB(t0, N(src), .Ll_exc\@);	\
 	SUB	len, len, 1;		\
-	STOREB(t0, N(dst), .Ls_exc_p1\@);\
+	STOREB(t0, N(\dst), .Ls_exc_p1\@);\
 	beqz	len, .Ldone\@
 
 	COPY_BYTE(0)
@@ -459,8 +458,9 @@
 	COPY_BYTE(5)
 #endif
 	LOADB(t0, NBYTES-2(src), .Ll_exc\@)
-	SUB	\uncopied, len, 1
-	STOREB(t0, NBYTES-2(dst), .Ls_exc_p1\@)
+	SUB	len, len, 1
+	STOREB(t0, NBYTES-2(\dst), .Ls_exc_p1\@)
+	move	\uncopied, len
 	jr	ra
 .Ldone\@:
 	move	\uncopied, len
@@ -478,7 +478,7 @@
 	COPY_BYTE(6)
 	COPY_BYTE(7)
 	ADD	src, src, 8
-	ADD	dst, dst, 8
+	ADD	\dst, \dst, 8
 	b	1b
 #endif /* CONFIG_CPU_MIPSR6 */
 
@@ -501,8 +501,8 @@
 1:
 	LOADB(t1, 0(src), .Ll_exc\@)
 	ADD	src, src, 1
-	sb	t1, 0(dst)	# can't fault -- we're copy_from_user
-	ADD	dst, dst, 1
+	sb	t1, 0(\dst)	# can't fault -- we're copy_from_user
+	ADD	\dst, \dst, 1
 	bne	src, t0, 1b
 .Ll_exc\@:
 	LOADK	t0, TI_TASK($28)
@@ -548,10 +548,16 @@ SEXC(1)
 	.align	5
 LEAF(memcpy)					/* a0=dst a1=src a2=len */
 EXPORT_SYMBOL(memcpy)
-	move	v0, dst				/* return value */
+#if _MIPS_ABI == _MIPS_ABI_PABI32
+	move	ta3, a0
+# define dst	ta3
+#else
+# define dst	a0
+#endif
 .L__memcpy:
 	/* Legacy Mode, user <-> user */
-	__BUILD_COPY_USER MEMCPY_MODE USEROP USEROP len
+	__BUILD_COPY_USER MEMCPY_MODE USEROP USEROP dst len
+#undef dst
 	END(memcpy)
 
 /*
@@ -568,7 +574,7 @@ EXPORT_SYMBOL(memcpy)
 LEAF(__copy_user)
 EXPORT_SYMBOL(__copy_user)
 	/* Legacy Mode, user <-> user */
-	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP v0
+	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP a0 v0
 	END(__copy_user)
 
 #ifdef CONFIG_EVA
@@ -586,7 +592,7 @@ EXPORT_SYMBOL(__copy_user)
 
 LEAF(__copy_from_user_eva)
 EXPORT_SYMBOL(__copy_from_user_eva)
-	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP v0
+	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP a0 v0
 END(__copy_from_user_eva)
 
 
@@ -597,7 +603,7 @@ END(__copy_from_user_eva)
 
 LEAF(__copy_to_user_eva)
 EXPORT_SYMBOL(__copy_to_user_eva)
-__BUILD_COPY_USER EVA_MODE KERNELOP USEROP v0
+__BUILD_COPY_USER EVA_MODE KERNELOP USEROP a0 v0
 END(__copy_to_user_eva)
 
 /*
@@ -606,7 +612,7 @@ END(__copy_to_user_eva)
 
 LEAF(__copy_in_user_eva)
 EXPORT_SYMBOL(__copy_in_user_eva)
-__BUILD_COPY_USER EVA_MODE USEROP USEROP v0
+__BUILD_COPY_USER EVA_MODE USEROP USEROP a0 v0
 END(__copy_in_user_eva)
 
 #endif
