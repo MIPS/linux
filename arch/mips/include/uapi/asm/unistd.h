@@ -1096,6 +1096,10 @@
 
 #define sys_mmap2 sys_mmap_4koff
 
+/* Rearrange arguments to avoid register hole */
+#define __ARCH_WANT_SYNC_FILE_RANGE2
+#define __ARCH_WANT_SYS_FADVISE64_64_2
+
 /* P32 has completely separate syscall numbering */
 #include <asm-generic/unistd.h>
 
