@@ -74,7 +74,6 @@ syscall_trace_entry:
 	LONG_L	a3, PT_R7(sp)
 	LONG_L	a4, PT_R8(sp)
 	LONG_L	a5, PT_R9(sp)
-	LONG_L	a6, PT_R10(sp)
 	LONG_L	a7, PT_R11(sp)		# Restore syscall (maybe modified)
 	j	syscall_common
 

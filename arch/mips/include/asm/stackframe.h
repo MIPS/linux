@@ -37,6 +37,7 @@
 #if _MIPS_ABI == _MIPS_ABI_PABI32
 		LONG_S	$2, PT_R2(sp)
 		LONG_S	$3, PT_R3(sp)
+		LONG_S	$10, PT_R10(sp)
 		LONG_S	$12, PT_R12(sp)
 		LONG_S	$13, PT_R13(sp)
 		LONG_S	$14, PT_R14(sp)
@@ -227,7 +228,6 @@
 		LONG_S	$9, PT_R9(sp)
 #endif
 #if _MIPS_ABI == _MIPS_ABI_PABI32
-		LONG_S	$10, PT_R10(sp)
 		LONG_S	$11, PT_R11(sp)
 #endif
 		LONG_S	k0, PT_EPC(sp)
@@ -275,6 +275,7 @@
 #if _MIPS_ABI == _MIPS_ABI_PABI32
 		LONG_L	$2, PT_R2(sp)
 		LONG_L	$3, PT_R3(sp)
+		LONG_L	$10, PT_R10(sp)
 		LONG_L	$12, PT_R12(sp)
 		LONG_L	$13, PT_R13(sp)
 		LONG_L	$14, PT_R14(sp)
@@ -383,7 +384,6 @@
 		LONG_L	$31, PT_R31(sp)
 		LONG_L	$28, PT_R28(sp)
 		LONG_L	$11, PT_R11(sp)
-		LONG_L	$10, PT_R10(sp)
 		LONG_L	$9, PT_R9(sp)
 		LONG_L	$8, PT_R8(sp)
 		LONG_L	$7,  PT_R7(sp)
