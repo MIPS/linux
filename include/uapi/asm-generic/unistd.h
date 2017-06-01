@@ -610,7 +610,11 @@ __SC_COMP(__NR_execve, sys_execve, compat_sys_execve)
 __SC_3264(__NR3264_mmap, sys_mmap2, sys_mmap)
 /* mm/fadvise.c */
 #define __NR3264_fadvise64 223
+#ifdef __ARCH_WANT_SYS_FADVISE64_64_2
+__SC_COMP(__NR3264_fadvise64, sys_fadvise64_64_2, compat_sys_fadvise64_64)
+#else
 __SC_COMP(__NR3264_fadvise64, sys_fadvise64_64, compat_sys_fadvise64_64)
+#endif
 
 /* mm/, CONFIG_MMU only */
 #ifndef __ARCH_NOMMU
