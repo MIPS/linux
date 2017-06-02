@@ -18,6 +18,7 @@
 /* Use the flavor of this syscall that matches the 32-bit API better. */
 #define __ARCH_WANT_SYNC_FILE_RANGE2
 #endif
+#define __ARCH_WANT_SYSCALL_UNXSTAT
 
 /* Use the standard ABI for syscalls. */
 #include <asm-generic/unistd.h>

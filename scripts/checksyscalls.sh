@@ -37,6 +37,15 @@ cat << EOF
 #define __IGNORE_lstat64	/* fstatat64 */
 #endif
 
+/* statx */
+#if BITS_PER_LONG == 64
+#define __IGNORE_newfstatat	/* statx */
+#define __IGNORE_newfstat	/* statx */
+#else
+#define __IGNORE_fstatat64	/* statx */
+#define __IGNORE_fstat64	/* statx */
+#endif
+
 /* Missing flags argument */
 #define __IGNORE_renameat	/* renameat2 */
 

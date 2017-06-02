@@ -17,6 +17,7 @@
 #include <asm/unistd-nr.h>
 
 #define __ARCH_WANT_STAT64
+#define __ARCH_WANT_SYSCALL_UNXSTAT
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_PAUSE
 #define __ARCH_WANT_SYS_GETPGRP
