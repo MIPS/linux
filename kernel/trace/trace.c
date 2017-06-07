@@ -64,7 +64,8 @@ static bool __read_mostly tracing_selftest_running;
 /*
  * If a tracer is running, we do not want to run SELFTEST.
  */
-bool __read_mostly tracing_selftest_disabled;
+bool __read_mostly tracing_selftest_disabled =
+	IS_ENABLED(CONFIG_FTRACE_STARTUP_TEST_DISABLED);
 
 /* Pipe tracepoints to printk */
 struct trace_iterator *tracepoint_print_iter;
@@ -235,6 +236,15 @@ static int __init set_tracepoint_printk(char *str)
 	return 1;
 }
 __setup("tp_printk", set_tracepoint_printk);
+
+#ifdef CONFIG_FTRACE_STARTUP_TEST
+static int __init set_ftrace_startup_test(char *str)
+{
+	tracing_selftest_disabled = false;
+	return 1;
+}
+early_param("ftrace_startup_test", set_ftrace_startup_test);
+#endif
 
 unsigned long long ns2usecs(u64 nsec)
 {

@@ -536,6 +536,13 @@ config FTRACE_STARTUP_TEST
 	  functioning properly. It will do tests on all the configured
 	  tracers of ftrace.
 
+config FTRACE_STARTUP_TEST_DISABLED
+	bool "Disable automatic startup tests of ftrace"
+	depends on FTRACE_STARTUP_TEST
+	help
+	  This option prevents the startup tests on ftrace from being performed
+	  unless 'ftrace_startup_test' cmdline argument is set.
+
 config EVENT_TRACE_TEST_SYSCALLS
 	bool "Run selftest on syscall events"
 	depends on FTRACE_STARTUP_TEST
