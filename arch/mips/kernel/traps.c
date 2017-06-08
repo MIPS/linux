@@ -235,8 +235,9 @@ static void show_code(unsigned int __user *pc)
 
 	printk("Code:");
 
-	if ((unsigned long)pc & 1)
-		pc16 = (unsigned short __user *)((unsigned long)pc & ~1);
+	if (get_isa16_mode((unsigned long)pc))
+		pc16 = (unsigned short __user *)msk_isa16_mode(
+							(unsigned long)pc);
 	for(i = -3 ; i < 6 ; i++) {
 		unsigned int insn;
 		if (pc16 ? __get_user(insn, pc16 + i) : __get_user(insn, pc + i)) {
