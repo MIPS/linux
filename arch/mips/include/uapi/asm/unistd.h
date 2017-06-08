@@ -1103,6 +1103,10 @@
 /* P32 has completely separate syscall numbering */
 #include <asm-generic/unistd.h>
 
+/* architecture specific syscalls. */
+#define __NR_set_thread_area		(__NR_arch_specific_syscall + 0)
+__SYSCALL(__NR_set_thread_area, sys_set_thread_area)
+
 #define NR_syscalls __NR_syscalls
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */

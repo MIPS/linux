@@ -20,6 +20,17 @@ asmlinkage long __sys_clone(unsigned long, unsigned long, int __user *,
 save_static_function(sys_clone);
 #define sys_clone __sys_clone
 
+SYSCALL_DEFINE1(set_thread_area, unsigned long, addr)
+{
+	struct thread_info *ti = task_thread_info(current);
+
+	ti->tp_value = addr;
+	if (cpu_has_userlocal)
+		write_c0_userlocal(addr);
+
+	return 0;
+}
+
 /* Provide the actual syscall number to call mapping. */
 #undef __SYSCALL
 #define __SYSCALL(nr, call) [nr] = (call),
