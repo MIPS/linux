@@ -514,6 +514,14 @@
 # define cpu_has_perf		(cpu_data[0].options & MIPS_CPU_PERF)
 #endif
 
+#ifndef cpu_has_nanomips
+# ifdef CONFIG_CPU_NANOMIPS
+#  define cpu_has_nanomips	1
+# else
+#  define cpu_has_nanomips	0
+# endif
+#endif
+
 /*
  * Guest capabilities
  */
