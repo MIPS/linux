@@ -969,6 +969,8 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	if (get_isa16_mode(regs->cp0_epc)) {
 		u16 instr[2];
 
+		WARN_ON(cpu_has_nanomips);
+
 		if (__get_user(instr[0], (u16 __user *)epc))
 			goto out_sigsegv;
 
@@ -1060,6 +1062,8 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	prev_state = exception_enter();
 	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
 	if (get_isa16_mode(regs->cp0_epc)) {
+		WARN_ON(cpu_has_nanomips);
+
 		if (__get_user(instr[0], (u16 __user *)(epc + 0)) ||
 		    __get_user(instr[1], (u16 __user *)(epc + 2)))
 			goto out_sigsegv;
@@ -1135,6 +1139,8 @@ no_r2_instr:
 		goto out;
 
 	if (!get_isa16_mode(regs->cp0_epc)) {
+		WARN_ON(cpu_has_nanomips);
+
 		if (unlikely(get_user(opcode, epc) < 0))
 			status = SIGSEGV;
 

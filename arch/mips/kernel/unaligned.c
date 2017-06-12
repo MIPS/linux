@@ -2258,6 +2258,8 @@ asmlinkage void do_ade(struct pt_regs *regs)
 		if (unaligned_action == UNALIGNED_ACTION_SHOW)
 			show_registers(regs);
 
+		WARN_ON(cpu_has_nanomips);
+
 		if (cpu_has_mmips) {
 			seg = get_fs();
 			if (!user_mode(regs))

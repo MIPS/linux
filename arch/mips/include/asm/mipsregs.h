@@ -1118,9 +1118,13 @@
 #ifndef __ASSEMBLY__
 
 /*
- * Macros for handling the ISA mode bit for MIPS16 and microMIPS.
+ * Macros for handling the ISA mode bit for MIPS16, microMIPS, and nanoMIPS.
  */
-#if defined(CONFIG_SYS_SUPPORTS_MIPS16) || \
+#if defined(CONFIG_CPU_NANOMIPS)
+#define get_isa16_mode(x)		1
+#define msk_isa16_mode(x)		(x)
+#define set_isa16_mode(x)		do { } while(0)
+#elif defined(CONFIG_SYS_SUPPORTS_MIPS16) || \
     defined(CONFIG_SYS_SUPPORTS_MICROMIPS)
 #define get_isa16_mode(x)		((x) & 0x1)
 #define msk_isa16_mode(x)		((x) & ~0x1)

@@ -59,6 +59,7 @@ static inline unsigned long exception_epc(struct pt_regs *regs)
 	if (likely(!delay_slot(regs)))
 		return regs->cp0_epc;
 
+	WARN_ON(cpu_has_nanomips);
 	if (get_isa16_mode(regs->cp0_epc))
 		return __isa_exception_epc(regs);
 
@@ -70,6 +71,7 @@ static inline unsigned long exception_epc(struct pt_regs *regs)
 static inline int compute_return_epc(struct pt_regs *regs)
 {
 	if (get_isa16_mode(regs->cp0_epc)) {
+		WARN_ON(cpu_has_nanomips);
 		if (cpu_has_mmips)
 			return __microMIPS_compute_return_epc(regs);
 		if (cpu_has_mips16)
