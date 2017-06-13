@@ -205,11 +205,13 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		regs.regs[29] = (unsigned long)sp;
 		regs.regs[31] = 0;
 		regs.cp0_epc = 0;
+		regs.cp0_status = 0;
 	} else {
 		if (task && task != current) {
 			regs.regs[29] = task->thread.reg29;
 			regs.regs[31] = 0;
 			regs.cp0_epc = task->thread.reg31;
+			regs.cp0_status = task->thread.cp0_status;
 #ifdef CONFIG_KGDB_KDB
 		} else if (atomic_read(&kgdb_active) != -1 &&
 			   kdb_current_regs) {
