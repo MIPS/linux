@@ -2422,6 +2422,7 @@ config CPU_MICROMIPS
 config CPU_NANOMIPS
 	depends on 32BIT && CPU_MIPSR6
 	bool "Compile targeting nanoMIPS"
+	select ARCH_WANT_FRAME_POINTERS
 	help
 	  Select this to build a kernel which targets the nanoMIPS ISA.
 

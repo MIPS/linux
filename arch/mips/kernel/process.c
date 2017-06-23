@@ -537,6 +537,7 @@ unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 		pc = regs->cp0_epc;
 		if (!user_mode(regs) && __kernel_text_address(pc)) {
 			*sp = regs->regs[29];
+			*fp = regs->regs[30];
 			*ra = regs->regs[31];
 			return pc;
 		}
@@ -553,6 +554,17 @@ unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 		return pc;
 	}
 
+#ifdef CONFIG_FRAME_POINTER
+	/* Is the frame pointer in the right ball park? */
+	if (*fp >= *sp && *fp <= (*sp | (THREAD_SIZE-sizeof(void *)))) {
+		*sp = *fp + 2 * sizeof(void *);
+		pc = ((unsigned long *)(*fp))[0];
+		*fp = ((unsigned long *)(*fp))[1];
+		return __kernel_text_address(pc) ? pc : 0;
+	} else {
+		return 0;
+	}
+#endif /* CONFIG_ARCH_WANT_FRAME_POINTERS */
 	info.func = (void *)(pc - ofs);
 	info.func_size = ofs;	/* analyze from start to ofs */
 	leaf = get_frame_info(&info);
