@@ -143,6 +143,7 @@ __setup("raw_show_trace", set_raw_show_trace);
 static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
 {
 	unsigned long sp = regs->regs[29];
+	unsigned long fp = regs->regs[30];
 	unsigned long ra = regs->regs[31];
 	unsigned long pc = regs->cp0_epc;
 
@@ -156,7 +157,7 @@ static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
 	printk("Call Trace:\n");
 	do {
 		print_ip_sym(pc);
-		pc = unwind_stack(task, &sp, pc, &ra);
+		pc = unwind_stack(task, &sp, &fp, pc, &ra);
 	} while (pc);
 	pr_cont("\n");
 }
@@ -203,12 +204,14 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	mm_segment_t old_fs = get_fs();
 	if (sp) {
 		regs.regs[29] = (unsigned long)sp;
+		regs.regs[30] = 0;
 		regs.regs[31] = 0;
 		regs.cp0_epc = 0;
 		regs.cp0_status = 0;
 	} else {
 		if (task && task != current) {
 			regs.regs[29] = task->thread.reg29;
+			regs.regs[30] = task->thread.reg30;
 			regs.regs[31] = 0;
 			regs.cp0_epc = task->thread.reg31;
 			regs.cp0_status = task->thread.cp0_status;

@@ -489,6 +489,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 /* generic stack unwinding function */
 unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 					      unsigned long *sp,
+					      unsigned long *fp,
 					      unsigned long pc,
 					      unsigned long *ra)
 {
@@ -580,7 +581,8 @@ EXPORT_SYMBOL(unwind_stack_by_address);
 
 /* used by show_backtrace() */
 unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
-			   unsigned long pc, unsigned long *ra)
+			   unsigned long *fp, unsigned long pc,
+			   unsigned long *ra)
 {
 	unsigned long stack_page = 0;
 	int cpu;
@@ -595,7 +597,7 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 	if (!stack_page)
 		stack_page = (unsigned long)task_stack_page(task);
 
-	return unwind_stack_by_address(stack_page, sp, pc, ra);
+	return unwind_stack_by_address(stack_page, sp, fp, pc, ra);
 }
 #endif
 
@@ -606,7 +608,7 @@ unsigned long get_wchan(struct task_struct *task)
 {
 	unsigned long pc = 0;
 #ifdef CONFIG_KALLSYMS
-	unsigned long sp;
+	unsigned long sp, fp;
 	unsigned long ra = 0;
 #endif
 
@@ -619,9 +621,10 @@ unsigned long get_wchan(struct task_struct *task)
 
 #ifdef CONFIG_KALLSYMS
 	sp = task->thread.reg29 + schedule_mfi.frame_size;
+	fp = task->thread.reg30;
 
 	while (in_sched_functions(pc))
-		pc = unwind_stack(task, &sp, pc, &ra);
+		pc = unwind_stack(task, &sp, &fp, pc, &ra);
 #endif
 
 out:

@@ -11,6 +11,7 @@
 
 struct stackframe {
 	unsigned long sp;
+	unsigned long fp;
 	unsigned long pc;
 	unsigned long ra;
 };
@@ -154,6 +155,7 @@ static inline void do_kernel_backtrace(unsigned long low_addr,
 	while (depth-- && frame->pc) {
 		frame->pc = unwind_stack_by_address(low_addr,
 						    &(frame->sp),
+						    &(frame->fp),
 						    frame->pc,
 						    &(frame->ra));
 		oprofile_add_trace(frame->ra);
@@ -164,6 +166,7 @@ static inline void do_kernel_backtrace(unsigned long low_addr,
 void notrace op_mips_backtrace(struct pt_regs *const regs, unsigned int depth)
 {
 	struct stackframe frame = { .sp = regs->regs[29],
+				    .fp = regs->regs[30],
 				    .pc = regs->cp0_epc,
 				    .ra = regs->regs[31] };
 	const int userspace = user_mode(regs);
