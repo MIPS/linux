@@ -29,9 +29,9 @@ NESTED(handle_sys, PT_SIZE, sp)
 	STI
 	.set	at
 
-	# There is a 32-bit encoding too, but we ignore that for now
+	# There is a SYSCALL[16] encoding too, but we only support SYSCALL[32]
 	PTR_L	t1, PT_EPC(sp)		# skip syscall on return
-	PTR_ADDIU t1, 2			# skip to next instruction
+	PTR_ADDIU t1, 4			# skip to next instruction
 	PTR_S	t1, PT_EPC(sp)
 
 	LONG_S	v0, PT_R26(sp)		# save v0/a0 for syscall restarting

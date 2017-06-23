@@ -802,13 +802,11 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		case ERESTARTNOINTR:
 #ifdef CONFIG_CPU_NANOMIPS
 			regs->regs[4] = regs->regs[26];
-			/* FIXME assume short encoding */
-			regs->cp0_epc -= 2;
 #else
 			regs->regs[7] = regs->regs[26];
 			regs->regs[2] = regs->regs[0];
-			regs->cp0_epc -= 4;
 #endif
+			regs->cp0_epc -= 4;
 		}
 
 		regs->regs[0] = 0;	/* Don't deal with this again.	*/
@@ -845,26 +843,22 @@ static void do_signal(struct pt_regs *regs)
 		case ERESTARTNOINTR:
 #ifdef CONFIG_CPU_NANOMIPS
 			regs->regs[4] = regs->regs[26];
-			/* FIXME assume short encoding */
-			regs->cp0_epc -= 2;
 #else
 			regs->regs[2] = regs->regs[0];
 			regs->regs[7] = regs->regs[26];
-			regs->cp0_epc -= 4;
 #endif
+			regs->cp0_epc -= 4;
 			break;
 
 		case ERESTART_RESTARTBLOCK:
 #ifdef CONFIG_CPU_NANOMIPS
 			regs->regs[11] = current->thread.abi->restart;
 			regs->regs[4] = regs->regs[26];
-			/* FIXME assume short encoding */
-			regs->cp0_epc -= 2;
 #else
 			regs->regs[2] = current->thread.abi->restart;
 			regs->regs[7] = regs->regs[26];
-			regs->cp0_epc -= 4;
 #endif
+			regs->cp0_epc -= 4;
 			break;
 		}
 		regs->regs[0] = 0;	/* Don't deal with this again.	*/
