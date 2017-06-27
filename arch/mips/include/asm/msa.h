@@ -205,6 +205,7 @@ static inline unsigned int read_msa_##name(void)		\
 	"	# cfcmsa $at, $%1\n"				\
 	_ASM_INSN_IF_MIPS(0x787e0059 | %1 << 11)		\
 	_ASM_INSN32_IF_MM(0x587e0056 | %1 << 11)		\
+	_ASM_SIGRIE_IF_NM()					\
 	"	move	%0, $at\n"				\
 	"	.set	pop\n"					\
 	: "=r"(reg) : "i"(cs));					\
@@ -220,6 +221,7 @@ static inline void write_msa_##name(unsigned int val)		\
 	"	# ctcmsa $%1, $at\n"				\
 	_ASM_INSN_IF_MIPS(0x783e0819 | %1 << 6)			\
 	_ASM_INSN32_IF_MM(0x583e0816 | %1 << 6)			\
+	_ASM_SIGRIE_IF_NM()					\
 	"	.set	pop\n"					\
 	: : "r"(val), "i"(cs));					\
 }

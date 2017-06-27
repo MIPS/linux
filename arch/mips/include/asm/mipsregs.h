@@ -1157,6 +1157,16 @@ static inline int mm_insn_16bit(u16 insn)
 	".insn\n\t"				\
 	".hword ((" #_enc ") >> 16)\n\t"	\
 	".hword ((" #_enc ") & 0xffff)\n\t"
+#elif defined(CONFIG_CPU_NANOMIPS)
+#define _ASM_INSN16_IF_NM(_enc)			\
+	".insn\n\t"				\
+	".hword (" #_enc ")\n\t"
+#define _ASM_INSN32_IF_NM(_enc)			\
+	".insn\n\t"				\
+	".hword ((" #_enc ") >> 16)\n\t"	\
+	".hword ((" #_enc ") & 0xffff)\n\t"
+#define _ASM_SIGRIE_IF_NM()			\
+	"sigrie\t0\n\t"
 #else
 #define _ASM_INSN_IF_MIPS(_enc)			\
 	".insn\n\t"				\
@@ -1168,6 +1178,15 @@ static inline int mm_insn_16bit(u16 insn)
 #endif
 #ifndef _ASM_INSN32_IF_MM
 #define _ASM_INSN32_IF_MM(_enc)
+#endif
+#ifndef _ASM_INSN16_IF_NM
+#define _ASM_INSN16_IF_NM(_enc)
+#endif
+#ifndef _ASM_INSN32_IF_NM
+#define _ASM_INSN32_IF_NM(_enc)
+#endif
+#ifndef _ASM_SIGRIE_IF_NM
+#define _ASM_SIGRIE_IF_NM()
 #endif
 #ifndef _ASM_INSN_IF_MIPS
 #define _ASM_INSN_IF_MIPS(_enc)
@@ -1189,6 +1208,7 @@ static inline void tlbinvf(void)
 		"# tlbinvf\n\t"
 		_ASM_INSN_IF_MIPS(0x42000004)
 		_ASM_INSN32_IF_MM(0x0000537c)
+		_ASM_SIGRIE_IF_NM()
 		".set pop");
 }
 
@@ -1426,6 +1446,7 @@ do {									\
 	"	# mfhc0 $at, %1					\n"	\
 	_ASM_INSN_IF_MIPS(0x40410000 | ((%1 & 0x1f) << 11))		\
 	_ASM_INSN32_IF_MM(0x002000f4 | ((%1 & 0x1f) << 16))		\
+	_ASM_SIGRIE_IF_NM()						\
 	"	move	%0, $at					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res)							\
@@ -1443,6 +1464,7 @@ do {									\
 	"	# mthc0 $at, %1					\n"	\
 	_ASM_INSN_IF_MIPS(0x40c10000 | ((%1 & 0x1f) << 11))		\
 	_ASM_INSN32_IF_MM(0x002002f4 | ((%1 & 0x1f) << 16))		\
+	_ASM_SIGRIE_IF_NM()						\
 	"	.set	pop					\n"	\
 	:								\
 	: "r" (value), "i" (register));					\
@@ -1901,6 +1923,7 @@ do {									\
 		"# mfgc0\t$at, $%1, %2\n\t"				\
 		_ASM_INSN_IF_MIPS(0x40610000 | %1 << 11 | %2)		\
 		_ASM_INSN32_IF_MM(0x002004fc | %1 << 16 | %2 << 11)	\
+		_ASM_SIGRIE_IF_NM()					\
 		"move\t%0, $at\n\t"					\
 		".set\tpop"						\
 		: "=r" (__res)						\
@@ -1916,6 +1939,7 @@ do {									\
 		"# dmfgc0\t$at, $%1, %2\n\t"				\
 		_ASM_INSN_IF_MIPS(0x40610100 | %1 << 11 | %2)		\
 		_ASM_INSN32_IF_MM(0x582004fc | %1 << 16 | %2 << 11)	\
+		_ASM_SIGRIE_IF_NM()					\
 		"move\t%0, $at\n\t"					\
 		".set\tpop"						\
 		: "=r" (__res)						\
@@ -1932,6 +1956,7 @@ do {									\
 		"# mtgc0\t$at, $%1, %2\n\t"				\
 		_ASM_INSN_IF_MIPS(0x40610200 | %1 << 11 | %2)		\
 		_ASM_INSN32_IF_MM(0x002006fc | %1 << 16 | %2 << 11)	\
+		_ASM_SIGRIE_IF_NM()					\
 		".set\tpop"						\
 		: : "Jr" ((unsigned int)(value)),			\
 		    "i" (register), "i" (sel));				\
@@ -1946,6 +1971,7 @@ do {									\
 		"# dmtgc0\t$at, $%1, %2\n\t"				\
 		_ASM_INSN_IF_MIPS(0x40610300 | %1 << 11 | %2)		\
 		_ASM_INSN32_IF_MM(0x582006fc | %1 << 16 | %2 << 11)	\
+		_ASM_SIGRIE_IF_NM()					\
 		".set\tpop"						\
 		: : "Jr" (value),					\
 		    "i" (register), "i" (sel));				\
@@ -2434,6 +2460,7 @@ do {									\
 	"	# rddsp $at, %x1				\n"	\
 	_ASM_INSN_IF_MIPS(0x7c000cb8 | (%x1 << 16))			\
 	_ASM_INSN32_IF_MM(0x0020067c | (%x1 << 14))			\
+	_ASM_SIGRIE_IF_NM()						\
 	"	move	%0, $at					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res)							\
@@ -2450,6 +2477,7 @@ do {									\
 	"	# wrdsp $at, %x1				\n"	\
 	_ASM_INSN_IF_MIPS(0x7c2004f8 | (%x1 << 11))			\
 	_ASM_INSN32_IF_MM(0x0020167c | (%x1 << 14))			\
+	_ASM_SIGRIE_IF_NM()						\
 	"	.set	pop					\n"	\
 	:								\
 	: "r" (val), "i" (mask));					\
@@ -2464,6 +2492,7 @@ do {									\
 	"	.set	noat					\n"	\
 	_ASM_INSN_IF_MIPS(0x00000810 | %X1)				\
 	_ASM_INSN32_IF_MM(0x0001007c | %x1)				\
+	_ASM_SIGRIE_IF_NM()						\
 	"	move	%0, $at					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__treg)							\
@@ -2479,6 +2508,7 @@ do {									\
 	"	move	$at, %0					\n"	\
 	_ASM_INSN_IF_MIPS(0x00200011 | %X1)				\
 	_ASM_INSN32_IF_MM(0x0001207c | %x1)				\
+	_ASM_SIGRIE_IF_NM()						\
 	"	.set	pop					\n"	\
 	:								\
 	: "r" (val), "i" (ins));					\
@@ -2662,7 +2692,8 @@ static inline void guest_tlb_probe(void)
 	__asm__ __volatile__(
 		"# tlbgp\n\t"
 		_ASM_INSN_IF_MIPS(0x42000010)
-		_ASM_INSN32_IF_MM(0x0000017c));
+		_ASM_INSN32_IF_MM(0x0000017c)
+		_ASM_SIGRIE_IF_NM());
 }
 
 static inline void guest_tlb_read(void)
@@ -2670,7 +2701,8 @@ static inline void guest_tlb_read(void)
 	__asm__ __volatile__(
 		"# tlbgr\n\t"
 		_ASM_INSN_IF_MIPS(0x42000009)
-		_ASM_INSN32_IF_MM(0x0000117c));
+		_ASM_INSN32_IF_MM(0x0000117c)
+		_ASM_SIGRIE_IF_NM());
 }
 
 static inline void guest_tlb_write_indexed(void)
@@ -2678,7 +2710,8 @@ static inline void guest_tlb_write_indexed(void)
 	__asm__ __volatile__(
 		"# tlbgwi\n\t"
 		_ASM_INSN_IF_MIPS(0x4200000a)
-		_ASM_INSN32_IF_MM(0x0000217c));
+		_ASM_INSN32_IF_MM(0x0000217c)
+		_ASM_SIGRIE_IF_NM());
 }
 
 static inline void guest_tlb_write_random(void)
@@ -2686,7 +2719,8 @@ static inline void guest_tlb_write_random(void)
 	__asm__ __volatile__(
 		"# tlbgwr\n\t"
 		_ASM_INSN_IF_MIPS(0x4200000e)
-		_ASM_INSN32_IF_MM(0x0000317c));
+		_ASM_INSN32_IF_MM(0x0000317c)
+		_ASM_SIGRIE_IF_NM());
 }
 
 /*
@@ -2697,7 +2731,8 @@ static inline void guest_tlbinvf(void)
 	__asm__ __volatile__(
 		"# tlbginvf\n\t"
 		_ASM_INSN_IF_MIPS(0x4200000c)
-		_ASM_INSN32_IF_MM(0x0000517c));
+		_ASM_INSN32_IF_MM(0x0000517c)
+		_ASM_SIGRIE_IF_NM());
 }
 
 #endif	/* !TOOLCHAIN_SUPPORTS_VIRT */
