@@ -126,7 +126,7 @@
 	__asm__ __volatile__(			\
 		".set	push\n\t"		\
 		".set	noreorder\n\t"		\
-		"lw	$0,%0\n\t"		\
+		"lw	$zero,%0\n\t"		\
 		"nop\n\t"			\
 		".set	pop"			\
 		: /* no output */		\
@@ -149,9 +149,9 @@
 	__asm__ __volatile__(			\
 		".set	push\n\t"		\
 		".set	noreorder\n\t"		\
-		"lw	$0,%0\n\t"		\
+		"lw	$zero,%0\n\t"		\
 		"sync\n\t"			\
-		"lw	$0,%0\n\t"		\
+		"lw	$zero,%0\n\t"		\
 		".set	pop"			\
 		: /* no output */		\
 		: "m" (*(int *)CKSEG1ADDR(0x1fa00004)) \

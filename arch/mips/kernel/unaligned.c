@@ -112,9 +112,9 @@ extern void show_registers(struct pt_regs *regs);
 do {                                                        \
 		__asm__ __volatile__ (".set\tnoat\n"        \
 			"1:\t"type##_lb("%0", "0(%2)")"\n"  \
-			"2:\t"type##_lbu("$1", "1(%2)")"\n\t"\
+			"2:\t"type##_lbu("$at", "1(%2)")"\n\t"\
 			"sll\t%0, 0x8\n\t"                  \
-			"or\t%0, $1\n\t"                    \
+			"or\t%0, $at\n\t"                   \
 			"li\t%1, 0\n"                       \
 			"3:\t.set\tat\n\t"                  \
 			".insn\n\t"                         \
@@ -159,15 +159,15 @@ do {                                                        \
 			".set\tpush\n"			    \
 			".set\tnoat\n\t"		    \
 			"1:"type##_lb("%0", "0(%2)")"\n\t"  \
-			"2:"type##_lbu("$1", "1(%2)")"\n\t" \
+			"2:"type##_lbu("$at", "1(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:"type##_lbu("$1", "2(%2)")"\n\t" \
+			"or\t%0, $at\n\t"		    \
+			"3:"type##_lbu("$at", "2(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:"type##_lbu("$1", "3(%2)")"\n\t" \
+			"or\t%0, $at\n\t"		    \
+			"4:"type##_lbu("$at", "3(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
+			"or\t%0, $at\n\t"		    \
 			"li\t%1, 0\n"			    \
 			".set\tpop\n"			    \
 			"10:\n\t"			    \
@@ -193,9 +193,9 @@ do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tnoat\n"                      \
 			"1:\t"type##_lbu("%0", "0(%2)")"\n" \
-			"2:\t"type##_lbu("$1", "1(%2)")"\n\t"\
+			"2:\t"type##_lbu("$at", "1(%2)")"\n\t"\
 			"sll\t%0, 0x8\n\t"                  \
-			"or\t%0, $1\n\t"                    \
+			"or\t%0, $at\n\t"                   \
 			"li\t%1, 0\n"                       \
 			"3:\n\t"                            \
 			".insn\n\t"                         \
@@ -263,15 +263,15 @@ do {                                                        \
 			".set\tpush\n\t"		    \
 			".set\tnoat\n\t"		    \
 			"1:"type##_lbu("%0", "0(%2)")"\n\t" \
-			"2:"type##_lbu("$1", "1(%2)")"\n\t" \
+			"2:"type##_lbu("$at", "1(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:"type##_lbu("$1", "2(%2)")"\n\t" \
+			"or\t%0, $at\n\t"		    \
+			"3:"type##_lbu("$at", "2(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:"type##_lbu("$1", "3(%2)")"\n\t" \
+			"or\t%0, $at\n\t"		    \
+			"4:"type##_lbu("$at", "3(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
+			"or\t%0, $at\n\t"		    \
 			"li\t%1, 0\n"			    \
 			".set\tpop\n"			    \
 			"10:\n\t"			    \
@@ -296,27 +296,27 @@ do {                                                        \
 			".set\tpush\n\t"		    \
 			".set\tnoat\n\t"		    \
 			"1:lb\t%0, 0(%2)\n\t"    	    \
-			"2:lbu\t $1, 1(%2)\n\t"   	    \
+			"2:lbu\t $at, 1(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:lbu\t$1, 2(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"3:lbu\t$at, 2(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:lbu\t$1, 3(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"4:lbu\t$at, 3(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"5:lbu\t$1, 4(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"5:lbu\t$at, 4(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"6:lbu\t$1, 5(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"6:lbu\t$at, 5(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"7:lbu\t$1, 6(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"7:lbu\t$at, 6(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"8:lbu\t$1, 7(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"8:lbu\t$at, 7(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
+			"or\t%0, $at\n\t"		    \
 			"li\t%1, 0\n"			    \
 			".set\tpop\n\t"			    \
 			"10:\n\t"			    \
@@ -347,8 +347,8 @@ do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tnoat\n"                      \
 			"1:\t"type##_sb("%1", "1(%2)")"\n"  \
-			"srl\t$1, %1, 0x8\n"                \
-			"2:\t"type##_sb("$1", "0(%2)")"\n"  \
+			"srl\t$at, %1, 0x8\n"               \
+			"2:\t"type##_sb("$at", "0(%2)")"\n" \
 			".set\tat\n\t"                      \
 			"li\t%0, 0\n"                       \
 			"3:\n\t"                            \
@@ -414,12 +414,12 @@ do {                                                        \
 			".set\tpush\n\t"		    \
 			".set\tnoat\n\t"		    \
 			"1:"type##_sb("%1", "3(%2)")"\n\t"  \
-			"srl\t$1, %1, 0x8\n\t"		    \
-			"2:"type##_sb("$1", "2(%2)")"\n\t"  \
-			"srl\t$1, $1,  0x8\n\t"		    \
-			"3:"type##_sb("$1", "1(%2)")"\n\t"  \
-			"srl\t$1, $1, 0x8\n\t"		    \
-			"4:"type##_sb("$1", "0(%2)")"\n\t"  \
+			"srl\t$at, %1, 0x8\n\t"		    \
+			"2:"type##_sb("$at", "2(%2)")"\n\t" \
+			"srl\t$at, $at,  0x8\n\t"	    \
+			"3:"type##_sb("$at", "1(%2)")"\n\t" \
+			"srl\t$at, $at, 0x8\n\t"	    \
+			"4:"type##_sb("$at", "0(%2)")"\n\t" \
 			".set\tpop\n\t"			    \
 			"li\t%0, 0\n"			    \
 			"10:\n\t"			    \
@@ -445,21 +445,21 @@ do {                                                        \
 			".set\tpush\n\t"		    \
 			".set\tnoat\n\t"		    \
 			"1:sb\t%1, 7(%2)\n\t"    	    \
-			"dsrl\t$1, %1, 0x8\n\t"		    \
-			"2:sb\t$1, 6(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"3:sb\t$1, 5(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"4:sb\t$1, 4(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"5:sb\t$1, 3(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"6:sb\t$1, 2(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"7:sb\t$1, 1(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"8:sb\t$1, 0(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"dsrl\t$at, %1, 0x8\n\t"	    \
+			"2:sb\t$at, 6(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"3:sb\t$at, 5(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"4:sb\t$at, 4(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"5:sb\t$at, 3(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"6:sb\t$at, 2(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"7:sb\t$at, 1(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"8:sb\t$at, 0(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
 			".set\tpop\n\t"			    \
 			"li\t%0, 0\n"			    \
 			"10:\n\t"			    \
@@ -491,9 +491,9 @@ do {                                                        \
 do {                                                        \
 		__asm__ __volatile__ (".set\tnoat\n"        \
 			"1:\t"type##_lb("%0", "1(%2)")"\n"  \
-			"2:\t"type##_lbu("$1", "0(%2)")"\n\t"\
+			"2:\t"type##_lbu("$at", "0(%2)")"\n\t"\
 			"sll\t%0, 0x8\n\t"                  \
-			"or\t%0, $1\n\t"                    \
+			"or\t%0, $at\n\t"                    \
 			"li\t%1, 0\n"                       \
 			"3:\t.set\tat\n\t"                  \
 			".insn\n\t"                         \
@@ -538,15 +538,15 @@ do {                                                        \
 			".set\tpush\n"			    \
 			".set\tnoat\n\t"		    \
 			"1:"type##_lb("%0", "3(%2)")"\n\t"  \
-			"2:"type##_lbu("$1", "2(%2)")"\n\t" \
+			"2:"type##_lbu("$at", "2(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:"type##_lbu("$1", "1(%2)")"\n\t" \
+			"or\t%0, $at\n\t"		    \
+			"3:"type##_lbu("$at", "1(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:"type##_lbu("$1", "0(%2)")"\n\t" \
+			"or\t%0, $at\n\t"		    \
+			"4:"type##_lbu("$at", "0(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
+			"or\t%0, $at\n\t"		    \
 			"li\t%1, 0\n"			    \
 			".set\tpop\n"			    \
 			"10:\n\t"			    \
@@ -573,9 +573,9 @@ do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tnoat\n"                      \
 			"1:\t"type##_lbu("%0", "1(%2)")"\n" \
-			"2:\t"type##_lbu("$1", "0(%2)")"\n\t"\
+			"2:\t"type##_lbu("$at", "0(%2)")"\n\t"\
 			"sll\t%0, 0x8\n\t"                  \
-			"or\t%0, $1\n\t"                    \
+			"or\t%0, $at\n\t"                    \
 			"li\t%1, 0\n"                       \
 			"3:\n\t"                            \
 			".insn\n\t"                         \
@@ -643,15 +643,15 @@ do {                                                        \
 			".set\tpush\n\t"		    \
 			".set\tnoat\n\t"		    \
 			"1:"type##_lbu("%0", "3(%2)")"\n\t" \
-			"2:"type##_lbu("$1", "2(%2)")"\n\t" \
+			"2:"type##_lbu("$at", "2(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:"type##_lbu("$1", "1(%2)")"\n\t" \
+			"or\t%0, $at\n\t"		    \
+			"3:"type##_lbu("$at", "1(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:"type##_lbu("$1", "0(%2)")"\n\t" \
+			"or\t%0, $at\n\t"		    \
+			"4:"type##_lbu("$at", "0(%2)")"\n\t" \
 			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
+			"or\t%0, $at\n\t"		    \
 			"li\t%1, 0\n"			    \
 			".set\tpop\n"			    \
 			"10:\n\t"			    \
@@ -676,27 +676,27 @@ do {                                                        \
 			".set\tpush\n\t"		    \
 			".set\tnoat\n\t"		    \
 			"1:lb\t%0, 7(%2)\n\t"    	    \
-			"2:lbu\t$1, 6(%2)\n\t"   	    \
+			"2:lbu\t$at, 6(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:lbu\t$1, 5(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"3:lbu\t$at, 5(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:lbu\t$1, 4(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"4:lbu\t$at, 4(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"5:lbu\t$1, 3(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"5:lbu\t$at, 3(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"6:lbu\t$1, 2(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"6:lbu\t$at, 2(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"7:lbu\t$1, 1(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"7:lbu\t$at, 1(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"8:lbu\t$1, 0(%2)\n\t"   	    \
+			"or\t%0, $at\n\t"		    \
+			"8:lbu\t$at, 0(%2)\n\t"   	    \
 			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
+			"or\t%0, $at\n\t"		    \
 			"li\t%1, 0\n"			    \
 			".set\tpop\n\t"			    \
 			"10:\n\t"			    \
@@ -725,8 +725,8 @@ do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tnoat\n"                      \
 			"1:\t"type##_sb("%1", "0(%2)")"\n"  \
-			"srl\t$1,%1, 0x8\n"                 \
-			"2:\t"type##_sb("$1", "1(%2)")"\n"  \
+			"srl\t$at,%1, 0x8\n"                \
+			"2:\t"type##_sb("$at", "1(%2)")"\n" \
 			".set\tat\n\t"                      \
 			"li\t%0, 0\n"                       \
 			"3:\n\t"                            \
@@ -792,12 +792,12 @@ do {                                                        \
 			".set\tpush\n\t"		    \
 			".set\tnoat\n\t"		    \
 			"1:"type##_sb("%1", "0(%2)")"\n\t"  \
-			"srl\t$1, %1, 0x8\n\t"		    \
-			"2:"type##_sb("$1", "1(%2)")"\n\t"  \
-			"srl\t$1, $1,  0x8\n\t"		    \
-			"3:"type##_sb("$1", "2(%2)")"\n\t"  \
-			"srl\t$1, $1, 0x8\n\t"		    \
-			"4:"type##_sb("$1", "3(%2)")"\n\t"  \
+			"srl\t$at, %1, 0x8\n\t"		    \
+			"2:"type##_sb("$at", "1(%2)")"\n\t"  \
+			"srl\t$at, $at,  0x8\n\t"	    \
+			"3:"type##_sb("$at", "2(%2)")"\n\t"  \
+			"srl\t$at, $at, 0x8\n\t"	    \
+			"4:"type##_sb("$at", "3(%2)")"\n\t"  \
 			".set\tpop\n\t"			    \
 			"li\t%0, 0\n"			    \
 			"10:\n\t"			    \
@@ -823,21 +823,21 @@ do {                                                        \
 			".set\tpush\n\t"		    \
 			".set\tnoat\n\t"		    \
 			"1:sb\t%1, 0(%2)\n\t"    	    \
-			"dsrl\t$1, %1, 0x8\n\t"		    \
-			"2:sb\t$1, 1(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"3:sb\t$1, 2(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"4:sb\t$1, 3(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"5:sb\t$1, 4(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"6:sb\t$1, 5(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"7:sb\t$1, 6(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"8:sb\t$1, 7(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"dsrl\t$at, %1, 0x8\n\t"	    \
+			"2:sb\t$at, 1(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"3:sb\t$at, 2(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"4:sb\t$at, 3(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"5:sb\t$at, 4(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"6:sb\t$at, 5(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"7:sb\t$at, 6(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
+			"8:sb\t$at, 7(%2)\n\t"    	    \
+			"dsrl\t$at, $at, 0x8\n\t"	    \
 			".set\tpop\n\t"			    \
 			"li\t%0, 0\n"			    \
 			"10:\n\t"			    \

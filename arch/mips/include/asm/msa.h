@@ -202,10 +202,10 @@ static inline unsigned int read_msa_##name(void)		\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
 	"	.set	noat\n"					\
-	"	# cfcmsa $1, $%1\n"				\
+	"	# cfcmsa $at, $%1\n"				\
 	_ASM_INSN_IF_MIPS(0x787e0059 | %1 << 11)		\
 	_ASM_INSN32_IF_MM(0x587e0056 | %1 << 11)		\
-	"	move	%0, $1\n"				\
+	"	move	%0, $at\n"				\
 	"	.set	pop\n"					\
 	: "=r"(reg) : "i"(cs));					\
 	return reg;						\
@@ -216,8 +216,8 @@ static inline void write_msa_##name(unsigned int val)		\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
 	"	.set	noat\n"					\
-	"	move	$1, %0\n"				\
-	"	# ctcmsa $%1, $1\n"				\
+	"	move	$at, %0\n"				\
+	"	# ctcmsa $%1, $at\n"				\
 	_ASM_INSN_IF_MIPS(0x783e0819 | %1 << 6)			\
 	_ASM_INSN32_IF_MM(0x583e0816 | %1 << 6)			\
 	"	.set	pop\n"					\

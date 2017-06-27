@@ -367,15 +367,15 @@ static inline void invalidate_tcache_page(unsigned long addr)
 	"	cache %1, 0x0a0(%0); cache %1, 0x0b0(%0)\n"	\
 	"	cache %1, 0x0c0(%0); cache %1, 0x0d0(%0)\n"	\
 	"	cache %1, 0x0e0(%0); cache %1, 0x0f0(%0)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, %0, 0x100	\n"	\
-	"	cache %1, 0x000($1); cache %1, 0x010($1)\n"	\
-	"	cache %1, 0x020($1); cache %1, 0x030($1)\n"	\
-	"	cache %1, 0x040($1); cache %1, 0x050($1)\n"	\
-	"	cache %1, 0x060($1); cache %1, 0x070($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x090($1)\n"	\
-	"	cache %1, 0x0a0($1); cache %1, 0x0b0($1)\n"	\
-	"	cache %1, 0x0c0($1); cache %1, 0x0d0($1)\n"	\
-	"	cache %1, 0x0e0($1); cache %1, 0x0f0($1)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, %0, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x010($at)\n"	\
+	"	cache %1, 0x020($at); cache %1, 0x030($at)\n"	\
+	"	cache %1, 0x040($at); cache %1, 0x050($at)\n"	\
+	"	cache %1, 0x060($at); cache %1, 0x070($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x090($at)\n"	\
+	"	cache %1, 0x0a0($at); cache %1, 0x0b0($at)\n"	\
+	"	cache %1, 0x0c0($at); cache %1, 0x0d0($at)\n"	\
+	"	cache %1, 0x0e0($at); cache %1, 0x0f0($at)\n"	\
 	"	.set pop\n"					\
 		:						\
 		: "r" (base),					\
@@ -391,21 +391,21 @@ static inline void invalidate_tcache_page(unsigned long addr)
 	"	cache %1, 0x040(%0); cache %1, 0x060(%0)\n"	\
 	"	cache %1, 0x080(%0); cache %1, 0x0a0(%0)\n"	\
 	"	cache %1, 0x0c0(%0); cache %1, 0x0e0(%0)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, %0, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x020($1)\n"	\
-	"	cache %1, 0x040($1); cache %1, 0x060($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0a0($1)\n"	\
-	"	cache %1, 0x0c0($1); cache %1, 0x0e0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x020($1)\n"	\
-	"	cache %1, 0x040($1); cache %1, 0x060($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0a0($1)\n"	\
-	"	cache %1, 0x0c0($1); cache %1, 0x0e0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100\n"	\
-	"	cache %1, 0x000($1); cache %1, 0x020($1)\n"	\
-	"	cache %1, 0x040($1); cache %1, 0x060($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0a0($1)\n"	\
-	"	cache %1, 0x0c0($1); cache %1, 0x0e0($1)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, %0, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x020($at)\n"	\
+	"	cache %1, 0x040($at); cache %1, 0x060($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0a0($at)\n"	\
+	"	cache %1, 0x0c0($at); cache %1, 0x0e0($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x020($at)\n"	\
+	"	cache %1, 0x040($at); cache %1, 0x060($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0a0($at)\n"	\
+	"	cache %1, 0x0c0($at); cache %1, 0x0e0($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x020($at)\n"	\
+	"	cache %1, 0x040($at); cache %1, 0x060($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0a0($at)\n"	\
+	"	cache %1, 0x0c0($at); cache %1, 0x0e0($at)\n"	\
 	"	.set pop\n"					\
 		:						\
 		: "r" (base),					\
@@ -419,27 +419,27 @@ static inline void invalidate_tcache_page(unsigned long addr)
 	"	.set noat\n"					\
 	"	cache %1, 0x000(%0); cache %1, 0x040(%0)\n"	\
 	"	cache %1, 0x080(%0); cache %1, 0x0c0(%0)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, %0, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, %0, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x040($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0c0($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x040($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0c0($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x040($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0c0($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x040($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0c0($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x040($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0c0($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x040($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0c0($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x040($at)\n"	\
+	"	cache %1, 0x080($at); cache %1, 0x0c0($at)\n"	\
 	"	.set pop\n"					\
 		:						\
 		: "r" (base),					\
@@ -452,38 +452,38 @@ static inline void invalidate_tcache_page(unsigned long addr)
 	"	.set " MIPS_ISA_LEVEL "\n"			\
 	"	.set noat\n"					\
 	"	cache %1, 0x000(%0); cache %1, 0x080(%0)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, %0, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, %0, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
+	"	"__stringify(LONG_ADDIU)" $at, $at, 0x100\n"	\
+	"	cache %1, 0x000($at); cache %1, 0x080($at)\n"	\
 	"	.set pop\n"					\
 		:						\
 		: "r" (base),					\

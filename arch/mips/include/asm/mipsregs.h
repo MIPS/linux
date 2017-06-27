@@ -1423,10 +1423,10 @@ do {									\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
 	"	.set	" MIPS_ISA_LEVEL "			\n"	\
-	"	# mfhc0 $1, %1					\n"	\
+	"	# mfhc0 $at, %1					\n"	\
 	_ASM_INSN_IF_MIPS(0x40410000 | ((%1 & 0x1f) << 11))		\
 	_ASM_INSN32_IF_MM(0x002000f4 | ((%1 & 0x1f) << 16))		\
-	"	move	%0, $1					\n"	\
+	"	move	%0, $at					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res)							\
 	: "i" (source));						\
@@ -1439,8 +1439,8 @@ do {									\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
 	"	.set	" MIPS_ISA_LEVEL "			\n"	\
-	"	move	$1, %0					\n"	\
-	"	# mthc0 $1, %1					\n"	\
+	"	move	$at, %0					\n"	\
+	"	# mthc0 $at, %1					\n"	\
 	_ASM_INSN_IF_MIPS(0x40c10000 | ((%1 & 0x1f) << 11))		\
 	_ASM_INSN32_IF_MM(0x002002f4 | ((%1 & 0x1f) << 16))		\
 	"	.set	pop					\n"	\
@@ -1898,10 +1898,10 @@ do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
-		"# mfgc0\t$1, $%1, %2\n\t"				\
+		"# mfgc0\t$at, $%1, %2\n\t"				\
 		_ASM_INSN_IF_MIPS(0x40610000 | %1 << 11 | %2)		\
 		_ASM_INSN32_IF_MM(0x002004fc | %1 << 16 | %2 << 11)	\
-		"move\t%0, $1\n\t"					\
+		"move\t%0, $at\n\t"					\
 		".set\tpop"						\
 		: "=r" (__res)						\
 		: "i" (source), "i" (sel));				\
@@ -1913,10 +1913,10 @@ do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
-		"# dmfgc0\t$1, $%1, %2\n\t"				\
+		"# dmfgc0\t$at, $%1, %2\n\t"				\
 		_ASM_INSN_IF_MIPS(0x40610100 | %1 << 11 | %2)		\
 		_ASM_INSN32_IF_MM(0x582004fc | %1 << 16 | %2 << 11)	\
-		"move\t%0, $1\n\t"					\
+		"move\t%0, $at\n\t"					\
 		".set\tpop"						\
 		: "=r" (__res)						\
 		: "i" (source), "i" (sel));				\
@@ -1928,8 +1928,8 @@ do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
-		"move\t$1, %z0\n\t"					\
-		"# mtgc0\t$1, $%1, %2\n\t"				\
+		"move\t$at, %z0\n\t"					\
+		"# mtgc0\t$at, $%1, %2\n\t"				\
 		_ASM_INSN_IF_MIPS(0x40610200 | %1 << 11 | %2)		\
 		_ASM_INSN32_IF_MM(0x002006fc | %1 << 16 | %2 << 11)	\
 		".set\tpop"						\
@@ -1942,8 +1942,8 @@ do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
-		"move\t$1, %z0\n\t"					\
-		"# dmtgc0\t$1, $%1, %2\n\t"				\
+		"move\t$at, %z0\n\t"					\
+		"# dmtgc0\t$at, $%1, %2\n\t"				\
 		_ASM_INSN_IF_MIPS(0x40610300 | %1 << 11 | %2)		\
 		_ASM_INSN32_IF_MM(0x582006fc | %1 << 16 | %2 << 11)	\
 		".set\tpop"						\
@@ -2431,10 +2431,10 @@ do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
-	"	# rddsp $1, %x1					\n"	\
+	"	# rddsp $at, %x1				\n"	\
 	_ASM_INSN_IF_MIPS(0x7c000cb8 | (%x1 << 16))			\
 	_ASM_INSN32_IF_MM(0x0020067c | (%x1 << 14))			\
-	"	move	%0, $1					\n"	\
+	"	move	%0, $at					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res)							\
 	: "i" (mask));							\
@@ -2446,8 +2446,8 @@ do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
-	"	move	$1, %0					\n"	\
-	"	# wrdsp $1, %x1					\n"	\
+	"	move	$at, %0					\n"	\
+	"	# wrdsp $at, %x1				\n"	\
 	_ASM_INSN_IF_MIPS(0x7c2004f8 | (%x1 << 11))			\
 	_ASM_INSN32_IF_MM(0x0020167c | (%x1 << 14))			\
 	"	.set	pop					\n"	\
@@ -2464,7 +2464,7 @@ do {									\
 	"	.set	noat					\n"	\
 	_ASM_INSN_IF_MIPS(0x00000810 | %X1)				\
 	_ASM_INSN32_IF_MM(0x0001007c | %x1)				\
-	"	move	%0, $1					\n"	\
+	"	move	%0, $at					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__treg)							\
 	: "i" (ins));							\
@@ -2476,7 +2476,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
-	"	move	$1, %0					\n"	\
+	"	move	$at, %0					\n"	\
 	_ASM_INSN_IF_MIPS(0x00200011 | %X1)				\
 	_ASM_INSN32_IF_MM(0x0001207c | %x1)				\
 	"	.set	pop					\n"	\
@@ -2547,8 +2547,8 @@ static inline void tlb_read(void)
 	"	.set	noreorder				\n"
 	"	.set	noat					\n"
 	"	.set	mips32r2				\n"
-	"	.word	0x41610001		# dvpe $1	\n"
-	"	move	%0, $1					\n"
+	"	.word	0x41610001		# dvpe $at	\n"
+	"	move	%0, $at					\n"
 	"	ehb						\n"
 	"	.set	pop					\n"
 	: "=r" (res));

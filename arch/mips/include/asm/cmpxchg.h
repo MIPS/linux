@@ -150,10 +150,10 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
 		"	bne	%0, %z3, 2f			\n"	\
 		"	.set	mips0				\n"	\
-		"	move	$1, %z4				\n"	\
+		"	move	$at, %z4			\n"	\
 		"	.set	arch=r4000			\n"	\
-		"	" st "	$1, %1				\n"	\
-		"	beqzl	$1, 1b				\n"	\
+		"	" st "	$at, %1				\n"	\
+		"	beqzl	$at, 1b				\n"	\
 		"2:						\n"	\
 		"	.set	pop				\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
@@ -166,9 +166,9 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
 		"	bne	%0, %z3, 2f			\n"	\
-		"	move	$1, %z4				\n"	\
-		"	" st "	$1, %1				\n"	\
-		"	beqz	$1, 1b				\n"	\
+		"	move	$at, %z4			\n"	\
+		"	" st "	$at, %1				\n"	\
+		"	beqz	$at, 1b				\n"	\
 		"	.set	pop				\n"	\
 		"2:						\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\

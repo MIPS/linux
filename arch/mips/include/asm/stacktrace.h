@@ -36,17 +36,17 @@ static __always_inline void prepare_frametrace(struct pt_regs *regs)
 		".set push\n\t"
 		".set noat\n\t"
 #ifdef CONFIG_64BIT
-		"1: dla $1, 1b\n\t"
-		"sd $1, %0\n\t"
-		"sd $29, %1\n\t"
-		"sd $30, %2\n\t"
-		"sd $31, %3\n\t"
+		"1: dla $at, 1b\n\t"
+		"sd $at, %0\n\t"
+		"sd $sp, %1\n\t"
+		"sd $fp, %2\n\t"
+		"sd $ra, %3\n\t"
 #else
-		"1: la $1, 1b\n\t"
-		"sw $1, %0\n\t"
-		"sw $29, %1\n\t"
-		"sw $30, %2\n\t"
-		"sw $31, %3\n\t"
+		"1: la $at, 1b\n\t"
+		"sw $at, %0\n\t"
+		"sw $sp, %1\n\t"
+		"sw $fp, %2\n\t"
+		"sw $ra, %3\n\t"
 #endif
 		".set pop\n\t"
 		: "=m" (regs->cp0_epc),

@@ -654,7 +654,7 @@ asmlinkage void sys_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	 * Don't let your children do this ...
 	 */
 	__asm__ __volatile__(
-		"move\t$29, %0\n\t"
+		"move\t$sp, %0\n\t"
 		"j\tsyscall_exit"
 		:/* no outputs */
 		:"r" (&regs));

@@ -68,10 +68,10 @@ unsigned long run_uncached(void *func)
 	}
 
 	__asm__ __volatile__ (
-		"	move	$16, $sp\n"
+		"	move	$s0, $sp\n"
 		"	move	$sp, %1\n"
 		"	jalr	%2\n"
-		"	move	$sp, $16"
+		"	move	$sp, $s0"
 		: "=r" (ret)
 		: "r" (usp), "r" (ufunc)
 		: "$16", "$31");

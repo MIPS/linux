@@ -16,8 +16,13 @@
 #define ___ssnop							\
 	sll	$0, $0, 1
 
+#ifdef CONFIG_CPU_NANOMIPS
+#define ___ehb								\
+	ehb
+#else
 #define ___ehb								\
 	sll	$0, $0, 3
+#endif
 
 /*
  * TLB hazards

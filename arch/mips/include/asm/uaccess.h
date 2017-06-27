@@ -339,7 +339,7 @@ do {									\
 	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
-	"	move	%1, $0					\n"	\
+	"	move	%1, $zero				\n"	\
 	"	j	2b					\n"	\
 	"	.previous					\n"	\
 	"	.section __ex_table,\"a\"			\n"	\
@@ -368,8 +368,8 @@ do {									\
 	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
-	"	move	%1, $0					\n"	\
-	"	move	%D1, $0					\n"	\
+	"	move	%1, $zero				\n"	\
+	"	move	%D1, $zero				\n"	\
 	"	j	3b					\n"	\
 	"	.previous					\n"	\
 	"	.section	__ex_table,\"a\"		\n"	\
@@ -658,7 +658,7 @@ do {									\
 	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
-	"	move	%1, $0					\n"	\
+	"	move	%1, $zero				\n"	\
 	"	j	2b					\n"	\
 	"	.previous					\n"	\
 	"	.section __ex_table,\"a\"			\n"	\
@@ -681,13 +681,13 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	ulw	%1, (%3)				\n"	\
 	"2:	ulw	%D1, 4(%3)				\n"	\
-	"	move	%0, $0					\n"	\
+	"	move	%0, $zero				\n"	\
 	"3:							\n"	\
 	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
-	"	move	%1, $0					\n"	\
-	"	move	%D1, $0					\n"	\
+	"	move	%1, $zero				\n"	\
+	"	move	%D1, $zero				\n"	\
 	"	j	3b					\n"	\
 	"	.previous					\n"	\
 	"	.section	__ex_table,\"a\"		\n"	\

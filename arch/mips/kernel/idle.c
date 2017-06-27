@@ -81,11 +81,11 @@ static void rm7k_wait_irqoff(void)
 		"	.set	push					\n"
 		"	.set	" MIPS_ISA_LEVEL "			\n"
 		"	.set	noat					\n"
-		"	mfc0	$1, $12					\n"
+		"	mfc0	$at, $12				\n"
 		"	sync						\n"
-		"	mtc0	$1, $12		# stalls until W stage	\n"
+		"	mtc0	$at, $12	# stalls until W stage	\n"
 		"	wait						\n"
-		"	mtc0	$1, $12		# stalls until W stage	\n"
+		"	mtc0	$at, $12	# stalls until W stage	\n"
 		"	.set	pop					\n");
 	local_irq_enable();
 }
