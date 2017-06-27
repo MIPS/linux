@@ -32,10 +32,6 @@
 #endif
 
 #define __UA_ADDR	".word"
-#define __UA_LA		"la"
-#define __UA_ADDU	"addu"
-#define __UA_t0		"$8"
-#define __UA_t1		"$9"
 
 #endif /* CONFIG_32BIT */
 
@@ -46,10 +42,6 @@ extern u64 __ua_limit;
 #define __UA_LIMIT	__ua_limit
 
 #define __UA_ADDR	".dword"
-#define __UA_LA		"dla"
-#define __UA_ADDU	"daddu"
-#define __UA_t0		"$12"
-#define __UA_t1		"$13"
 
 #endif /* CONFIG_64BIT */
 
