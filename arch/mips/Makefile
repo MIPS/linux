@@ -65,9 +65,9 @@ ld-emul			= $(32bit-emul)
 vmlinux-32		= vmlinux
 vmlinux-64		= vmlinux.64
 
-abi-y				:= 32
-abi-$(CONFIG_CPU_NANOMIPS)	:= p32
-cflags-y			+= -mabi=$(abi-y)
+abi-y				:= -mabi=32
+abi-$(CONFIG_CPU_NANOMIPS)	:= -m32
+cflags-y			+= $(abi-y)
 endif
 
 ifdef CONFIG_64BIT
@@ -92,7 +92,9 @@ all-$(CONFIG_SYS_SUPPORTS_ZBOOT)+= vmlinuz
 # machines may also.  Since BFD is incredibly buggy with respect to
 # crossformat linking we rely on the elf2ecoff tool for format conversion.
 #
-cflags-y			+= -G 0 -mno-abicalls -fno-pic -pipe
+abicalls-y			:= -mno-abicalls
+abicalls-$(CONFIG_CPU_NANOMIPS)	:=
+cflags-y			+= -G 0 $(abicalls-y) -fno-pic -pipe
 cflags-y			+= -msoft-float
 ifndef CONFIG_CPU_NANOMIPS
 LDFLAGS_vmlinux			+= -G 0
@@ -297,7 +299,9 @@ ifdef CONFIG_64BIT
 bootvars-y	+= ADDR_BITS=64
 endif
 
+ifndef CONFIG_CPU_NANOMIPS
 LDFLAGS			+= -m $(ld-emul)
+endif
 
 ifdef CONFIG_MIPS
 CHECKFLAGS += $(shell $(CC) $(KBUILD_CFLAGS) -dM -E -x c /dev/null | \
