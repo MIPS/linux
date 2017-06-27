@@ -478,9 +478,6 @@ static inline unsigned long __fls(unsigned long word)
 		__asm__(
 		"	.set	push					\n"
 		"	.set	"MIPS_ISA_LEVEL"			\n"
-#ifdef CONFIG_CPU_NANOMIPS
-		"	.set	xlp					\n"
-#endif
 		"	clz	%0, %1					\n"
 		"	.set	pop					\n"
 		: "=r" (num)
@@ -494,9 +491,6 @@ static inline unsigned long __fls(unsigned long word)
 		__asm__(
 		"	.set	push					\n"
 		"	.set	"MIPS_ISA_LEVEL"			\n"
-#ifdef CONFIG_CPU_NANOMIPS
-		"	.set	xlp					\n"
-#endif
 		"	dclz	%0, %1					\n"
 		"	.set	pop					\n"
 		: "=r" (num)
@@ -562,9 +556,6 @@ static inline int fls(int x)
 		__asm__(
 		"	.set	push					\n"
 		"	.set	"MIPS_ISA_LEVEL"			\n"
-#ifdef CONFIG_CPU_NANOMIPS
-		"	.set	xlp					\n"
-#endif
 		"	clz	%0, %1					\n"
 		"	.set	pop					\n"
 		: "=r" (x)
