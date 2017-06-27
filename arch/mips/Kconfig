@@ -104,6 +104,7 @@ config MIPS_GENERIC
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_CPU_MIPS64_R2
 	select SYS_HAS_CPU_MIPS64_R6
+	select SYS_HAS_CPU_NANOMIPS32_R6
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -519,6 +520,7 @@ config MIPS_MALTA
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_CPU_MIPS64_R2
 	select SYS_HAS_CPU_MIPS64_R6
+	select SYS_HAS_CPU_NANOMIPS32_R6
 	select SYS_HAS_CPU_NEVADA
 	select SYS_HAS_CPU_RM7000
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -1532,6 +1534,19 @@ config CPU_MIPS64_R6
 	  family, are based on a MIPS64r6 processor. If you own an older
 	  processor, you probably need to select MIPS64r1 or MIPS64r2 instead.
 
+config CPU_NANOMIPS32_R6
+	bool "nanoMIPS32 Release 6"
+	depends on SYS_HAS_CPU_NANOMIPS32_R6
+	select CPU_HAS_PREFETCH
+	select CPU_NANOMIPS
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select GENERIC_CSUM
+	select MIPS_O32_FP64_SUPPORT
+	help
+	  Choose this option to build a kernel for release 6 or later of the
+	  nanoMIPS32 architecture.
+
 config CPU_R3000
 	bool "R3000"
 	depends on SYS_HAS_CPU_R3000
@@ -1730,7 +1745,7 @@ endchoice
 config CPU_MIPS32_3_5_FEATURES
 	bool "MIPS32 Release 3.5 Features"
 	depends on SYS_HAS_CPU_MIPS32_R3_5
-	depends on CPU_MIPS32_R2 || CPU_MIPS32_R6
+	depends on CPU_MIPS32_R2 || CPU_MIPS32_R6 || CPU_NANOMIPS32_R6
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture including features from the 3.5 release such as
@@ -1902,6 +1917,9 @@ config SYS_HAS_CPU_MIPS64_R2
 config SYS_HAS_CPU_MIPS64_R6
 	bool
 
+config SYS_HAS_CPU_NANOMIPS32_R6
+	bool
+
 config SYS_HAS_CPU_R3000
 	bool
 
@@ -1998,7 +2016,8 @@ endmenu
 #
 config CPU_MIPS32
 	bool
-	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2 || CPU_MIPS32_R6
+	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2 || CPU_MIPS32_R6 || \
+		     CPU_NANOMIPS32_R6
 
 config CPU_MIPS64
 	bool
@@ -2019,7 +2038,7 @@ config CPU_MIPSR2
 
 config CPU_MIPSR6
 	bool
-	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6
+	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6 || CPU_NANOMIPS32_R6
 	select CPU_HAS_RIXI
 	select HAVE_ARCH_BITREVERSE
 	select MIPS_ASID_BITS_VARIABLE
@@ -2420,11 +2439,8 @@ config CPU_MICROMIPS
 	  microMIPS ISA.
 
 config CPU_NANOMIPS
-	depends on 32BIT && CPU_MIPSR6
-	bool "Compile targeting nanoMIPS"
+	bool
 	select ARCH_WANT_FRAME_POINTERS
-	help
-	  Select this to build a kernel which targets the nanoMIPS ISA.
 
 config CPU_HAS_SMARTMIPS
 	depends on SYS_SUPPORTS_SMARTMIPS && !CPU_MICROMIPS && !CPU_NANOMIPS

@@ -166,7 +166,8 @@ LEAF(_init_fpu)
 	mtc1	t1, $f30
 	mtc1	t1, $f31
 
-#if defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS32_R6)
+#if defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS32_R6) || \
+    defined(CONFIG_CPU_NANOMIPS32_R6)
 	.set    push
 	.set    MIPS_ISA_LEVEL_RAW
 	.set	fp=64
@@ -206,7 +207,8 @@ LEAF(_init_fpu)
 	mthc1   t1, $f30
 	mthc1   t1, $f31
 1:	.set    pop
-#endif /* CONFIG_CPU_MIPS32_R2 || CONFIG_CPU_MIPS32_R6 */
+#endif /* CONFIG_CPU_MIPS32_R2 || CONFIG_CPU_MIPS32_R6 ||
+	  CONFIG_CPU_NANOMIPS32_R6 */
 #else
 	.set	MIPS_ISA_ARCH_LEVEL_RAW
 	dmtc1	t1, $f0

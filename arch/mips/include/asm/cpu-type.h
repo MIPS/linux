@@ -58,7 +58,8 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 #if defined(CONFIG_SYS_HAS_CPU_MIPS32_R2) || \
     defined(CONFIG_SYS_HAS_CPU_MIPS32_R6) || \
     defined(CONFIG_SYS_HAS_CPU_MIPS64_R2) || \
-    defined(CONFIG_SYS_HAS_CPU_MIPS64_R6)
+    defined(CONFIG_SYS_HAS_CPU_MIPS64_R6) || \
+    defined(CONFIG_SYS_HAS_CPU_NANOMIPS32_R6)
 	case CPU_QEMU_GENERIC:
 #endif
 
