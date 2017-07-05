@@ -1319,6 +1319,10 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 			} else if ((rd == MIPS_CP0_TLB_LO1 &&
 				    sel == 1 &&		/* Global Number */
 				    cpu_has_mips_r6 && cpu_guest_has_vp) ||
+				   (rd == MIPS_CP0_COUNT &&
+				    sel == 6) ||	/* SAARI (I6500) */
+				   (rd == MIPS_CP0_COUNT &&
+				    sel == 7) ||	/* SAAR (I6500) */
 				   (rd == MIPS_CP0_PRID &&
 				    (sel == 0 ||	/* PRid */
 				     sel == 2 ||	/* CDMMBase */
@@ -1419,6 +1423,10 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 			} else if ((rd == MIPS_CP0_TLB_LO1 &&
 				    sel == 1 &&		/* Global Number */
 				    cpu_has_mips_r6 && cpu_guest_has_vp) ||
+				   (rd == MIPS_CP0_COUNT &&
+				    sel == 6) ||	/* SAARI (I6500) */
+				   (rd == MIPS_CP0_COUNT &&
+				    sel == 7) ||	/* SAAR (I6500) */
 				   (rd == MIPS_CP0_ERRCTL &&
 				    (sel == 0))) {	/* ErrCtl */
 				/* ignore the written value */
