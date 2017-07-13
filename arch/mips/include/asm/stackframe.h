@@ -68,6 +68,32 @@
 		mtc0	k0, $22
 #endif /* !CONFIG_SMP && CONFIG_CPU_JUMP_WORKAROUNDS */
 
+#ifdef CONFIG_EVA
+		/*
+		 * Flush interAptiv's Return Prediction Stack (RPS) by writing
+		 * EntryHi. Toggling Config7.RPS is slower and less portable.
+		 *
+		 * The RPS isn't automatically flushed when exceptions are
+		 * taken, which can result in kernel mode speculative accesses
+		 * to user addresses if the RPS mispredicts. That's harmless
+		 * when user and kernel share the same address space, but with
+		 * EVA the same user segments may be unmapped to kernel mode,
+		 * even containing sensitive MMIO regions or invalid memory.
+		 *
+		 * This can happen when the kernel sets the return address to
+		 * ret_from_* and jr's to the exception handler, which looks
+		 * more like a tail call than a function call. If nested calls
+		 * don't evict the last user address in the RPS, it will
+		 * mispredict the return and fetch from a user controlled
+		 * address into the icache.
+		 *
+		 * More recent EVA-capable cores with MAAR to restrict
+		 * speculative accesses aren't affected.
+		 */
+		MFC0	k0, CP0_ENTRYHI
+		MTC0	k0, CP0_ENTRYHI
+#endif
+
 		/* Set thread_info if we're coming from user mode */
 		ori	$28, sp, _THREAD_MASK
 		xori	$28, _THREAD_MASK
@@ -216,31 +242,6 @@
 		.if \docfi
 		.cfi_register sp, k0
 		.endif
-#ifdef CONFIG_EVA
-		/*
-		 * Flush interAptiv's Return Prediction Stack (RPS) by writing
-		 * EntryHi. Toggling Config7.RPS is slower and less portable.
-		 *
-		 * The RPS isn't automatically flushed when exceptions are
-		 * taken, which can result in kernel mode speculative accesses
-		 * to user addresses if the RPS mispredicts. That's harmless
-		 * when user and kernel share the same address space, but with
-		 * EVA the same user segments may be unmapped to kernel mode,
-		 * even containing sensitive MMIO regions or invalid memory.
-		 *
-		 * This can happen when the kernel sets the return address to
-		 * ret_from_* and jr's to the exception handler, which looks
-		 * more like a tail call than a function call. If nested calls
-		 * don't evict the last user address in the RPS, it will
-		 * mispredict the return and fetch from a user controlled
-		 * address into the icache.
-		 *
-		 * More recent EVA-capable cores with MAAR to restrict
-		 * speculative accesses aren't affected.
-		 */
-		MFC0	k0, CP0_ENTRYHI
-		MTC0	k0, CP0_ENTRYHI
-#endif
 		.set	reorder
 		/* Called from user mode, new stack. */
 		get_saved_sp docfi=\docfi tosp=1
