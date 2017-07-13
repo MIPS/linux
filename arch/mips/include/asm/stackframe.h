@@ -49,6 +49,24 @@
 #endif
 
 		.macro setup_kernel_mode docfi=0
+		.set	push
+		.set	reorder
+
+#if !defined(CONFIG_SMP) && defined(CONFIG_CPU_JUMP_WORKAROUNDS)
+		/*
+		 * Clear BTB (branch target buffer), forbid RAS (return address
+		 * stack) to workaround the Out-of-order Issue in Loongson2F
+		 * via its diagnostic register.
+		 */
+		move	k0, ra
+		jal	1f
+1:		jal	1f
+1:		jal	1f
+1:		jal	1f
+1:		move	ra, k0
+		li	k0, 3
+		mtc0	k0, $22
+#endif /* !CONFIG_SMP && CONFIG_CPU_JUMP_WORKAROUNDS */
 
 		/* Set thread_info if we're coming from user mode */
 		ori	$28, sp, _THREAD_MASK
@@ -59,6 +77,7 @@
 		pref	0, 0($28)       /* Prefetch the current pointer */
 		.set	pop
 #endif
+		.set	pop
 		.endm
 
 		.macro	SAVE_AT docfi=0
@@ -160,25 +179,6 @@
 #else /* !CONFIG_SMP */
 		/* Uniprocessor variation */
 		.macro	get_saved_sp docfi=0 tosp=0
-#ifdef CONFIG_CPU_JUMP_WORKAROUNDS
-		/*
-		 * Clear BTB (branch target buffer), forbid RAS (return address
-		 * stack) to workaround the Out-of-order Issue in Loongson2F
-		 * via its diagnostic register.
-		 */
-		move	k0, ra
-		jal	1f
-		 nop
-1:		jal	1f
-		 nop
-1:		jal	1f
-		 nop
-1:		jal	1f
-		 nop
-1:		move	ra, k0
-		li	k0, 3
-		mtc0	k0, $22
-#endif /* CONFIG_CPU_JUMP_WORKAROUNDS */
 #if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
 		lui	k1, %hi(kernelsp)
 #else
