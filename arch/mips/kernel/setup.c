@@ -1025,7 +1025,6 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 }
 
-unsigned long kernelsp[NR_CPUS];
 unsigned long thread_info_ptr[NR_CPUS];
 unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
 

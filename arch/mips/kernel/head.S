@@ -136,7 +136,6 @@ dtb_found:
 	PTR_ADDU	sp, $28
 	back_to_back_c0_hazard
 	set_saved_ti	$28, t0
-	set_saved_sp	sp, t0, t1
 	PTR_SUBU	sp, 4 * SZREG		# init stack pointer
 
 #ifdef CONFIG_RELOCATABLE
@@ -148,7 +147,6 @@ dtb_found:
 	PTR_ADDU	sp, v0
 
 	set_saved_ti	$28, t0
-	set_saved_sp	sp, t0, t1
 
 	/*
 	 * Find start_kernel in relocated image and jump there
