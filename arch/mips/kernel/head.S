@@ -135,6 +135,7 @@ dtb_found:
 	PTR_LI		sp, _THREAD_SIZE - 32 - PT_SIZE
 	PTR_ADDU	sp, $28
 	back_to_back_c0_hazard
+	set_saved_ti	$28, t0
 	set_saved_sp	sp, t0, t1
 	PTR_SUBU	sp, 4 * SZREG		# init stack pointer
 
@@ -146,6 +147,7 @@ dtb_found:
 	PTR_ADDU	$28, v0
 	PTR_ADDU	sp, v0
 
+	set_saved_ti	$28, t0
 	set_saved_sp	sp, t0, t1
 
 	/*
