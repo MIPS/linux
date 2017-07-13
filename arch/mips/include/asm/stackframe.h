@@ -210,69 +210,37 @@
 #endif
 
 /*
- * get_saved_sp returns the SP for the current CPU by looking in the
- * kernelsp array for it.  If tosp is set, it stores the current sp in
- * k0 and loads the new value in sp.  If not, it clobbers k0 and
- * stores the new value in k1, leaving sp unaffected.
+ * get_saved_sp returns the SP for the current CPU by finding the current
+ * thread_info, using get_saved_ti, finding the task_stack, and adding
+ * the kernel stack size to it.
+ * It stores the current sp in k0 and loads the new value in sp. The value
+ * in k1 is clobbered.
  */
-#ifdef CONFIG_SMP
-		/* SMP variation */
-		.macro	get_saved_sp docfi=0 tosp=0
-		ASM_CPUID_MFC0	k0, ASM_SMP_CPUID_REG
-#if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
-		lui	k1, %hi(kernelsp)
-#else
-		lui	k1, %highest(kernelsp)
-		daddiu	k1, %higher(kernelsp)
-		dsll	k1, 16
-		daddiu	k1, %hi(kernelsp)
-		dsll	k1, 16
-#endif
-		LONG_SRL	k0, SMP_CPUID_PTRSHIFT
-		LONG_ADDU	k1, k0
-		.if \tosp
+		.macro	get_saved_sp docfi=0
+		/* Get current thread info into k1 */
+		get_saved_ti	k1, k0
+		/* Get task struct into k1 */
+		LONG_L		k1, TI_TASK(k1)
+		/* Get the stack into k1 */
+		LONG_L		k1, TASK_STACK(k1)
+		/* Get starting stack location */
+		.set	at=k0
+		PTR_ADDU	k1, k1, _THREAD_SIZE - 32
+		.set	noat
+
+		/* Save current SP to k0 */
 		move	k0, sp
 		.if \docfi
 		.cfi_register sp, k0
 		.endif
-		LONG_L	sp, %lo(kernelsp)(k1)
-		.else
-		LONG_L	k1, %lo(kernelsp)(k1)
-		.endif
-		.endm
 
-		.macro	set_saved_sp stackp temp temp2
-		ASM_CPUID_MFC0	\temp, ASM_SMP_CPUID_REG
-		LONG_SRL	\temp, SMP_CPUID_PTRSHIFT
-		LONG_S	\stackp, kernelsp(\temp)
-		.endm
-#else /* !CONFIG_SMP */
-		/* Uniprocessor variation */
-		.macro	get_saved_sp docfi=0 tosp=0
-#if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
-		lui	k1, %hi(kernelsp)
-#else
-		lui	k1, %highest(kernelsp)
-		daddiu	k1, %higher(kernelsp)
-		dsll	k1, k1, 16
-		daddiu	k1, %hi(kernelsp)
-		dsll	k1, k1, 16
-#endif
-		.if \tosp
-		move	k0, sp
+		/* Activate new stack */
+		move	sp, k1
 		.if \docfi
-		.cfi_register sp, k0
+		.cfi_register k1, sp
 		.endif
-		LONG_L	sp, %lo(kernelsp)(k1)
-		.else
-		LONG_L	k1, %lo(kernelsp)(k1)
-		.endif
-		.endm
 
-		.macro	set_saved_sp stackp temp temp2
-		LONG_S	\stackp, kernelsp
 		.endm
-#endif
 
 		.macro	SAVE_SOME docfi=0
 		.set	push
@@ -287,8 +255,9 @@
 		.cfi_register sp, k0
 		.endif
 		.set	reorder
+
 		/* Called from user mode, new stack. */
-		get_saved_sp docfi=\docfi tosp=1
+		get_saved_sp docfi=\docfi
 8:
 #ifdef CONFIG_CPU_DADDI_WORKAROUNDS
 		.set	at=k1
