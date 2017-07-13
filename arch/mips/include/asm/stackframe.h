@@ -48,6 +48,19 @@
 #define STATMASK 0x1f
 #endif
 
+		.macro setup_kernel_mode docfi=0
+
+		/* Set thread_info if we're coming from user mode */
+		ori	$28, sp, _THREAD_MASK
+		xori	$28, _THREAD_MASK
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+		.set	push
+		.set	mips64
+		pref	0, 0($28)       /* Prefetch the current pointer */
+		.set	pop
+#endif
+		.endm
+
 		.macro	SAVE_AT docfi=0
 		.set	push
 		.set	noat
@@ -273,17 +286,12 @@
 		cfi_st	$25, PT_R25, \docfi
 		cfi_st	$28, PT_R28, \docfi
 
-		/* Set thread_info if we're coming from user mode */
+		/* Set up kernel mode if we're coming from user */
 		mfc0	k0, CP0_STATUS
 		sll	k0, 3		/* extract cu0 bit */
 		bltz	k0, 9f
 
-		ori	$28, sp, _THREAD_MASK
-		xori	$28, _THREAD_MASK
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-		.set    mips64
-		pref    0, 0($28)       /* Prefetch the current pointer */
-#endif
+		setup_kernel_mode \docfi
 9:
 		.set	pop
 		.endm
