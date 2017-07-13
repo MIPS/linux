@@ -458,6 +458,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int err;
 
+	thread_info_ptr[cpu] = (unsigned long)task_thread_info(tidle);
 	err = mp_ops->boot_secondary(cpu, tidle);
 	if (err)
 		return err;

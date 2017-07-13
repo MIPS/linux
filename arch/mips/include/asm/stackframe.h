@@ -95,8 +95,7 @@
 #endif
 
 		/* Set thread_info if we're coming from user mode */
-		ori	$28, sp, _THREAD_MASK
-		xori	$28, _THREAD_MASK
+		get_saved_ti $28, v1
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 		.set	push
 		.set	mips64
@@ -165,13 +164,58 @@
 		.endm
 
 /*
+ * get_saved_ti returns the thread_info for the current CPU by looking in the
+ * thread_info_ptr array for it. It clobbers k0 and returns the value in k1.
+ */
+#ifdef CONFIG_SMP
+		/* SMP variation */
+		.macro	get_saved_ti out temp
+		ASM_CPUID_MFC0	\temp, ASM_SMP_CPUID_REG
+#if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
+		lui		\out, %hi(thread_info_ptr)
+#else
+		lui		\out, %highest(thread_info_ptr)
+		daddiu		\out, %higher(thread_info_ptr)
+		dsll		\out, 16
+		daddiu		\out, %hi(thread_info_ptr)
+		dsll		\out, 16
+#endif
+		LONG_SRL	\temp, SMP_CPUID_PTRSHIFT
+		LONG_ADDU	\out, \temp
+		LONG_L		\out, %lo(thread_info_ptr)(\out)
+		.endm
+
+		.macro	set_saved_ti ti temp
+		ASM_CPUID_MFC0	\temp, ASM_SMP_CPUID_REG
+		LONG_SRL	\temp, SMP_CPUID_PTRSHIFT
+		LONG_S		\ti, thread_info_ptr(\temp)
+		.endm
+#else /* !CONFIG_SMP */
+		.macro	get_saved_ti out temp	/* Uniprocessor variation */
+#if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
+		lui		\out, %hi(thread_info_ptr)
+#else
+		lui		\out, %highest(thread_info_ptr)
+		daddiu		\out, %higher(thread_info_ptr)
+		dsll		\out, \out, 16
+		daddiu		\out, %hi(thread_info_ptr)
+		dsll		\out, \out, 16
+#endif
+		LONG_L		\out, %lo(thread_info_ptr)(\out)
+		.endm
+
+		.macro		set_saved_ti ti temp
+		LONG_S		\ti, thread_info_ptr
+		.endm
+#endif
+
+/*
  * get_saved_sp returns the SP for the current CPU by looking in the
  * kernelsp array for it.  If tosp is set, it stores the current sp in
  * k0 and loads the new value in sp.  If not, it clobbers k0 and
  * stores the new value in k1, leaving sp unaffected.
  */
 #ifdef CONFIG_SMP
-
 		/* SMP variation */
 		.macro	get_saved_sp docfi=0 tosp=0
 		ASM_CPUID_MFC0	k0, ASM_SMP_CPUID_REG

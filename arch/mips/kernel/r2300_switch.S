@@ -44,10 +44,11 @@ LEAF(resume)
 
 	/*
 	 * The order of restoring the registers takes care of the race
-	 * updating $28, $29 and kernelsp without disabling ints.
+	 * updating $28, $29 and saved_ti without disabling ints.
 	 */
 	move	$28, a2
 	cpu_restore_nonscratch a1
+	set_saved_ti	$28, t0
 
 	addiu	t1, $28, _THREAD_SIZE - 32
 	sw	t1, kernelsp
