@@ -17,6 +17,7 @@
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/pm.h>
+#include <asm/thread_info.h>
 
 #define GCR_CPC_BASE_OFS	0x0088
 #define GCR_CL_COHERENCE_OFS	0x2008
@@ -605,8 +606,8 @@ dcache_done:
 	.macro	psstate	dest
 	.set	push
 	.set	noat
-	lw	$1, TI_CPU(gp)
-	sll	$1, $1, LONGLOG
+	ASM_CPUID_MFC0	$1, ASM_SMP_CPUID_REG
+	LONG_SRL	$1, SMP_CPUID_PTRSHIFT
 	PTR_LA	\dest, __per_cpu_offset
 	addu	$1, $1, \dest
 	lw	$1, 0($1)
