@@ -353,7 +353,7 @@ early_initcall(mips_smp_ipi_init);
  */
 asmlinkage void start_secondary(void)
 {
-	unsigned int cpu = current_thread_info()->cpu;
+	unsigned int cpu = current->cpu;
 
 	/* Stash this CPUs ID in CP0 for smp_processor_id() */
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT
@@ -436,7 +436,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	init_new_context(current, &init_mm);
-	current_thread_info()->cpu = 0;
 	mp_ops->prepare_cpus(max_cpus);
 	set_cpu_sibling_map(0);
 	set_cpu_core_map(0);

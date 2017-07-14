@@ -23,10 +23,8 @@
  *   must also be changed
  */
 struct thread_info {
-	struct task_struct	*task;		/* main task structure */
 	unsigned long		flags;		/* low level flags */
 	unsigned long		tp_value;	/* thread pointer */
-	__u32			cpu;		/* current CPU */
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	mm_segment_t		addr_limit;	/*
 						 * thread address space limit:
@@ -42,23 +40,13 @@ struct thread_info {
  */
 #define INIT_THREAD_INFO(tsk)			\
 {						\
-	.task		= &tsk,			\
 	.flags		= _TIF_FIXADE,		\
-	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
 }
 
-/* How to get the thread information struct from C.  */
-register struct thread_info *__current_thread_info __asm__("$28");
-
 /* thread_info pointer for each CPU */
 extern unsigned long thread_info_ptr[NR_CPUS];
-
-static inline struct thread_info *current_thread_info(void)
-{
-	return __current_thread_info;
-}
 
 #endif /* !__ASSEMBLY__ */
 

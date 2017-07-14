@@ -70,6 +70,7 @@ config MIPS
 	select PERF_USE_VMALLOC
 	select RTC_LIB if !MACH_LOONGSON64
 	select SYSCTL_EXCEPTION_TRACE
+	select THREAD_INFO_IN_TASK
 	select VIRT_TO_BUS
 
 menu "Machine selection"

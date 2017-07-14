@@ -24,13 +24,12 @@ struct task_struct;
  * resume - resume execution of a task
  * @prev:	The task previously executed.
  * @next:	The task to begin executing.
- * @next_ti:	task_thread_info(next).
  *
  * This function is used whilst scheduling to save the context of prev & load
  * the context of next. Returns prev.
  */
 extern asmlinkage struct task_struct *resume(struct task_struct *prev,
-		struct task_struct *next, struct thread_info *next_ti);
+					     struct task_struct *next);
 
 extern unsigned int ll_bit;
 extern struct task_struct *ll_task;
@@ -130,7 +129,7 @@ do {									\
 	if (cpu_has_userlocal)						\
 		write_c0_userlocal(task_thread_info(next)->tp_value);	\
 	__restore_watch(next);						\
-	(last) = resume(prev, next, task_thread_info(next));		\
+	(last) = resume(prev, next);					\
 } while (0)
 
 #endif /* _ASM_SWITCH_TO_H */

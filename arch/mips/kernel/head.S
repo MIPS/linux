@@ -130,10 +130,11 @@ dtb_found:
 #endif
 
 	MTC0		zero, CP0_CONTEXT	# clear context register
-	PTR_LA		$28, init_thread_union
+	PTR_LA          $28, init_task
 	/* Set the SP after an empty pt_regs.  */
+	PTR_LA		t0, init_thread_union
 	PTR_LI		sp, _THREAD_SIZE - 32 - PT_SIZE
-	PTR_ADDU	sp, $28
+	PTR_ADDU	sp, t0
 	back_to_back_c0_hazard
 	set_saved_ti	$28, t0
 	PTR_SUBU	sp, 4 * SZREG		# init stack pointer
