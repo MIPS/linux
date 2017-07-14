@@ -219,8 +219,6 @@
 		.macro	get_saved_sp docfi=0
 		/* Get current thread info into k1 */
 		get_saved_ti	k1, k0
-		/* Get task struct into k1 */
-		LONG_L		k1, TI_TASK(k1)
 		/* Get the stack into k1 */
 		LONG_L		k1, TASK_STACK(k1)
 		/* Get starting stack location */

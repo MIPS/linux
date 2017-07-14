@@ -21,8 +21,7 @@
 #include <asm/asmmacro.h>
 
 /*
- * task_struct *resume(task_struct *prev, task_struct *next,
- *		       struct thread_info *next_ti)
+ * task_struct *resume(task_struct *prev, task_struct *next)
  */
 	.align	5
 	LEAF(resume)
@@ -41,7 +40,7 @@
 	 * The order of restoring the registers takes care of the race
 	 * updating $28, $29 and saved_ti without disabling ints.
 	 */
-	move	$28, a2
+	move	$28, a1
 	cpu_restore_nonscratch a1
 	set_saved_ti	$28, t0
 
