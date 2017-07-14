@@ -353,7 +353,14 @@ early_initcall(mips_smp_ipi_init);
  */
 asmlinkage void start_secondary(void)
 {
-	unsigned int cpu;
+	unsigned int cpu = current_thread_info()->cpu;
+
+	/* Stash this CPUs ID in CP0 for smp_processor_id() */
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+	write_c0_xcontext((unsigned long)cpu << SMP_CPUID_REGSHIFT);
+#else
+	write_c0_context(cpu << SMP_CPUID_REGSHIFT);
+#endif
 
 	cpu_probe();
 	per_cpu_trap_init(false);
