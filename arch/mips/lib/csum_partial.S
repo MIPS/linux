@@ -766,9 +766,8 @@ EXPORT_SYMBOL(csum_partial)
 	 *
 	 * Assumes src < THREAD_BUADDR($28)
 	 */
-	LOADK	t0, TI_TASK($28)
 	 li	t2, SHIFT_START
-	LOADK	t0, THREAD_BUADDR(t0)
+	LOADK	t0, THREAD_BUADDR($28)
 1:
 	LOADBU(t1, 0(src), .Ll_exc\@)
 	ADD	src, src, 1
@@ -781,9 +780,7 @@ EXPORT_SYMBOL(csum_partial)
 	bne	src, t0, 1b
 	.set	noreorder
 .Ll_exc\@:
-	LOADK	t0, TI_TASK($28)
-	 nop
-	LOADK	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
+	LOADK	t0, THREAD_BUADDR($28)	# t0 is just past last good address
 	 nop
 	SUB	len, AT, t0		# len number of uncopied bytes
 	/*
