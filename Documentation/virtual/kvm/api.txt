@@ -4236,8 +4236,7 @@ utilises it.
 
 If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
 available, it means that the VM is using full hardware assisted virtualization
-capabilities of the hardware. This is useful to check after creating a VM with
-KVM_VM_MIPS_DEFAULT.
+capabilities of the hardware.
 
 The value returned by KVM_CHECK_EXTENSION should be compared against known
 values (see below). All other values are reserved. This is to allow for the
