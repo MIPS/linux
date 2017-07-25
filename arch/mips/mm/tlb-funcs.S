@@ -56,10 +56,11 @@ EXPORT(tlbmiss_handler_setup_pgd_end)
 #if 0
 	srl	k1, k1, _PAGE_SHIFT + _PTE_ORDER - _PTE_T_LOG2
 	andi	k1, k1, (_PTRS_PER_PTE - 1) << _PTE_T_LOG2
+	addu	k0, k0, k1
 #else
 	ext	k1, k1, _PAGE_SHIFT + _PTE_ORDER, _PAGE_SHIFT + _PTE_ORDER - _PTE_T_LOG2
+	lsa	k0, k1, k0, _PTE_T_LOG2
 #endif
-	addu	k0, k0, k1
 	lw	k1, 0(k0)
 	tlbp
 .endm
