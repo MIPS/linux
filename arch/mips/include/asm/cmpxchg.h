@@ -160,18 +160,19 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (old), "Jr" (new)		\
 		: "memory");						\
 	} else if (kernel_uses_llsc) {					\
+		__typeof(*(m)) __tmp;					\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
-		"	.set	noat				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
-		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
-		"	bne	%0, %z3, 2f			\n"	\
-		"	move	$at, %z4			\n"	\
-		"	" st "	$at, %1				\n"	\
-		"	beqz	$at, 1b				\n"	\
+		"1:	" ld "	%0, %3		# __cmpxchg_asm \n"	\
+		"	bne	%0, %z4, 2f			\n"	\
+		"	move	%2, %z5				\n"	\
+		"	" st "	%2, %1				\n"	\
+		"	beqz	%2, 1b				\n"	\
 		"	.set	pop				\n"	\
 		"2:						\n"	\
-		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
+		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m),		\
+		  "=&r" (__tmp)						\
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (old), "Jr" (new)		\
 		: "memory");						\
 	} else {							\
