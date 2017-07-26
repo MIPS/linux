@@ -526,7 +526,7 @@ out:
 	return;
 }
 
-int __udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+static int __udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	int rc;
 
@@ -569,7 +569,7 @@ void udpv6_encap_enable(void)
 }
 EXPORT_SYMBOL(udpv6_encap_enable);
 
-int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+static int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct udp_sock *up = udp_sk(sk);
 	int is_udplite = IS_UDPLITE(sk);
@@ -879,7 +879,8 @@ static struct sock *__udp6_lib_demux_lookup(struct net *net,
 	struct sock *sk;
 
 	udp_portaddr_for_each_entry_rcu(sk, &hslot2->head) {
-		if (INET6_MATCH(sk, net, rmt_addr, loc_addr, ports, dif))
+		if (sk->sk_state == TCP_ESTABLISHED &&
+		    INET6_MATCH(sk, net, rmt_addr, loc_addr, ports, dif))
 			return sk;
 		/* Only check first socket in chain */
 		break;

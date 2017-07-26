@@ -206,6 +206,9 @@ void mlxsw_sp_rif_counter_free(struct mlxsw_sp *mlxsw_sp,
 {
 	unsigned int *p_counter_index;
 
+	if (!mlxsw_sp_rif_counter_valid_get(rif, dir))
+		return;
+
 	p_counter_index = mlxsw_sp_rif_p_counter_get(rif, dir);
 	if (WARN_ON(!p_counter_index))
 		return;
@@ -3330,6 +3333,9 @@ static int mlxsw_sp_inetaddr_vlan_event(struct net_device *vlan_dev,
 	struct net_device *real_dev = vlan_dev_real_dev(vlan_dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(vlan_dev);
 	u16 vid = vlan_dev_vlan_id(vlan_dev);
+
+	if (netif_is_bridge_port(vlan_dev))
+		return 0;
 
 	if (mlxsw_sp_port_dev_check(real_dev))
 		return mlxsw_sp_inetaddr_vport_event(vlan_dev, real_dev, event,

@@ -4144,9 +4144,9 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 	int i, ret = -ENODEV;
 	int size;
 
-	if (glob && (strcmp(glob, "*") == 0 || !strlen(glob)))
+	if (!glob || !strlen(glob) || !strcmp(glob, "*"))
 		func_g.search = NULL;
-	else if (glob) {
+	else {
 		int not;
 
 		func_g.type = filter_parse_regex(glob, strlen(glob),
@@ -4256,6 +4256,14 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 	return ret;
 }
 
+void clear_ftrace_function_probes(struct trace_array *tr)
+{
+	struct ftrace_func_probe *probe, *n;
+
+	list_for_each_entry_safe(probe, n, &tr->func_probes, list)
+		unregister_ftrace_function_probe_func(NULL, tr, probe->probe_ops);
+}
+
 static LIST_HEAD(ftrace_commands);
 static DEFINE_MUTEX(ftrace_cmd_mutex);
 
@@ -4328,9 +4336,6 @@ static int ftrace_process_regex(struct ftrace_iterator *iter,
 	/* command found */
 
 	command = strsep(&next, ":");
-
-	if (WARN_ON_ONCE(!tr))
-		return -EINVAL;
 
 	mutex_lock(&ftrace_cmd_mutex);
 	list_for_each_entry(p, &ftrace_commands, list) {
@@ -5055,7 +5060,7 @@ ftrace_graph_release(struct inode *inode, struct file *file)
 	}
 
  out:
-	kfree(fgd->new_hash);
+	free_ftrace_hash(fgd->new_hash);
 	kfree(fgd);
 
 	return ret;

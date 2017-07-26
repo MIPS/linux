@@ -44,6 +44,7 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 
 		/* initially, until copy_from_user() and bo lookup succeeds: */
 		submit->nr_bos = 0;
+		submit->fence = NULL;
 
 		ww_acquire_init(&submit->ticket, &reservation_ww_class);
 	}
@@ -171,7 +172,7 @@ static int submit_fence_sync(const struct etnaviv_gem_submit *submit)
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 		bool write = submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE;
-		bool explicit = !(submit->flags & ETNA_SUBMIT_NO_IMPLICIT);
+		bool explicit = !!(submit->flags & ETNA_SUBMIT_NO_IMPLICIT);
 
 		ret = etnaviv_gpu_fence_sync_obj(etnaviv_obj, context, write,
 						 explicit);
@@ -294,7 +295,8 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 	}
 
 	ww_acquire_fini(&submit->ticket);
-	dma_fence_put(submit->fence);
+	if (submit->fence)
+		dma_fence_put(submit->fence);
 	kfree(submit);
 }
 
