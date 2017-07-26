@@ -53,7 +53,6 @@ static __always_inline void prepare_frametrace(struct pt_regs *regs)
 		"=m" (regs->regs[29]), "=m" (regs->regs[30]),
 		"=m" (regs->regs[31])
 		: : "memory");
-	regs->cp0_status = read_c0_status();
 }
 
 #endif /* _ASM_STACKTRACE_H */
