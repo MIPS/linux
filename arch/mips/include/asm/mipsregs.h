@@ -1137,6 +1137,26 @@
 #endif
 
 /*
+ * nanoMIPS instructions can be 16-bit, 32-bit or 48-bit in length. This returns
+ * the number of bytes a given instruction is based on the first 16-bit word.
+ */
+static inline unsigned int nanomips_insn_len(u16 insn)
+{
+	u16 opcode = insn >> 10;
+
+	/* 16-bit instructions */
+	if (insn & (1 << 12))
+		return 2;
+
+	/* 48-bit instructions */
+	if (opcode == 0x18)
+		return 6;
+
+	/* 32-bit instructions */
+	return 4;
+}
+
+/*
  * microMIPS instructions can be 16-bit or 32-bit in length. This
  * returns a 1 if the instruction is 16-bit and a 0 if 32-bit.
  */

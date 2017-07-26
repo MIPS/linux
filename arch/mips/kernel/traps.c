@@ -976,12 +976,21 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	if (get_isa16_mode(regs->cp0_epc)) {
 		u16 instr[2];
 
-		WARN_ON(cpu_has_nanomips);
-
 		if (__get_user(instr[0], (u16 __user *)epc))
 			goto out_sigsegv;
 
-		if (!cpu_has_mmips) {
+		if (cpu_has_nanomips) {
+			if (nanomips_insn_len(instr[0]) == 2) {
+				/* 16-bit nanoMIPS BREAK[16] */
+				bcode = instr[0] & 0x3;
+			} else {
+				/* 32-bit nanoMIPS BREAK[32] */
+				if (__get_user(instr[1], (u16 __user *)(epc + 2)))
+					goto out_sigsegv;
+				opcode = (instr[0] << 16) | instr[1];
+				bcode = opcode & ((1 << 19) - 1);
+			}
+		} else if (!cpu_has_mmips) {
 			/* MIPS16e mode */
 			bcode = (instr[0] >> 5) & 0x3f;
 		} else if (mm_insn_16bit(instr[0])) {
