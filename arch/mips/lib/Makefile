@@ -9,7 +9,6 @@ lib-y += memcpy.o
 lib-y += memmove.o
 lib-y += memset.o
 lib-y += mips-atomic.o
-lib-y += strlen_user.o
 lib-y += strncpy_user.o
 lib-y += strnlen_user.o
 lib-y += uncached.o

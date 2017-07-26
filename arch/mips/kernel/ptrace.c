@@ -868,8 +868,26 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 	    tracehook_report_syscall_entry(regs))
 		return -1;
 
-	if (secure_computing(NULL) == -1)
-		return -1;
+#ifdef CONFIG_SECCOMP
+	if (unlikely(test_thread_flag(TIF_SECCOMP))) {
+		int ret, i;
+		struct seccomp_data sd;
+
+		sd.nr = syscall;
+		sd.arch = syscall_get_arch();
+		for (i = 0; i < 6; i++) {
+			unsigned long v, r;
+
+			r = mips_get_syscall_arg(&v, current, regs, i);
+			sd.args[i] = r ? 0 : v;
+		}
+		sd.instruction_pointer = KSTK_EIP(current);
+
+		ret = __secure_computing(&sd);
+		if (ret == -1)
+			return ret;
+	}
+#endif
 
 #ifdef CONFIG_CPU_NANOMIPS
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
@@ -907,7 +925,7 @@ asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 	audit_syscall_exit(regs);
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
-		trace_sys_exit(regs, syscall_get_return_value(current, regs));
+		trace_sys_exit(regs, regs_return_value(regs));
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, 0);
