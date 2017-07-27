@@ -40,19 +40,25 @@ static inline int mm_isBranchInstr(struct pt_regs *regs,
 	return __mm_isBranchInstr(regs, dec_insn, contpc);
 }
 
+/* nanoMIPS doesn't have delay slots */
+
 static inline int delay_slot(struct pt_regs *regs)
 {
+	if (cpu_has_nanomips)
+		return 0;
 	return regs->cp0_cause & CAUSEF_BD;
 }
 
 static inline void clear_delay_slot(struct pt_regs *regs)
 {
-	regs->cp0_cause &= ~CAUSEF_BD;
+	if (!cpu_has_nanomips)
+		regs->cp0_cause &= ~CAUSEF_BD;
 }
 
 static inline void set_delay_slot(struct pt_regs *regs)
 {
-	regs->cp0_cause |= CAUSEF_BD;
+	if (!cpu_has_nanomips)
+		regs->cp0_cause |= CAUSEF_BD;
 }
 
 static inline unsigned long exception_epc(struct pt_regs *regs)
