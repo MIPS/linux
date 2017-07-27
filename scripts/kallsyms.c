@@ -157,6 +157,10 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	/* exclude also MIPS ELF local symbols ($L123 instead of .L123) */
 	else if (str[0] == '$')
 		return -1;
+	/* exclude also nanoMIPS L0^A symbols (since v65, see DMZ2677) */
+	else if (str[0] == 'L' && str[1] == '0' &&
+		 str[2] == 1 && str[3] == '\0')
+		return -1;
 	/* exclude debugging symbols */
 	else if (stype == 'N')
 		return -1;
