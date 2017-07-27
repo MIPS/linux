@@ -17,6 +17,7 @@ extern int __isa_exception_epc(struct pt_regs *regs);
 extern int __compute_return_epc(struct pt_regs *regs);
 extern int __compute_return_epc_for_insn(struct pt_regs *regs,
 					 union mips_instruction insn);
+extern int __nanoMIPS_compute_return_epc(struct pt_regs *regs);
 extern int __microMIPS_compute_return_epc(struct pt_regs *regs);
 extern int __MIPS16e_compute_return_epc(struct pt_regs *regs);
 
@@ -71,7 +72,8 @@ static inline unsigned long exception_epc(struct pt_regs *regs)
 static inline int compute_return_epc(struct pt_regs *regs)
 {
 	if (get_isa16_mode(regs->cp0_epc)) {
-		WARN_ON(cpu_has_nanomips);
+		if (cpu_has_nanomips)
+			return __nanoMIPS_compute_return_epc(regs);
 		if (cpu_has_mmips)
 			return __microMIPS_compute_return_epc(regs);
 		if (cpu_has_mips16)
