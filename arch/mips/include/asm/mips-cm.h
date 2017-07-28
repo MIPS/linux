@@ -527,8 +527,7 @@ static inline unsigned mips_cm_numcores(unsigned int cluster)
 	if (!mips_cm_present())
 		return 0;
 
-	return ((mips_cm_cluster_cfg(cluster) & CM_GCR_CONFIG_PCORES_MSK)
-		>> CM_GCR_CONFIG_PCORES_SHF) + 1;
+	return (mips_cm_cluster_cfg(cluster) + 1) & CM_GCR_CONFIG_PCORES_MSK;
 }
 
 /**
