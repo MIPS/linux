@@ -221,8 +221,22 @@
  * this in the preprocessor, but we can live with this because they're
  * unreleased.  Really, we need to have autoconf for the kernel.
  */
+#ifdef __mips_micromips
+/*
+ * GCC can generate bad code when using __builtin_unreachable() with
+ * microMIPS... A switch statement will generate a branch to the end of the
+ * function for an unreachable block, and since the end of the function is the
+ * end of the code this can lead to a link failure if the function is followed
+ * by something other than code.
+ *
+ * See bug 2682: https://dmz-portal.imgtec.com/bugz/show_bug.cgi?id=2682
+ */
+#define unreachable() \
+	do { annotate_unreachable(); asm volatile(".insn"); __builtin_unreachable(); } while (0)
+#else
 #define unreachable() \
 	do { annotate_unreachable(); __builtin_unreachable(); } while (0)
+#endif
 
 /* Mark a function definition as prohibited from being cloned. */
 #define __noclone	__attribute__((__noclone__, __optimize__("no-tracer")))
