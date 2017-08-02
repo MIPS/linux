@@ -98,8 +98,8 @@
 /*
  * Register usage specific to the p32 ABI
  */
-#define t0	$2
-#define t1	$3
+#define t4	$2
+#define t5	$3
 #define v0	$4	/* return values */
 #define v1	$5
 #define a4	$8
@@ -110,12 +110,12 @@
 #define ta2	$10
 #define a7	$11
 #define ta3	$11
-#define t2	$12
-#define t3	$13
-#define t4	$14
-#define t5	$15
-#define t6	$24
-#define t7	$25
+#define t0	$12
+#define t1	$13
+#define t2	$14
+#define t3	$15
+#define t8	$24
+#define t9	$25
 
 #define scn	a7	/* syscall number */
 
