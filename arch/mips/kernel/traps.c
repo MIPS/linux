@@ -1078,15 +1078,18 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	prev_state = exception_enter();
 	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
 	if (get_isa16_mode(regs->cp0_epc)) {
-		WARN_ON(cpu_has_nanomips);
-
 		if (__get_user(instr[0], (u16 __user *)(epc + 0)) ||
 		    __get_user(instr[1], (u16 __user *)(epc + 2)))
 			goto out_sigsegv;
-		opcode = (instr[0] << 16) | instr[1];
-		/* Immediate versions don't provide a code.  */
-		if (!(opcode & OPCODE))
-			tcode = (opcode >> 12) & ((1 << 4) - 1);
+
+		if (cpu_has_nanomips) {
+			tcode = (instr[1] >> 11) & ((1 << 5) - 1);
+		} else {
+			opcode = (instr[0] << 16) | instr[1];
+			/* Immediate versions don't provide a code.  */
+			if (!(opcode & OPCODE))
+				tcode = (opcode >> 12) & ((1 << 4) - 1);
+		}
 	} else {
 		if (__get_user(opcode, (u32 __user *)epc))
 			goto out_sigsegv;
