@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/mips-cm.h>
+#include <asm/mips-cpc.h>
 #include <asm/mipsregs.h>
 
 void __iomem *mips_cm_base;
@@ -334,6 +335,31 @@ void mips_cm_unlock_other(void)
 	}
 
 	preempt_enable();
+}
+
+unsigned int mips_cm_cluster_cfg(unsigned int cluster)
+{
+	unsigned int cfg;
+
+	/* Prior to CM 3.5 we only have one truly global GCR_CONFIG */
+	if (mips_cm_revision() < CM_REV_CM3_5)
+		return read_gcr_config();
+
+	/*
+	 * If we can access the CPC_CONFIG alias then do so, since it's
+	 * accessible when the cluster's CM is powered down.
+	 */
+	if (mips_cpc_present()) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_CPC_GLOBAL);
+		cfg = read_redir_cpc_config();
+		mips_cm_unlock_other();
+		return cfg;
+	}
+
+	WARN(1, "CPC must be present for multi-cluster SMP\n");
+
+	/* Return a dummy value. PCORES=0xff indicates no cores */
+	return CM_GCR_CONFIG_PCORES_MSK;
 }
 
 void mips_cm_error_report(void)

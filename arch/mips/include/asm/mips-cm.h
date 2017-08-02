@@ -506,6 +506,16 @@ static inline void mips_cm_lock_other_cpu(unsigned int cpu,
 			   block);
 }
 
+/**
+ * mips_cm_cluster_cfg - return GCR_CONFIG/CPC_CONFIG from a cluster
+ * @cluster: the ID of the cluster whose GCR_CONFIG we want to read
+ *
+ * Reads GCR_CONFIG, or its value mirrored in CPC_CONFIG, from a given cluster.
+ *
+ * Returns the value of GCR_CONFIG.
+ */
+extern unsigned int mips_cm_cluster_cfg(unsigned int cluster);
+
 /*
  * mips_cm_numcores - return the number of cores present in the system
  *
