@@ -2355,6 +2355,7 @@ config MIPS_CM
 
 config MIPS_CPC
 	bool
+	select EDAC_SUPPORT
 
 config SB1_PASS_2_WORKAROUNDS
 	bool

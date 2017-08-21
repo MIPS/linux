@@ -199,8 +199,15 @@
 	};
 
 	cpc@16200000 {
-		compatible = "mti,mips-cpc";
+		compatible = "mti,mips-cpc", "simple-mfd";
 		reg = <0x16200000 0x8000>;
+
+		fault-status {
+			compatible = "mti,mips-cpc-fault-status";
+
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 5 IRQ_TYPE_LEVEL_HIGH>;
+		};
 	};
 
 	plat_regs: system-controller@17ffd000 {

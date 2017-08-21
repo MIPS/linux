@@ -462,4 +462,11 @@ config EDAC_XGENE
 	  Support for error detection and correction on the
 	  APM X-Gene family of SOCs.
 
+config EDAC_MIPS_CPS_FUSA
+	tristate "MIPS CPS FuSa"
+	depends on MIPS
+	help
+	  Support for MIPS Coherent Processing System (CPS) Functional Safety
+	  (FuSa) error detection.
+
 endif # EDAC
