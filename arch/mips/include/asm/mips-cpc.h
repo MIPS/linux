@@ -109,6 +109,9 @@ BUILD_CPC_Cx_RW(other,		0x10)
 BUILD_CPC_Cx_RW(vp_stop,	0x20)
 BUILD_CPC_Cx_RW(vp_run,		0x28)
 BUILD_CPC_Cx_RW(vp_running,	0x30)
+BUILD_CPC_Cx_R_(fault_status,	0x68)
+BUILD_CPC_Cx_RW(fault_set,	0x70)
+BUILD_CPC_Cx_RW(fault_clear,	0x78)
 
 /* CPC_Cx_CMD register fields */
 #define CPC_Cx_CMD_SHF				0
