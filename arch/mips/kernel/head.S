@@ -142,20 +142,20 @@ dtb_found:
 	/* Copy kernel and apply the relocations */
 	jal		relocate_kernel
 
-	/* Repoint the sp into the new kernel image */
-	PTR_LI		sp, _THREAD_SIZE - 32 - PT_SIZE
-	PTR_ADDU	sp, $28
+	/* relocate_kernel returns the offset applied, apply it to ti & sp */
+	PTR_ADDU	$28, v0
+	PTR_ADDU	sp, v0
+
 	set_saved_sp	sp, t0, t1
-	PTR_SUBU	sp, 4 * SZREG		# init stack pointer
 
 	/*
-	 * relocate_kernel returns the entry point either
-	 * in the relocated kernel or the original if for
-	 * some reason relocation failed - jump there now
+	 * Find start_kernel in relocated image and jump there
 	 * with instruction hazard barrier because of the
 	 * newly sync'd icache.
 	 */
-	jr.hb		v0
+	PTR_LA		t0, start_kernel
+	PTR_ADDU	t0, v0
+	jr.hb		t0
 #else
 	j		start_kernel
 #endif
