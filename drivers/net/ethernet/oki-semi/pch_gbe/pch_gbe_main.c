@@ -18,7 +18,7 @@
  */
 
 #include "pch_gbe.h"
-#include "pch_gbe_api.h"
+#include "pch_gbe_phy.h"
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
@@ -2069,10 +2069,7 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 	hw->mac.min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	/* Initialize the hardware-specific values */
-	if (pch_gbe_hal_setup_init_funcs(hw)) {
-		netdev_err(netdev, "Hardware Initialization Failure\n");
-		return -EIO;
-	}
+	hw->phy.reset_delay_us = PCH_GBE_PHY_RESET_DELAY_US;
 	if (pch_gbe_alloc_queues(adapter)) {
 		netdev_err(netdev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
@@ -2113,7 +2110,7 @@ static int pch_gbe_open(struct net_device *netdev)
 	err = pch_gbe_setup_rx_resources(adapter, adapter->rx_ring);
 	if (err)
 		goto err_setup_rx;
-	pch_gbe_hal_power_up_phy(hw);
+	pch_gbe_phy_power_up(hw);
 	err = pch_gbe_up(adapter);
 	if (err)
 		goto err_up;
@@ -2122,7 +2119,7 @@ static int pch_gbe_open(struct net_device *netdev)
 
 err_up:
 	if (!adapter->wake_up_evt)
-		pch_gbe_hal_power_down_phy(hw);
+		pch_gbe_phy_power_down(hw);
 	pch_gbe_free_rx_resources(adapter, adapter->rx_ring);
 err_setup_rx:
 	pch_gbe_free_tx_resources(adapter, adapter->tx_ring);
@@ -2145,7 +2142,7 @@ static int pch_gbe_stop(struct net_device *netdev)
 
 	pch_gbe_down(adapter);
 	if (!adapter->wake_up_evt)
-		pch_gbe_hal_power_down_phy(hw);
+		pch_gbe_phy_power_down(hw);
 	pch_gbe_free_tx_resources(adapter, adapter->tx_ring);
 	pch_gbe_free_rx_resources(adapter, adapter->rx_ring);
 	return 0;
@@ -2475,7 +2472,7 @@ static pci_ers_result_t pch_gbe_io_slot_reset(struct pci_dev *pdev)
 	}
 	pci_set_master(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
-	pch_gbe_hal_power_up_phy(hw);
+	pch_gbe_phy_power_up(hw);
 	pch_gbe_reset(adapter);
 	/* Clear wake up status */
 	pch_gbe_mac_set_wol_event(hw, 0);
@@ -2520,7 +2517,7 @@ static int __pch_gbe_suspend(struct pci_dev *pdev)
 		pch_gbe_mac_set_wol_event(hw, wufc);
 		pci_disable_device(pdev);
 	} else {
-		pch_gbe_hal_power_down_phy(hw);
+		pch_gbe_phy_power_down(hw);
 		pch_gbe_mac_set_wol_event(hw, wufc);
 		pci_disable_device(pdev);
 	}
@@ -2549,7 +2546,7 @@ static int pch_gbe_resume(struct device *device)
 		return err;
 	}
 	pci_set_master(pdev);
-	pch_gbe_hal_power_up_phy(hw);
+	pch_gbe_phy_power_up(hw);
 	pch_gbe_reset(adapter);
 	/* Clear wake on lan control and status */
 	pch_gbe_mac_set_wol_event(hw, 0);
