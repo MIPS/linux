@@ -20,34 +20,7 @@
 #include "pch_gbe_phy.h"
 #include "pch_gbe_api.h"
 
-/**
- * pch_gbe_plat_init_hw - Initialize hardware
- * @hw:	Pointer to the HW structure
- * Returns:
- *	0:		Successfully
- *	Negative value:	Failed-EBUSY
- */
-static s32 pch_gbe_plat_init_hw(struct pch_gbe_hw *hw)
-{
-	s32 ret_val;
-
-	ret_val = pch_gbe_phy_get_id(hw);
-	if (ret_val) {
-		struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-
-		netdev_err(adapter->netdev, "pch_gbe_phy_get_id error\n");
-		return ret_val;
-	}
-	pch_gbe_phy_init_setting(hw);
-	/* Setup Mac interface option RGMII */
-#ifdef PCH_GBE_MAC_IFOP_RGMII
-	pch_gbe_phy_set_rgmii(hw);
-#endif
-	return ret_val;
-}
-
 static const struct pch_gbe_functions pch_gbe_ops = {
-	.init_hw           = pch_gbe_plat_init_hw,
 	.read_phy_reg      = pch_gbe_phy_read_reg_miic,
 	.write_phy_reg     = pch_gbe_phy_write_reg_miic,
 	.reset_phy         = pch_gbe_phy_hw_reset,
@@ -86,24 +59,6 @@ s32 pch_gbe_hal_setup_init_funcs(struct pch_gbe_hw *hw)
 	}
 	pch_gbe_plat_init_function_pointers(hw);
 	return 0;
-}
-
-/**
- * pch_gbe_hal_init_hw - Initialize hardware
- * @hw:	Pointer to the HW structure
- * Returns:
- *	0:	Successfully
- *	ENOSYS:	Function is not registered
- */
-s32 pch_gbe_hal_init_hw(struct pch_gbe_hw *hw)
-{
-	if (!hw->func->init_hw) {
-		struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-
-		netdev_err(adapter->netdev, "ERROR: configuration\n");
-		return -ENOSYS;
-	}
-	return hw->func->init_hw(hw);
 }
 
 /**
