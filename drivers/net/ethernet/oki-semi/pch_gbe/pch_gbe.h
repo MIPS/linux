@@ -336,7 +336,6 @@ struct pch_gbe_hw;
  * @sw_reset_phy:	for pch_gbe_hal_phy_sw_reset
  * @power_up_phy:	for pch_gbe_hal_power_up_phy
  * @power_down_phy:	for pch_gbe_hal_power_down_phy
- * @read_mac_addr:	for pch_gbe_hal_read_mac_addr
  */
 struct pch_gbe_functions {
 	s32 (*read_phy_reg) (struct pch_gbe_hw *, u32, u16 *);
@@ -345,7 +344,6 @@ struct pch_gbe_functions {
 	void (*sw_reset_phy) (struct pch_gbe_hw *);
 	void (*power_up_phy) (struct pch_gbe_hw *hw);
 	void (*power_down_phy) (struct pch_gbe_hw *hw);
-	s32 (*read_mac_addr) (struct pch_gbe_hw *);
 };
 
 /**
@@ -667,7 +665,6 @@ void pch_gbe_set_ethtool_ops(struct net_device *netdev);
 
 /* pch_gbe_mac.c */
 s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw);
-s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw);
 u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 			  u16 data);
 #endif /* _PCH_GBE_H_ */
