@@ -19,6 +19,7 @@
 
 #include "pch_gbe.h"
 #include "pch_gbe_phy.h"
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
@@ -101,15 +102,15 @@ const char pch_driver_version[] = DRV_VERSION;
 
 /* Macros for ieee1588 */
 /* 0x40 Time Synchronization Channel Control Register Bits */
-#define MASTER_MODE   (1<<0)
-#define SLAVE_MODE    (0)
-#define V2_MODE       (1<<31)
-#define CAP_MODE0     (0)
-#define CAP_MODE2     (1<<17)
+#define MASTER_MODE   BIT(0)
+#define SLAVE_MODE    0
+#define V2_MODE       BIT(31)
+#define CAP_MODE0     0
+#define CAP_MODE2     BIT(17)
 
 /* 0x44 Time Synchronization Channel Event Register Bits */
-#define TX_SNAPSHOT_LOCKED (1<<0)
-#define RX_SNAPSHOT_LOCKED (1<<1)
+#define TX_SNAPSHOT_LOCKED BIT(0)
+#define RX_SNAPSHOT_LOCKED BIT(1)
 
 #define PTP_L4_MULTICAST_SA "01:00:5e:00:01:81"
 #define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
