@@ -330,7 +330,6 @@ struct pch_gbe_regs {
 struct pch_gbe_hw;
 /**
  * struct  pch_gbe_functions - HAL APi function pointer
- * @get_bus_info:	for pch_gbe_hal_get_bus_info
  * @init_hw:		for pch_gbe_hal_init_hw
  * @read_phy_reg:	for pch_gbe_hal_read_phy_reg
  * @write_phy_reg:	for pch_gbe_hal_write_phy_reg
@@ -341,7 +340,6 @@ struct pch_gbe_hw;
  * @read_mac_addr:	for pch_gbe_hal_read_mac_addr
  */
 struct pch_gbe_functions {
-	void (*get_bus_info) (struct pch_gbe_hw *);
 	s32 (*init_hw) (struct pch_gbe_hw *);
 	s32 (*read_phy_reg) (struct pch_gbe_hw *, u32, u16 *);
 	s32 (*write_phy_reg) (struct pch_gbe_hw *, u32, u16);
@@ -394,17 +392,6 @@ struct pch_gbe_phy_info {
 
 /*!
  * @ingroup Gigabit Ether driver Layer
- * @struct  pch_gbe_bus_info
- * @brief   Bus information
- */
-struct pch_gbe_bus_info {
-	u8 type;
-	u8 speed;
-	u8 width;
-};
-
-/*!
- * @ingroup Gigabit Ether driver Layer
  * @struct  pch_gbe_hw
  * @brief   Hardware information
  */
@@ -417,7 +404,6 @@ struct pch_gbe_hw {
 	const struct pch_gbe_functions *func;
 	struct pch_gbe_mac_info mac;
 	struct pch_gbe_phy_info phy;
-	struct pch_gbe_bus_info bus;
 };
 
 /**
