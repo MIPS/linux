@@ -1225,13 +1225,12 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	buffer_info = &tx_ring->buffer_info[ring_num];
 	tmp_skb = buffer_info->skb;
 
-	/* [Header:14][payload] ---> [Header:14][paddong:2][payload]    */
+	/* [Header:14][payload] ---> [Header:14][padding:2][payload] */
 	memcpy(tmp_skb->data, skb->data, ETH_HLEN);
-	tmp_skb->data[ETH_HLEN] = 0x00;
-	tmp_skb->data[ETH_HLEN + 1] = 0x00;
-	tmp_skb->len = skb->len;
-	memcpy(&tmp_skb->data[ETH_HLEN + 2], &skb->data[ETH_HLEN],
-	       (skb->len - ETH_HLEN));
+	memset(&tmp_skb->data[ETH_HLEN], 0, PCH_GBE_DMA_PADDING);
+	memcpy(&tmp_skb->data[ETH_HLEN + PCH_GBE_DMA_PADDING],
+	       &skb->data[ETH_HLEN], skb->len - ETH_HLEN);
+	tmp_skb->len = skb->len + PCH_GBE_DMA_PADDING;
 	/*-- Set Buffer information --*/
 	buffer_info->length = tmp_skb->len;
 	buffer_info->dma = dma_map_single(&adapter->pdev->dev, tmp_skb->data,
@@ -1250,8 +1249,8 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	/*-- Set Tx descriptor --*/
 	tx_desc = PCH_GBE_TX_DESC(*tx_ring, ring_num);
 	tx_desc->buffer_addr = cpu_to_le32(buffer_info->dma);
-	tx_desc->length = cpu_to_le16(tmp_skb->len);
-	tx_desc->tx_words_eob = cpu_to_le16(tmp_skb->len + 3);
+	tx_desc->length = cpu_to_le16(skb->len);
+	tx_desc->tx_words_eob = cpu_to_le16(skb->len + 3);
 	tx_desc->tx_frame_ctrl = cpu_to_le16(frame_ctrl);
 	tx_desc->gbec_status = cpu_to_le16(DSC_INIT16);
 
