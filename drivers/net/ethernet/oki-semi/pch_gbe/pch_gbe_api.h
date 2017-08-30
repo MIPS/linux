@@ -22,8 +22,6 @@
 #include "pch_gbe_phy.h"
 
 s32 pch_gbe_hal_setup_init_funcs(struct pch_gbe_hw *hw);
-void pch_gbe_hal_phy_hw_reset(struct pch_gbe_hw *hw);
-void pch_gbe_hal_phy_sw_reset(struct pch_gbe_hw *hw);
 void pch_gbe_hal_power_up_phy(struct pch_gbe_hw *hw);
 void pch_gbe_hal_power_down_phy(struct pch_gbe_hw *hw);
 

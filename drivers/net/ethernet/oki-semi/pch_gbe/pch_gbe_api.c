@@ -21,8 +21,6 @@
 #include "pch_gbe_api.h"
 
 static const struct pch_gbe_functions pch_gbe_ops = {
-	.reset_phy         = pch_gbe_phy_hw_reset,
-	.sw_reset_phy      = pch_gbe_phy_sw_reset,
 	.power_up_phy      = pch_gbe_phy_power_up,
 	.power_down_phy    = pch_gbe_phy_power_down,
 };
@@ -56,36 +54,6 @@ s32 pch_gbe_hal_setup_init_funcs(struct pch_gbe_hw *hw)
 	}
 	pch_gbe_plat_init_function_pointers(hw);
 	return 0;
-}
-
-/**
- * pch_gbe_hal_phy_hw_reset - Hard PHY reset
- * @hw:	    Pointer to the HW structure
- */
-void pch_gbe_hal_phy_hw_reset(struct pch_gbe_hw *hw)
-{
-	if (!hw->func->reset_phy) {
-		struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-
-		netdev_err(adapter->netdev, "ERROR: configuration\n");
-		return;
-	}
-	hw->func->reset_phy(hw);
-}
-
-/**
- * pch_gbe_hal_phy_sw_reset - Soft PHY reset
- * @hw:	    Pointer to the HW structure
- */
-void pch_gbe_hal_phy_sw_reset(struct pch_gbe_hw *hw)
-{
-	if (!hw->func->sw_reset_phy) {
-		struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-
-		netdev_err(adapter->netdev, "ERROR: configuration\n");
-		return;
-	}
-	hw->func->sw_reset_phy(hw);
 }
 
 /**
