@@ -326,18 +326,6 @@ struct pch_gbe_regs {
 #define PCH_GBE_FC_FULL			3
 #define PCH_GBE_FC_DEFAULT		PCH_GBE_FC_FULL
 
-
-struct pch_gbe_hw;
-/**
- * struct  pch_gbe_functions - HAL APi function pointer
- * @power_up_phy:	for pch_gbe_hal_power_up_phy
- * @power_down_phy:	for pch_gbe_hal_power_down_phy
- */
-struct pch_gbe_functions {
-	void (*power_up_phy) (struct pch_gbe_hw *hw);
-	void (*power_down_phy) (struct pch_gbe_hw *hw);
-};
-
 /**
  * struct pch_gbe_mac_info - MAC information
  * @addr[6]:		Store the MAC address
@@ -389,7 +377,6 @@ struct pch_gbe_hw {
 	struct pch_gbe_regs  __iomem *reg;
 	spinlock_t miim_lock;
 
-	const struct pch_gbe_functions *func;
 	struct pch_gbe_mac_info mac;
 	struct pch_gbe_phy_info phy;
 };
