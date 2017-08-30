@@ -133,6 +133,20 @@ static void __init cps_smp_setup(void)
 	if (cpu_has_fpu)
 		cpumask_set_cpu(0, &mt_fpu_cpumask);
 #endif /* CONFIG_MIPS_MT_FPAFF */
+
+	for (cl = 1; cl < nclusters; cl++) {
+		/* Set endianness & power up the CM */
+		mips_cm_lock_other(cl, 0, 0, BLOCK_CPC_GLOBAL);
+		write_redir_cpc_sys_config(IS_ENABLED(CONFIG_CPU_BIG_ENDIAN));
+		write_redir_cpc_pwrup_ctl(1);
+		mips_cm_unlock_other();
+
+		/* Wait for the CM to start up */
+		mips_cm_lock_other(cl, 0x20, 0, BLOCK_CPC_CORE_LOCAL);
+		while ((read_cpc_co_stat_conf() & CPC_Cx_STAT_CONF_SEQSTATE_MSK)
+			!= CPC_Cx_STAT_CONF_SEQSTATE_U5);
+		mips_cm_unlock_other();
+	}
 }
 
 static void __init cps_prepare_cpus(unsigned int max_cpus)
