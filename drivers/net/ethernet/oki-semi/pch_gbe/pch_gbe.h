@@ -330,14 +330,10 @@ struct pch_gbe_regs {
 struct pch_gbe_hw;
 /**
  * struct  pch_gbe_functions - HAL APi function pointer
- * @reset_phy:		for pch_gbe_hal_phy_hw_reset
- * @sw_reset_phy:	for pch_gbe_hal_phy_sw_reset
  * @power_up_phy:	for pch_gbe_hal_power_up_phy
  * @power_down_phy:	for pch_gbe_hal_power_down_phy
  */
 struct pch_gbe_functions {
-	void (*reset_phy) (struct pch_gbe_hw *);
-	void (*sw_reset_phy) (struct pch_gbe_hw *);
 	void (*power_up_phy) (struct pch_gbe_hw *hw);
 	void (*power_down_phy) (struct pch_gbe_hw *hw);
 };
