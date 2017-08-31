@@ -295,19 +295,20 @@ static inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
 static s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
 {
 	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
+	struct net_device *netdev = adapter->netdev;
 	u32  adr1a, adr1b;
 
 	adr1a = ioread32(&hw->reg->mac_adr[0].high);
 	adr1b = ioread32(&hw->reg->mac_adr[0].low);
 
-	hw->mac.addr[0] = (u8)(adr1a & 0xFF);
-	hw->mac.addr[1] = (u8)((adr1a >> 8) & 0xFF);
-	hw->mac.addr[2] = (u8)((adr1a >> 16) & 0xFF);
-	hw->mac.addr[3] = (u8)((adr1a >> 24) & 0xFF);
-	hw->mac.addr[4] = (u8)(adr1b & 0xFF);
-	hw->mac.addr[5] = (u8)((adr1b >> 8) & 0xFF);
+	netdev->dev_addr[0] = (u8)(adr1a & 0xFF);
+	netdev->dev_addr[1] = (u8)((adr1a >> 8) & 0xFF);
+	netdev->dev_addr[2] = (u8)((adr1a >> 16) & 0xFF);
+	netdev->dev_addr[3] = (u8)((adr1a >> 24) & 0xFF);
+	netdev->dev_addr[4] = (u8)(adr1b & 0xFF);
+	netdev->dev_addr[5] = (u8)((adr1b >> 8) & 0xFF);
 
-	netdev_dbg(adapter->netdev, "hw->mac.addr : %pM\n", hw->mac.addr);
+	netdev_dbg(adapter->netdev, "dev_addr : %pM\n", netdev->dev_addr);
 	return 0;
 }
 
@@ -376,6 +377,9 @@ static void pch_gbe_phy_set_reset(struct pch_gbe_hw *hw, int value)
  */
 static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 {
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
+	struct net_device *netdev = adapter->netdev;
+
 	/* Read the MAC address. and store to the private data */
 	pch_gbe_mac_read_mac_addr(hw);
 	pch_gbe_phy_set_reset(hw, 1);
@@ -387,7 +391,7 @@ static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 	usleep_range(1250, 1500);
 	pch_gbe_wait_clr_bit(&hw->reg->RESET, PCH_GBE_ALL_RST);
 	/* Setup the receive addresses */
-	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
+	pch_gbe_mac_mar_set(hw, netdev->dev_addr, 0);
 	return;
 }
 
@@ -414,10 +418,12 @@ static void pch_gbe_enable_mac_rx(struct pch_gbe_hw *hw)
  */
 static void pch_gbe_mac_init_rx_addrs(struct pch_gbe_hw *hw, u16 mar_count)
 {
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
+	struct net_device *netdev = adapter->netdev;
 	u32 i;
 
 	/* Setup the receive address */
-	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
+	pch_gbe_mac_mar_set(hw, netdev->dev_addr, 0);
 
 	/* Zero out the other receive addresses */
 	for (i = 1; i < mar_count; i++) {
@@ -599,17 +605,18 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
 {
 	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
+	struct net_device *netdev = adapter->netdev;
 	unsigned long tmp2, tmp3;
 
 	/* Set Pause packet */
-	tmp2 = hw->mac.addr[1];
-	tmp2 = (tmp2 << 8) | hw->mac.addr[0];
+	tmp2 = netdev->dev_addr[1];
+	tmp2 = (tmp2 << 8) | netdev->dev_addr[0];
 	tmp2 = PCH_GBE_PAUSE_PKT2_VALUE | (tmp2 << 16);
 
-	tmp3 = hw->mac.addr[5];
-	tmp3 = (tmp3 << 8) | hw->mac.addr[4];
-	tmp3 = (tmp3 << 8) | hw->mac.addr[3];
-	tmp3 = (tmp3 << 8) | hw->mac.addr[2];
+	tmp3 = netdev->dev_addr[5];
+	tmp3 = (tmp3 << 8) | netdev->dev_addr[4];
+	tmp3 = (tmp3 << 8) | netdev->dev_addr[3];
+	tmp3 = (tmp3 << 8) | netdev->dev_addr[2];
 
 	iowrite32(PCH_GBE_PAUSE_PKT1_VALUE, &hw->reg->PAUSE_PKT1);
 	iowrite32(tmp2, &hw->reg->PAUSE_PKT2);
@@ -1970,7 +1977,7 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 	int err = -EINVAL;
 
 	/* Ensure we have a valid MAC */
-	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		netdev_err(netdev, "Error: Invalid MAC address\n");
 		goto out;
 	}
@@ -2249,13 +2256,11 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
 		ret_val = -EADDRNOTAVAIL;
 	} else {
 		memcpy(netdev->dev_addr, skaddr->sa_data, netdev->addr_len);
-		memcpy(adapter->hw.mac.addr, skaddr->sa_data, netdev->addr_len);
-		pch_gbe_mac_mar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+		pch_gbe_mac_mar_set(&adapter->hw, netdev->dev_addr, 0);
 		ret_val = 0;
 	}
 	netdev_dbg(netdev, "ret_val : 0x%08x\n", ret_val);
 	netdev_dbg(netdev, "dev_addr : %pM\n", netdev->dev_addr);
-	netdev_dbg(netdev, "mac_addr : %pM\n", adapter->hw.mac.addr);
 	netdev_dbg(netdev, "MAC_ADR1AB reg : 0x%08x 0x%08x\n",
 		   ioread32(&adapter->hw.reg->mac_adr[0].high),
 		   ioread32(&adapter->hw.reg->mac_adr[0].low));
@@ -2700,7 +2705,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		goto err_free_adapter;
 	}
 
-	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		/*
 		 * If the MAC is invalid (or just missing), display a warning
