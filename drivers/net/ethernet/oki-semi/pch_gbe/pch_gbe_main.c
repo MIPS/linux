@@ -117,8 +117,6 @@ const char pch_driver_version[] = DRV_VERSION;
 
 #define MINNOW_PHY_RESET_GPIO		13
 
-static unsigned int copybreak __read_mostly = PCH_GBE_COPYBREAK_DEFAULT;
-
 static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
 static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
 			       int data);
@@ -2848,14 +2846,6 @@ static int __init pch_gbe_init_module(void)
 
 	pr_info("EG20T PCH Gigabit Ethernet Driver - version %s\n",DRV_VERSION);
 	ret = pci_register_driver(&pch_gbe_driver);
-	if (copybreak != PCH_GBE_COPYBREAK_DEFAULT) {
-		if (copybreak == 0) {
-			pr_info("copybreak disabled\n");
-		} else {
-			pr_info("copybreak enabled for packets <= %u bytes\n",
-				copybreak);
-		}
-	}
 	return ret;
 }
 
@@ -2872,9 +2862,5 @@ MODULE_AUTHOR("LAPIS SEMICONDUCTOR, <tshimizu818@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, pch_gbe_pcidev_id);
-
-module_param(copybreak, uint, 0644);
-MODULE_PARM_DESC(copybreak,
-	"Maximum size of packet that is copied to a new buffer on receive");
 
 /* pch_gbe_main.c */
