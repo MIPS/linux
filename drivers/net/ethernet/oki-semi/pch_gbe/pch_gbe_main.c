@@ -2067,7 +2067,6 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 
 	adapter->rx_buffer_len = PCH_GBE_FRAME_SIZE_2048;
 	hw->mac.max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
-	hw->mac.min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	/* Initialize the hardware-specific values */
 	hw->phy.reset_delay_us = PCH_GBE_PHY_RESET_DELAY_US;
@@ -2084,9 +2083,9 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 	pch_gbe_init_stats(adapter);
 
 	netdev_dbg(netdev,
-		   "rx_buffer_len : %d  mac.min_frame_size : %d  mac.max_frame_size : %d\n",
+		   "rx_buffer_len : %d  mac.max_frame_size : %d\n",
 		   (u32) adapter->rx_buffer_len,
-		   hw->mac.min_frame_size, hw->mac.max_frame_size);
+		   hw->mac.max_frame_size);
 	return 0;
 }
 
