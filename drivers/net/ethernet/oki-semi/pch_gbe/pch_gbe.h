@@ -333,7 +333,6 @@ struct pch_gbe_regs {
  * @fc_autoneg:		Auto negotiation enable for flow control setting
  * @tx_fc_enable:	Enable flag of Transmit flow control
  * @max_frame_size:	Max transmit frame size
- * @min_frame_size:	Min transmit frame size
  * @autoneg:		Auto negotiation enable
  * @link_speed:		Link speed
  * @link_duplex:	Link duplex
@@ -344,7 +343,6 @@ struct pch_gbe_mac_info {
 	u8 fc_autoneg;
 	u8 tx_fc_enable;
 	u32 max_frame_size;
-	u32 min_frame_size;
 	u8 autoneg;
 	u16 link_speed;
 	u16 link_duplex;
