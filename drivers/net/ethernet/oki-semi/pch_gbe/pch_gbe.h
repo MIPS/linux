@@ -328,7 +328,6 @@ struct pch_gbe_regs {
 
 /**
  * struct pch_gbe_mac_info - MAC information
- * @addr[6]:		Store the MAC address
  * @fc:			Mode of flow control
  * @fc_autoneg:		Auto negotiation enable for flow control setting
  * @tx_fc_enable:	Enable flag of Transmit flow control
@@ -338,7 +337,6 @@ struct pch_gbe_regs {
  * @link_duplex:	Link duplex
  */
 struct pch_gbe_mac_info {
-	u8 addr[6];
 	u8 fc;
 	u8 fc_autoneg;
 	u8 tx_fc_enable;
