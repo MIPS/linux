@@ -852,6 +852,26 @@ static void pch_gbe_irq_enable(struct pch_gbe_adapter *adapter)
 		   ioread32(&hw->reg->INT_EN));
 }
 
+static void pch_gbe_disable_dma_rx(struct pch_gbe_hw *hw)
+{
+	u32 rxdma;
+
+	/* Disable Receive DMA */
+	rxdma = ioread32(&hw->reg->DMA_CTRL);
+	rxdma &= ~PCH_GBE_RX_DMA_EN;
+	iowrite32(rxdma, &hw->reg->DMA_CTRL);
+}
+
+static void pch_gbe_enable_dma_rx(struct pch_gbe_hw *hw)
+{
+	u32 rxdma;
+
+	/* Enables Receive DMA */
+	rxdma = ioread32(&hw->reg->DMA_CTRL);
+	rxdma |= PCH_GBE_RX_DMA_EN;
+	iowrite32(rxdma, &hw->reg->DMA_CTRL);
+}
+
 /**
  * pch_gbe_configure_tx - Configure Transmit Unit after Reset
  * @adapter:  Board private structure
@@ -897,7 +917,7 @@ static void pch_gbe_configure_tx(struct pch_gbe_adapter *adapter)
 static void pch_gbe_configure_rx(struct pch_gbe_adapter *adapter)
 {
 	struct pch_gbe_hw *hw = &adapter->hw;
-	u32 rdba, rdlen, rxdma, rx_mode, tcpip;
+	u32 rdba, rdlen, rx_mode, tcpip;
 
 	rx_mode = PCH_GBE_ADD_FIL_EN |
 		  PCH_GBE_MLT_FIL_EN |
@@ -918,11 +938,7 @@ static void pch_gbe_configure_rx(struct pch_gbe_adapter *adapter)
 	pch_gbe_mac_force_mac_fc(hw);
 
 	pch_gbe_disable_mac_rx(hw);
-
-	/* Disables Receive DMA */
-	rxdma = ioread32(&hw->reg->DMA_CTRL);
-	rxdma &= ~PCH_GBE_RX_DMA_EN;
-	iowrite32(rxdma, &hw->reg->DMA_CTRL);
+	pch_gbe_disable_dma_rx(hw);
 
 	netdev_dbg(adapter->netdev,
 		   "MAC_RX_EN reg = 0x%08x  DMA_CTRL reg = 0x%08x\n",
@@ -1308,26 +1324,6 @@ void pch_gbe_update_stats(struct pch_gbe_adapter *adapter)
 	netdev->stats.tx_carrier_errors = stats->tx_carrier_errors;
 
 	spin_unlock_irqrestore(&adapter->stats_lock, flags);
-}
-
-static void pch_gbe_disable_dma_rx(struct pch_gbe_hw *hw)
-{
-	u32 rxdma;
-
-	/* Disable Receive DMA */
-	rxdma = ioread32(&hw->reg->DMA_CTRL);
-	rxdma &= ~PCH_GBE_RX_DMA_EN;
-	iowrite32(rxdma, &hw->reg->DMA_CTRL);
-}
-
-static void pch_gbe_enable_dma_rx(struct pch_gbe_hw *hw)
-{
-	u32 rxdma;
-
-	/* Enables Receive DMA */
-	rxdma = ioread32(&hw->reg->DMA_CTRL);
-	rxdma |= PCH_GBE_RX_DMA_EN;
-	iowrite32(rxdma, &hw->reg->DMA_CTRL);
 }
 
 /**
