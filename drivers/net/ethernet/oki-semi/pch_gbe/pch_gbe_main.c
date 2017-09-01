@@ -852,31 +852,6 @@ static void pch_gbe_irq_enable(struct pch_gbe_adapter *adapter)
 		   ioread32(&hw->reg->INT_EN));
 }
 
-
-
-/**
- * pch_gbe_setup_tctl - configure the Transmit control registers
- * @adapter:  Board private structure
- */
-static void pch_gbe_setup_tctl(struct pch_gbe_adapter *adapter)
-{
-	struct pch_gbe_hw *hw = &adapter->hw;
-	u32 tx_mode, tcpip;
-
-	tx_mode = PCH_GBE_TM_LONG_PKT |
-		PCH_GBE_TM_ST_AND_FD |
-		PCH_GBE_TM_SHORT_PKT |
-		PCH_GBE_TM_TH_TX_STRT_8 |
-		PCH_GBE_TM_TH_ALM_EMP_4 | PCH_GBE_TM_TH_ALM_FULL_8;
-
-	iowrite32(tx_mode, &hw->reg->TX_MODE);
-
-	tcpip = ioread32(&hw->reg->TCPIP_ACC);
-	tcpip |= PCH_GBE_TX_TCPIPACC_EN;
-	iowrite32(tcpip, &hw->reg->TCPIP_ACC);
-	return;
-}
-
 /**
  * pch_gbe_configure_tx - Configure Transmit Unit after Reset
  * @adapter:  Board private structure
@@ -884,7 +859,19 @@ static void pch_gbe_setup_tctl(struct pch_gbe_adapter *adapter)
 static void pch_gbe_configure_tx(struct pch_gbe_adapter *adapter)
 {
 	struct pch_gbe_hw *hw = &adapter->hw;
-	u32 tdba, tdlen, dctrl;
+	u32 tdba, tdlen, dctrl, tx_mode, tcpip;
+
+	tx_mode = PCH_GBE_TM_LONG_PKT |
+		PCH_GBE_TM_ST_AND_FD |
+		PCH_GBE_TM_SHORT_PKT |
+		PCH_GBE_TM_TH_TX_STRT_8 |
+		PCH_GBE_TM_TH_ALM_EMP_4 |
+		PCH_GBE_TM_TH_ALM_FULL_8;
+	iowrite32(tx_mode, &hw->reg->TX_MODE);
+
+	tcpip = ioread32(&hw->reg->TCPIP_ACC);
+	tcpip |= PCH_GBE_TX_TCPIPACC_EN;
+	iowrite32(tcpip, &hw->reg->TCPIP_ACC);
 
 	netdev_dbg(adapter->netdev, "dma addr = 0x%08llx  size = 0x%08x\n",
 		   (unsigned long long)adapter->tx_ring->dma,
@@ -904,35 +891,25 @@ static void pch_gbe_configure_tx(struct pch_gbe_adapter *adapter)
 }
 
 /**
- * pch_gbe_setup_rctl - Configure the receive control registers
- * @adapter:  Board private structure
- */
-static void pch_gbe_setup_rctl(struct pch_gbe_adapter *adapter)
-{
-	struct pch_gbe_hw *hw = &adapter->hw;
-	u32 rx_mode, tcpip;
-
-	rx_mode = PCH_GBE_ADD_FIL_EN | PCH_GBE_MLT_FIL_EN |
-	PCH_GBE_RH_ALM_EMP_4 | PCH_GBE_RH_ALM_FULL_4 | PCH_GBE_RH_RD_TRG_8;
-
-	iowrite32(rx_mode, &hw->reg->RX_MODE);
-
-	tcpip = ioread32(&hw->reg->TCPIP_ACC);
-
-	tcpip |= PCH_GBE_RX_TCPIPACC_OFF;
-	tcpip &= ~PCH_GBE_RX_TCPIPACC_EN;
-	iowrite32(tcpip, &hw->reg->TCPIP_ACC);
-	return;
-}
-
-/**
  * pch_gbe_configure_rx - Configure Receive Unit after Reset
  * @adapter:  Board private structure
  */
 static void pch_gbe_configure_rx(struct pch_gbe_adapter *adapter)
 {
 	struct pch_gbe_hw *hw = &adapter->hw;
-	u32 rdba, rdlen, rxdma;
+	u32 rdba, rdlen, rxdma, rx_mode, tcpip;
+
+	rx_mode = PCH_GBE_ADD_FIL_EN |
+		  PCH_GBE_MLT_FIL_EN |
+		  PCH_GBE_RH_ALM_EMP_4 |
+		  PCH_GBE_RH_ALM_FULL_4 |
+		  PCH_GBE_RH_RD_TRG_8;
+	iowrite32(rx_mode, &hw->reg->RX_MODE);
+
+	tcpip = ioread32(&hw->reg->TCPIP_ACC);
+	tcpip |= PCH_GBE_RX_TCPIPACC_OFF;
+	tcpip &= ~PCH_GBE_RX_TCPIPACC_EN;
+	iowrite32(tcpip, &hw->reg->TCPIP_ACC);
 
 	netdev_dbg(adapter->netdev, "dma adr = 0x%08llx  size = 0x%08x\n",
 		   (unsigned long long)adapter->rx_ring->dma,
@@ -1985,9 +1962,7 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 	/* hardware has been reset, we need to reload some things */
 	pch_gbe_set_multi(netdev);
 
-	pch_gbe_setup_tctl(adapter);
 	pch_gbe_configure_tx(adapter);
-	pch_gbe_setup_rctl(adapter);
 	pch_gbe_configure_rx(adapter);
 
 	err = pch_gbe_request_irq(adapter);
@@ -2511,7 +2486,6 @@ static int __pch_gbe_suspend(struct pci_dev *pdev)
 		pch_gbe_down(adapter);
 	if (wufc) {
 		pch_gbe_set_multi(netdev);
-		pch_gbe_setup_rctl(adapter);
 		pch_gbe_configure_rx(adapter);
 		pch_gbe_set_rgmii_ctrl(adapter, hw->mac.link_speed,
 					hw->mac.link_duplex);
