@@ -872,6 +872,24 @@ static void pch_gbe_enable_dma_rx(struct pch_gbe_hw *hw)
 	iowrite32(rxdma, &hw->reg->DMA_CTRL);
 }
 
+static void pch_gbe_disable_dma_tx(struct pch_gbe_hw *hw)
+{
+	u32 rxdma;
+
+	rxdma = ioread32(&hw->reg->DMA_CTRL);
+	rxdma &= ~PCH_GBE_TX_DMA_EN;
+	iowrite32(rxdma, &hw->reg->DMA_CTRL);
+}
+
+static void pch_gbe_enable_dma_tx(struct pch_gbe_hw *hw)
+{
+	u32 rxdma;
+
+	rxdma = ioread32(&hw->reg->DMA_CTRL);
+	rxdma |= PCH_GBE_TX_DMA_EN;
+	iowrite32(rxdma, &hw->reg->DMA_CTRL);
+}
+
 /**
  * pch_gbe_configure_tx - Configure Transmit Unit after Reset
  * @adapter:  Board private structure
@@ -879,7 +897,7 @@ static void pch_gbe_enable_dma_rx(struct pch_gbe_hw *hw)
 static void pch_gbe_configure_tx(struct pch_gbe_adapter *adapter)
 {
 	struct pch_gbe_hw *hw = &adapter->hw;
-	u32 tdba, tdlen, dctrl, tx_mode, tcpip;
+	u32 tdba, tdlen, tx_mode, tcpip;
 
 	tx_mode = PCH_GBE_TM_LONG_PKT |
 		PCH_GBE_TM_ST_AND_FD |
@@ -897,17 +915,14 @@ static void pch_gbe_configure_tx(struct pch_gbe_adapter *adapter)
 		   (unsigned long long)adapter->tx_ring->dma,
 		   adapter->tx_ring->size);
 
+	pch_gbe_disable_dma_tx(hw);
+
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 	tdba = adapter->tx_ring->dma;
 	tdlen = adapter->tx_ring->size - 0x10;
 	iowrite32(tdba, &hw->reg->TX_DSC_BASE);
 	iowrite32(tdlen, &hw->reg->TX_DSC_SIZE);
 	iowrite32(tdba, &hw->reg->TX_DSC_SW_P);
-
-	/* Enables Transmission DMA */
-	dctrl = ioread32(&hw->reg->DMA_CTRL);
-	dctrl |= PCH_GBE_TX_DMA_EN;
-	iowrite32(dctrl, &hw->reg->DMA_CTRL);
 }
 
 /**
@@ -1976,6 +1991,8 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 	pch_gbe_alloc_tx_buffers(adapter, tx_ring);
 	pch_gbe_alloc_rx_buffers(adapter, rx_ring, rx_ring->count);
 	adapter->tx_queue_len = netdev->tx_queue_len;
+
+	pch_gbe_enable_dma_tx(&adapter->hw);
 	pch_gbe_enable_dma_rx(&adapter->hw);
 	pch_gbe_enable_mac_rx(&adapter->hw);
 
