@@ -615,6 +615,9 @@
 #  define cpu_guest_has_big_pages 0
 # endif
 #endif
+#ifndef cpu_guest_has_vp
+#define cpu_guest_has_vp	(cpu_data[0].guest.options & MIPS_CPU_VP)
+#endif
 
 /*
  * Guest dynamic capabilities

@@ -1083,6 +1083,9 @@ static inline unsigned int decode_guest_config5(struct cpuinfo_mips *c)
 	if (config5 & MIPS_CONF5_MVH)
 		c->guest.options |= MIPS_CPU_MVH;
 
+	if (config5 & MIPS_CONF5_VP)
+		c->guest.options |= MIPS_CPU_VP;
+
 	if (config5 & MIPS_CONF_M)
 		c->guest.conf |= BIT(6);
 	return config5 & MIPS_CONF_M;
