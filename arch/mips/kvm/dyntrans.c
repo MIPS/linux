@@ -113,8 +113,7 @@ int kvm_mips_trans_mfc0(union mips_instruction inst, u32 *opc,
 		mfc0_inst.i_format.simmediate = KVM_GUEST_COMMPAGE_ADDR |
 			offsetof(struct kvm_mips_commpage, cop0.reg[rd][sel]);
 #ifdef CONFIG_CPU_BIG_ENDIAN
-		if (sizeof(vcpu->arch.cop0->reg[0][0]) == 8)
-			mfc0_inst.i_format.simmediate |= 4;
+		mfc0_inst.i_format.simmediate |= 4;
 #endif
 	}
 
@@ -135,8 +134,7 @@ int kvm_mips_trans_mtc0(union mips_instruction inst, u32 *opc,
 	mtc0_inst.i_format.simmediate = KVM_GUEST_COMMPAGE_ADDR |
 		offsetof(struct kvm_mips_commpage, cop0.reg[rd][sel]);
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	if (sizeof(vcpu->arch.cop0->reg[0][0]) == 8)
-		mtc0_inst.i_format.simmediate |= 4;
+	mtc0_inst.i_format.simmediate |= 4;
 #endif
 
 	return kvm_mips_trans_replace(vcpu, opc, mtc0_inst);
