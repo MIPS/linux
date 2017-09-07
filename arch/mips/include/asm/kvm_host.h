@@ -210,7 +210,7 @@ struct kvm_arch {
 #define N_MIPS_COPROC_SEL	8
 
 struct mips_coproc {
-	unsigned long reg[N_MIPS_COPROC_REGS][N_MIPS_COPROC_SEL];
+	u64 reg[N_MIPS_COPROC_REGS][N_MIPS_COPROC_SEL];
 #ifdef CONFIG_KVM_MIPS_DEBUG_COP0_COUNTERS
 	unsigned long stat[N_MIPS_COPROC_REGS][N_MIPS_COPROC_SEL];
 #endif
@@ -429,9 +429,21 @@ struct kvm_vcpu_arch {
 	u8 msa_enabled;
 };
 
-static inline void _kvm_atomic_set_c0_guest_reg(unsigned long *reg,
+union u64ul {
+	u64 u64;
+	unsigned long ul[64/BITS_PER_LONG];
+};
+
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+#define U64UL_LO 0
+#else
+#define U64UL_LO (63 / BITS_PER_LONG)
+#endif
+
+static inline void _kvm_atomic_set_c0_guest_reg(u64 *reg,
 						unsigned long val)
 {
+	union u64ul *ptr = (void *)reg;
 	unsigned long temp;
 	do {
 		__asm__ __volatile__(
@@ -440,14 +452,15 @@ static inline void _kvm_atomic_set_c0_guest_reg(unsigned long *reg,
 		"	or	%0, %2				\n"
 		"	" __SC	"%0, %1				\n"
 		"	.set	mips0				\n"
-		: "=&r" (temp), "+m" (*reg)
+		: "=&r" (temp), "+m" (ptr->ul[U64UL_LO])
 		: "r" (val));
 	} while (unlikely(!temp));
 }
 
-static inline void _kvm_atomic_clear_c0_guest_reg(unsigned long *reg,
+static inline void _kvm_atomic_clear_c0_guest_reg(u64 *reg,
 						  unsigned long val)
 {
+	union u64ul *ptr = (void *)reg;
 	unsigned long temp;
 	do {
 		__asm__ __volatile__(
@@ -456,15 +469,16 @@ static inline void _kvm_atomic_clear_c0_guest_reg(unsigned long *reg,
 		"	and	%0, %2				\n"
 		"	" __SC	"%0, %1				\n"
 		"	.set	mips0				\n"
-		: "=&r" (temp), "+m" (*reg)
+		: "=&r" (temp), "+m" (ptr->ul[U64UL_LO])
 		: "r" (~val));
 	} while (unlikely(!temp));
 }
 
-static inline void _kvm_atomic_change_c0_guest_reg(unsigned long *reg,
+static inline void _kvm_atomic_change_c0_guest_reg(u64 *reg,
 						   unsigned long change,
 						   unsigned long val)
 {
+	union u64ul *ptr = (void *)reg;
 	unsigned long temp;
 	do {
 		__asm__ __volatile__(
@@ -474,7 +488,7 @@ static inline void _kvm_atomic_change_c0_guest_reg(unsigned long *reg,
 		"	or	%0, %3				\n"
 		"	" __SC	"%0, %1				\n"
 		"	.set	mips0				\n"
-		: "=&r" (temp), "+m" (*reg)
+		: "=&r" (temp), "+m" (ptr->ul[U64UL_LO])
 		: "r" (~change), "r" (val & change));
 	} while (unlikely(!temp));
 }
