@@ -592,8 +592,8 @@ void kvm_vz_lose_htimer(struct kvm_vcpu *vcpu)
 static void kvm_vz_set_watch_regs(struct kvm_vcpu *vcpu, bool all)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	unsigned long *lo = cop0->reg[MIPS_CP0_WATCH_LO];
-	unsigned long *hi = cop0->reg[MIPS_CP0_WATCH_HI];
+	u64 *lo = cop0->reg[MIPS_CP0_WATCH_LO];
+	u64 *hi = cop0->reg[MIPS_CP0_WATCH_HI];
 	unsigned int reg_count = boot_cpu_data.watch_reg_count;
 
 	/*
@@ -671,8 +671,8 @@ static void kvm_vz_set_watch_regs(struct kvm_vcpu *vcpu, bool all)
 static void kvm_vz_get_watch_regs(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	unsigned long *lo = cop0->reg[MIPS_CP0_WATCH_LO];
-	unsigned long *hi = cop0->reg[MIPS_CP0_WATCH_HI];
+	u64 *lo = cop0->reg[MIPS_CP0_WATCH_LO];
+	u64 *hi = cop0->reg[MIPS_CP0_WATCH_HI];
 	unsigned long active = 0;
 	unsigned int reg_count = boot_cpu_data.watch_reg_count;
 
