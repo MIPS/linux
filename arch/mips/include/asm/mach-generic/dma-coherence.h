@@ -14,19 +14,19 @@ struct device;
 static inline dma_addr_t plat_map_dma_mem(struct device *dev, void *addr,
 	size_t size)
 {
-	return virt_to_phys(addr);
+	return virt_to_phys(addr) - PFN_PHYS(dev->dma_pfn_offset);
 }
 
 static inline dma_addr_t plat_map_dma_mem_page(struct device *dev,
 	struct page *page)
 {
-	return page_to_phys(page);
+	return page_to_phys(page) - PFN_PHYS(dev->dma_pfn_offset);
 }
 
 static inline unsigned long plat_dma_addr_to_phys(struct device *dev,
 	dma_addr_t dma_addr)
 {
-	return dma_addr;
+	return dma_addr + PFN_PHYS(dev->dma_pfn_offset);
 }
 
 static inline void plat_unmap_dma_mem(struct device *dev, dma_addr_t dma_addr,
@@ -73,12 +73,12 @@ static inline void plat_post_dma_flush(struct device *dev)
 #ifdef CONFIG_SWIOTLB
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
-	return paddr;
+	return paddr - PFN_PHYS(dev->dma_pfn_offset);
 }
 
 static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
-	return daddr;
+	return daddr + PFN_PHYS(dev->dma_pfn_offset);
 }
 #endif
 
