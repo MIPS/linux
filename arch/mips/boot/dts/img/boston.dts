@@ -6,8 +6,8 @@
 #include <dt-bindings/interrupt-controller/mips-gic.h>
 
 / {
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 	compatible = "img,boston";
 
 	chosen {
@@ -32,13 +32,13 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x00000000 0x10000000>;
+		reg = <0x0 0x0 0x0 0x10000000>;
 	};
 
 	pci0: pci@10000000 {
 		compatible = "xlnx,axi-pcie-host-1.00.a";
 		device_type = "pci";
-		reg = <0x10000000 0x2000000>;
+		reg = <0x0 0x10000000 0x0 0x2000000>;
 
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -48,7 +48,7 @@
 		interrupts = <GIC_SHARED 2 IRQ_TYPE_LEVEL_HIGH>;
 
 		ranges = <0x02000000 0 0x40000000
-			  0x40000000 0 0x40000000>;
+			  0x0 0x40000000 0 0x40000000>;
 
 		interrupt-map-mask = <0 0 0 7>;
 		interrupt-map = <0 0 0 1 &pci0_intc 1>,
@@ -66,7 +66,7 @@
 	pci1: pci@12000000 {
 		compatible = "xlnx,axi-pcie-host-1.00.a";
 		device_type = "pci";
-		reg = <0x12000000 0x2000000>;
+		reg = <0x0 0x12000000 0x0 0x2000000>;
 
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -76,7 +76,7 @@
 		interrupts = <GIC_SHARED 1 IRQ_TYPE_LEVEL_HIGH>;
 
 		ranges = <0x02000000 0 0x20000000
-			  0x20000000 0 0x20000000>;
+			  0x0 0x20000000 0 0x20000000>;
 
 		interrupt-map-mask = <0 0 0 7>;
 		interrupt-map = <0 0 0 1 &pci1_intc 1>,
@@ -94,7 +94,7 @@
 	pci2: pci@14000000 {
 		compatible = "xlnx,axi-pcie-host-1.00.a";
 		device_type = "pci";
-		reg = <0x14000000 0x2000000>;
+		reg = <0x0 0x14000000 0x0 0x2000000>;
 
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -104,7 +104,7 @@
 		interrupts = <GIC_SHARED 0 IRQ_TYPE_LEVEL_HIGH>;
 
 		ranges = <0x02000000 0 0x16000000
-			  0x16000000 0 0x100000>;
+			  0x0 0x16000000 0 0x100000>;
 
 		interrupt-map-mask = <0 0 0 7>;
 		interrupt-map = <0 0 0 1 &pci2_intc 1>,
@@ -174,7 +174,7 @@
 
 	gic: interrupt-controller@16120000 {
 		compatible = "mti,gic";
-		reg = <0x16120000 0x20000>;
+		reg = <0x0 0x16120000 0x0 0x20000>;
 
 		interrupt-controller;
 		#interrupt-cells = <3>;
@@ -188,17 +188,17 @@
 
 	cdmm@16140000 {
 		compatible = "mti,mips-cdmm";
-		reg = <0x16140000 0x8000>;
+		reg = <0x0 0x16140000 0x0 0x8000>;
 	};
 
 	cpc@16200000 {
 		compatible = "mti,mips-cpc";
-		reg = <0x16200000 0x8000>;
+		reg = <0x0 0x16200000 0x0 0x8000>;
 	};
 
 	plat_regs: system-controller@17ffd000 {
 		compatible = "img,boston-platform-regs", "syscon";
-		reg = <0x17ffd000 0x1000>;
+		reg = <0x0 0x17ffd000 0x0 0x1000>;
 
 		clk_boston: clock {
 			compatible = "img,boston-clock";
@@ -215,7 +215,7 @@
 
 	uart0: uart@17ffe000 {
 		compatible = "ns16550a";
-		reg = <0x17ffe000 0x1000>;
+		reg = <0x0 0x17ffe000 0x0 0x1000>;
 		reg-shift = <2>;
 
 		interrupt-parent = <&gic>;
@@ -226,6 +226,6 @@
 
 	lcd: lcd@17fff000 {
 		compatible = "img,boston-lcd";
-		reg = <0x17fff000 0x8>;
+		reg = <0x0 0x17fff000 0x0 0x8>;
 	};
 };

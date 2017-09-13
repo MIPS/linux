@@ -9,8 +9,8 @@
 
 	cs_intc: interrupt-controller@10000000 {
 		compatible = "img,concord-sleipnir-passthrough";
-		reg = <0x10000000 0x2000000>,
-		      <0x17ffc000 0x1000>;
+		reg = <0x0 0x10000000 0x0 0x2000000>,
+		      <0x0 0x17ffc000 0x0 0x1000>;
 
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 2 IRQ_TYPE_LEVEL_HIGH>;
