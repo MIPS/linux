@@ -450,11 +450,10 @@ asmlinkage void do_be(struct pt_regs *regs)
 	if (data && !user_mode(regs))
 		fixup = search_dbe_tables(exception_epc(regs));
 
-	if (fixup)
-		action = MIPS_BE_FIXUP;
-
 	if (board_be_handler)
 		action = board_be_handler(regs, fixup != NULL);
+	else if (fixup)
+		action = MIPS_BE_FIXUP;
 	else
 		mips_cm_error_report();
 
