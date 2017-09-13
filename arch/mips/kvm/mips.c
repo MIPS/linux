@@ -1160,11 +1160,11 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vcpu->arch.gprs); i++)
-		regs->gpr[i] = vcpu->arch.gprs[i];
+		regs->gpr[i] = (long)vcpu->arch.gprs[i];
 
-	regs->hi = vcpu->arch.hi;
-	regs->lo = vcpu->arch.lo;
-	regs->pc = vcpu->arch.pc;
+	regs->hi = (long)vcpu->arch.hi;
+	regs->lo = (long)vcpu->arch.lo;
+	regs->pc = (long)vcpu->arch.pc;
 
 	return 0;
 }
