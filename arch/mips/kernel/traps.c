@@ -466,6 +466,9 @@ asmlinkage void do_be(struct pt_regs *regs)
 			goto out;
 		}
 		break;
+	case MIPS_BE_FATAL_QUIET:
+		if (user_mode(regs))
+			goto out_sigbus;
 	default:
 		break;
 	}
@@ -481,8 +484,8 @@ asmlinkage void do_be(struct pt_regs *regs)
 		goto out;
 
 	die_if_kernel("Oops", regs);
+out_sigbus:
 	force_sig(SIGBUS, current);
-
 out:
 	exception_exit(prev_state);
 }
