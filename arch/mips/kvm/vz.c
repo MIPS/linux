@@ -161,7 +161,7 @@ static inline unsigned int kvm_vz_config2_user_wrmask(struct kvm_vcpu *vcpu)
 static inline unsigned int kvm_vz_config3_user_wrmask(struct kvm_vcpu *vcpu)
 {
 	unsigned int mask = kvm_vz_config3_guest_wrmask(vcpu) | MIPS_CONF_M |
-		MIPS_CONF3_ULRI | MIPS_CONF3_CTXTC;
+		MIPS_CONF3_BPG | MIPS_CONF3_ULRI | MIPS_CONF3_CTXTC;
 
 	/* Permit MSA to be present if MSA is supported */
 	if (kvm_mips_guest_can_have_msa(&vcpu->arch))
@@ -1632,7 +1632,7 @@ static u64 kvm_vz_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_ENTRYLO0,
 	KVM_REG_MIPS_CP0_ENTRYLO1,
 	KVM_REG_MIPS_CP0_CONTEXT,
-	KVM_REG_MIPS_CP0_PAGEMASK,
+	KVM_REG_MIPS_CP0_PAGEMASK_64,
 	KVM_REG_MIPS_CP0_PAGEGRAIN,
 	KVM_REG_MIPS_CP0_WIRED,
 	KVM_REG_MIPS_CP0_HWRENA,
@@ -1856,8 +1856,9 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 		*v = read_gc0_xcontextconfig();
 		break;
 #endif
-	case KVM_REG_MIPS_CP0_PAGEMASK:
-		*v = (long)read_gc0_pagemask();
+	case KVM_REG_MIPS_CP0_PAGEMASK:	/* ABI backwards compat */
+	case KVM_REG_MIPS_CP0_PAGEMASK_64:
+		*v = kvm_vz_read_gc0_pagemask();
 		break;
 	case KVM_REG_MIPS_CP0_PAGEGRAIN:
 		*v = (long)read_gc0_pagegrain();
@@ -2079,8 +2080,9 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 		write_gc0_xcontextconfig(v);
 		break;
 #endif
-	case KVM_REG_MIPS_CP0_PAGEMASK:
-		write_gc0_pagemask(v);
+	case KVM_REG_MIPS_CP0_PAGEMASK:	/* ABI backwards compat */
+	case KVM_REG_MIPS_CP0_PAGEMASK_64:
+		kvm_vz_write_gc0_pagemask(v);
 		break;
 	case KVM_REG_MIPS_CP0_PAGEGRAIN:
 		write_gc0_pagegrain(v);
@@ -2538,7 +2540,7 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (cpu_guest_has_contextconfig)
 		kvm_restore_gc0_xcontextconfig(cop0);
 #endif
-	kvm_restore_gc0_pagemask(cop0);
+	kvm_vz_write_gc0_pagemask(kvm_read_sw_gc0_pagemask(cop0));
 	kvm_restore_gc0_pagegrain(cop0);
 	kvm_restore_gc0_hwrena(cop0);
 	kvm_restore_gc0_badvaddr(cop0);
@@ -2623,7 +2625,7 @@ static int kvm_vz_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 	if (cpu_guest_has_contextconfig)
 		kvm_save_gc0_xcontextconfig(cop0);
 #endif
-	kvm_save_gc0_pagemask(cop0);
+	kvm_write_sw_gc0_pagemask(cop0, kvm_vz_read_gc0_pagemask());
 	kvm_save_gc0_pagegrain(cop0);
 	kvm_save_gc0_wired(cop0);
 	/* allow wired TLB entries to be overwritten */

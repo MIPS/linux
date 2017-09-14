@@ -339,7 +339,7 @@ int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
 	/* Match! read the TLB entry */
 	o_entrylo[0] = read_gc0_entrylo0();
 	o_entrylo[1] = read_gc0_entrylo1();
-	o_pagemask = read_gc0_pagemask();
+	o_pagemask = kvm_vz_read_gc0_pagemask();
 
 	mtc0_tlbr_hazard();
 	guest_tlb_read();
@@ -347,13 +347,13 @@ int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
 
 	entrylo[0] = read_gc0_entrylo0();
 	entrylo[1] = read_gc0_entrylo1();
-	pagemask = ~read_gc0_pagemask() & ~0x1fffl;
+	pagemask = ~kvm_vz_read_gc0_pagemask() & ~0x1fffl;
 
 	write_gc0_entryhi(o_entryhi);
 	write_gc0_index(o_index);
 	write_gc0_entrylo0(o_entrylo[0]);
 	write_gc0_entrylo1(o_entrylo[1]);
-	write_gc0_pagemask(o_pagemask);
+	kvm_vz_write_gc0_pagemask(o_pagemask);
 
 	clear_root_gid();
 	htw_start();
@@ -460,7 +460,7 @@ void kvm_vz_local_flush_guesttlb_all(void)
 	old_entryhi = read_gc0_entryhi();
 	old_entrylo[0] = read_gc0_entrylo0();
 	old_entrylo[1] = read_gc0_entrylo1();
-	old_pagemask = read_gc0_pagemask();
+	old_pagemask = kvm_vz_read_gc0_pagemask();
 
 	switch (current_cpu_type()) {
 	case CPU_CAVIUM_OCTEON3:
@@ -492,7 +492,7 @@ void kvm_vz_local_flush_guesttlb_all(void)
 	write_gc0_entryhi(old_entryhi);
 	write_gc0_entrylo0(old_entrylo[0]);
 	write_gc0_entrylo1(old_entrylo[1]);
-	write_gc0_pagemask(old_pagemask);
+	kvm_vz_write_gc0_pagemask(old_pagemask);
 	tlbw_use_hazard();
 
 	local_irq_restore(flags);
@@ -521,7 +521,7 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 	old_entryhi = read_gc0_entryhi();
 	old_entrylo0 = read_gc0_entrylo0();
 	old_entrylo1 = read_gc0_entrylo1();
-	old_pagemask = read_gc0_pagemask();
+	old_pagemask = kvm_vz_read_gc0_pagemask();
 
 	/* Set root GuestID for root probe */
 	htw_stop();
@@ -549,7 +549,7 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 			buf->tlb_hi = read_gc0_entryhi();
 			buf->tlb_lo[0] = read_gc0_entrylo0();
 			buf->tlb_lo[1] = read_gc0_entrylo1();
-			buf->tlb_mask = read_gc0_pagemask();
+			buf->tlb_mask = kvm_vz_read_gc0_pagemask();
 		}
 	}
 
@@ -562,7 +562,7 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 	write_gc0_entryhi(old_entryhi);
 	write_gc0_entrylo0(old_entrylo0);
 	write_gc0_entrylo1(old_entrylo1);
-	write_gc0_pagemask(old_pagemask);
+	kvm_vz_write_gc0_pagemask(old_pagemask);
 
 	tlbw_use_hazard();
 }
@@ -589,7 +589,7 @@ void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
 	old_entryhi = read_gc0_entryhi();
 	old_entrylo0 = read_gc0_entrylo0();
 	old_entrylo1 = read_gc0_entrylo1();
-	old_pagemask = read_gc0_pagemask();
+	old_pagemask = kvm_vz_read_gc0_pagemask();
 
 	/* Set root GuestID for root probe */
 	htw_stop();
@@ -601,7 +601,7 @@ void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
 		write_gc0_entryhi(buf->tlb_hi);
 		write_gc0_entrylo0(buf->tlb_lo[0]);
 		write_gc0_entrylo1(buf->tlb_lo[1]);
-		write_gc0_pagemask(buf->tlb_mask);
+		kvm_vz_write_gc0_pagemask(buf->tlb_mask);
 
 		mtc0_tlbw_hazard();
 		guest_tlb_write_indexed();
@@ -616,7 +616,7 @@ void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
 	write_gc0_entryhi(old_entryhi);
 	write_gc0_entrylo0(old_entrylo0);
 	write_gc0_entrylo1(old_entrylo1);
-	write_gc0_pagemask(old_pagemask);
+	kvm_vz_write_gc0_pagemask(old_pagemask);
 
 	tlbw_use_hazard();
 }
