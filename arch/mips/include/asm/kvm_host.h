@@ -38,6 +38,7 @@
 #define KVM_REG_MIPS_CP0_USERLOCAL	MIPS_CP0_64(4, 2)
 #define KVM_REG_MIPS_CP0_XCONTEXTCONFIG	MIPS_CP0_64(4, 3)
 #define KVM_REG_MIPS_CP0_PAGEMASK	MIPS_CP0_32(5, 0)
+#define KVM_REG_MIPS_CP0_PAGEMASK_64	MIPS_CP0_64(5, 0)
 #define KVM_REG_MIPS_CP0_PAGEGRAIN	MIPS_CP0_32(5, 1)
 #define KVM_REG_MIPS_CP0_SEGCTL0	MIPS_CP0_64(5, 2)
 #define KVM_REG_MIPS_CP0_SEGCTL1	MIPS_CP0_64(5, 3)
@@ -734,6 +735,24 @@ __BUILD_KVM_SET_SAVED(config2,    32, MIPS_CP0_CONFIG,       2)
 __BUILD_KVM_SET_SAVED(config3,    32, MIPS_CP0_CONFIG,       3)
 __BUILD_KVM_SET_SAVED(config4,    32, MIPS_CP0_CONFIG,       4)
 __BUILD_KVM_SET_SAVED(config5,    32, MIPS_CP0_CONFIG,       5)
+
+/* VZ register abstraction used by multiple .c files */
+
+static inline unsigned long kvm_vz_read_gc0_pagemask(void)
+{
+	if (sizeof(unsigned long) == 8 && cpu_guest_has_big_pages)
+		return read_gc0_pagemask_64();
+	else
+		return (u32)read_gc0_pagemask();
+}
+
+static inline void kvm_vz_write_gc0_pagemask(unsigned long v)
+{
+	if (sizeof(unsigned long) == 8 && cpu_guest_has_big_pages)
+		write_gc0_pagemask_64(v);
+	else
+		write_gc0_pagemask(v);
+}
 
 /* Helpers */
 
