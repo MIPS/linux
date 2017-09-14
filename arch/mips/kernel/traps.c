@@ -433,6 +433,8 @@ static const struct exception_table_entry *search_dbe_tables(unsigned long addr)
 			   __stop___dbe_table - __start___dbe_table, addr);
 	if (!e)
 		e = search_module_dbetables(addr);
+	if (!e)
+		e = search_exception_tables(addr);
 	return e;
 }
 
@@ -445,7 +447,6 @@ asmlinkage void do_be(struct pt_regs *regs)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
-	/* XXX For now.	 Fixme, this searches the wrong table ...  */
 	if (data && !user_mode(regs))
 		fixup = search_dbe_tables(exception_epc(regs));
 
