@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/types.h>
+#include <asm/traps.h>
 
 /* The base address of the CM GCR block */
 extern void __iomem *mips_cm_base;
@@ -49,12 +50,16 @@ extern phys_addr_t __mips_cm_phys_base(void);
 extern int mips_cm_is64;
 
 /**
- * mips_cm_error_report - Report CM cache errors
+ * mips_cm_be_handler - Report CM cache errors
  */
+struct pt_regs;
 #ifdef CONFIG_MIPS_CM
-extern void mips_cm_error_report(void);
+extern int mips_cm_be_handler(struct pt_regs *regs);
 #else
-static inline void mips_cm_error_report(void) {}
+static inline int mips_cm_be_handler(struct pt_regs *regs)
+{
+	return MIPS_BE_FATAL;
+}
 #endif
 
 /**

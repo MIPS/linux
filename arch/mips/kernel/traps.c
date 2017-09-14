@@ -455,7 +455,7 @@ asmlinkage void do_be(struct pt_regs *regs)
 	else if (fixup)
 		action = MIPS_BE_FIXUP;
 	else
-		mips_cm_error_report();
+		action = mips_cm_be_handler(regs);
 
 	switch (action) {
 	case MIPS_BE_DISCARD:
