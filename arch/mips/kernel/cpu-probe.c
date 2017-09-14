@@ -735,6 +735,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->htw_seq = 0;
 		c->options |= MIPS_CPU_HTW;
 	}
+	if (config3 & MIPS_CONF3_BPG)
+		c->options |= MIPS_CPU_BPG;
 	if (config3 & MIPS_CONF3_CDMM)
 		c->options |= MIPS_CPU_CDMM;
 	if (config3 & MIPS_CONF3_SP)
@@ -1012,8 +1014,8 @@ static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
 	unsigned int config3, config3_dyn;
 
 	probe_gc0_config_dyn(config3, config3, config3_dyn,
-			     MIPS_CONF_M | MIPS_CONF3_MSA | MIPS_CONF3_ULRI |
-			     MIPS_CONF3_CTXTC);
+			     MIPS_CONF_M | MIPS_CONF3_BPG | MIPS_CONF3_MSA |
+			     MIPS_CONF3_ULRI | MIPS_CONF3_CTXTC);
 
 	if (config3 & MIPS_CONF3_CTXTC)
 		c->guest.options |= MIPS_CPU_CTXTC;
@@ -1038,6 +1040,9 @@ static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
 		c->guest.ases |= MIPS_ASE_MSA;
 	if (config3_dyn & MIPS_CONF3_MSA)
 		c->guest.ases_dyn |= MIPS_ASE_MSA;
+
+	if (config3 & MIPS_CONF3_BPG)
+		c->guest.options |= MIPS_CPU_BPG;
 
 	if (config3 & MIPS_CONF_M)
 		c->guest.conf |= BIT(4);

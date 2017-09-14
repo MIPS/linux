@@ -1564,6 +1564,9 @@ do {									\
 #define read_c0_pagemask()	__read_32bit_c0_register($5, 0)
 #define write_c0_pagemask(val)	__write_32bit_c0_register($5, 0, val)
 
+#define read_c0_pagemask_64()		__read_64bit_c0_register($5, 0)
+#define write_c0_pagemask_64(val)	__write_64bit_c0_register($5, 0, val)
+
 #define read_c0_pagegrain()	__read_32bit_c0_register($5, 1)
 #define write_c0_pagegrain(val) __write_32bit_c0_register($5, 1, val)
 
@@ -2033,6 +2036,9 @@ do {									\
 
 #define read_gc0_pagemask()		__read_32bit_gc0_register($5, 0)
 #define write_gc0_pagemask(val)		__write_32bit_gc0_register($5, 0, val)
+
+#define read_gc0_pagemask_64()		__read_64bit_gc0_register($5, 0)
+#define write_gc0_pagemask_64(val)	__write_64bit_gc0_register($5, 0, val)
 
 #define read_gc0_pagegrain()		__read_32bit_gc0_register($5, 1)
 #define write_gc0_pagegrain(val)	__write_32bit_gc0_register($5, 1, val)

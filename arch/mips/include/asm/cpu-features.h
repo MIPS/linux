@@ -466,6 +466,14 @@
 # define cpu_has_small_pages	(cpu_data[0].options & MIPS_CPU_SP)
 #endif
 
+#ifndef cpu_has_big_pages
+# ifdef CONFIG_64BIT
+#  define cpu_has_big_pages	(cpu_data[0].options & MIPS_CPU_BPG)
+# else
+#  define cpu_has_big_pages	0
+# endif
+#endif
+
 #ifndef cpu_has_nan_legacy
 #define cpu_has_nan_legacy	(cpu_data[0].options & MIPS_CPU_NAN_LEGACY)
 #endif
@@ -599,6 +607,13 @@
 #endif
 #ifndef cpu_guest_has_userlocal
 #define cpu_guest_has_userlocal	(cpu_data[0].guest.options & MIPS_CPU_ULRI)
+#endif
+#ifndef cpu_guest_has_big_pages
+# ifdef CONFIG_64BIT
+#  define cpu_guest_has_big_pages (cpu_data[0].guest.options & MIPS_CPU_BPG)
+# else
+#  define cpu_guest_has_big_pages 0
+# endif
 #endif
 
 /*
