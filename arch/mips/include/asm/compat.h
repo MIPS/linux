@@ -6,6 +6,7 @@
  */
 #include <linux/thread_info.h>
 #include <linux/types.h>
+#include <linux/sched/task_stack.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 
@@ -146,12 +147,11 @@ static inline compat_uptr_t ptr_to_compat(void __user *uptr)
 	return (u32)(unsigned long)uptr;
 }
 
+#define compat_user_stack_pointer() (user_stack_pointer(task_pt_regs(current)))
+
 static inline void __user *arch_compat_alloc_user_space(long len)
 {
-	struct pt_regs *regs = (struct pt_regs *)
-		((unsigned long) current_thread_info() + THREAD_SIZE - 32) - 1;
-
-	return (void __user *) (regs->regs[29] - len);
+	return (void __user *)compat_user_stack_pointer() - len;
 }
 
 struct compat_ipc64_perm {
