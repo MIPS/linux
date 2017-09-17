@@ -518,6 +518,14 @@ static inline void emit_jr(unsigned int reg, struct jit_ctx *ctx)
 	emit_instr(ctx, jr, reg);
 }
 
+static inline void emit_load_cpu(unsigned int reg, struct jit_ctx *ctx)
+{
+	/* A = current_thread_info()->cpu */
+	BUILD_BUG_ON(FIELD_SIZEOF(struct thread_info, cpu) != 4);
+	/* $28/gp points to the thread_info struct */
+	emit_load(reg, 28, offsetof(struct thread_info, cpu), ctx);
+}
+
 static inline u16 align_sp(unsigned int num)
 {
 	/* Double word alignment for 32-bit, quadword for 64-bit */
@@ -1115,14 +1123,9 @@ jmp_cmp:
 			}
 #endif
 			break;
-		case BPF_ANC | SKF_AD_CPU:
-			ctx->flags |= SEEN_A | SEEN_OFF;
-			/* A = current_thread_info()->cpu */
-			BUILD_BUG_ON(FIELD_SIZEOF(struct thread_info,
-						  cpu) != 4);
-			off = offsetof(struct thread_info, cpu);
-			/* $28/gp points to the thread_info struct */
-			emit_load(r_A, 28, off, ctx);
+		case BPF_ANC |  SKF_AD_CPU:
+			ctx->flags |= SEEN_A;
+			emit_load_cpu(r_A, ctx);
 			break;
 		case BPF_ANC | SKF_AD_IFINDEX:
 			/* A = skb->dev->ifindex */
