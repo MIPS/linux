@@ -234,6 +234,12 @@ static inline void emit_andi(unsigned int dst, unsigned int src,
 	}
 }
 
+static inline void emit_mfc0(unsigned int dst, unsigned int reg,
+			     unsigned int select, struct jit_ctx *ctx)
+{
+	emit_instr(ctx, mfc0, dst, reg, select);
+}
+
 static inline void emit_xor(unsigned int dst, unsigned int src1,
 			    unsigned int src2, struct jit_ctx *ctx)
 {
@@ -520,10 +526,9 @@ static inline void emit_jr(unsigned int reg, struct jit_ctx *ctx)
 
 static inline void emit_load_cpu(unsigned int reg, struct jit_ctx *ctx)
 {
-	/* A = current_thread_info()->cpu */
-	BUILD_BUG_ON(FIELD_SIZEOF(struct thread_info, cpu) != 4);
-	/* $28/gp points to the thread_info struct */
-	emit_load(reg, 28, offsetof(struct thread_info, cpu), ctx);
+	/* A = smp_processor_id() */
+	emit_mfc0(reg, SMP_CPUID_REG, ctx);
+	emit_srl(reg, reg, SMP_CPUID_REGSHIFT, ctx);
 }
 
 static inline u16 align_sp(unsigned int num)
