@@ -1963,16 +1963,40 @@ _ASM_MACRO_0(tlbginvf, _ASM_INSN_IF_MIPS(0x4200000c)
 	__res;								\
 })
 
-#define __read_64bit_gc0_register(source, sel)				\
-({ unsigned long long __res;						\
+#define __read_64bit_gc0_split(source, sel)				\
+({									\
+	unsigned long long __val;					\
+	unsigned long __flags;						\
+									\
+	local_irq_save(__flags);					\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tmips64r2\n\t"					\
 		_ASM_SET_VIRT						\
-		"dmfgc0\t%0, " #source ", %1\n\t"			\
+		"dmfgc0\t%L0, " #source ", %1\n\t"			\
+		"dsra\t%M0, %L0, 32\n\t"				\
+		"sll\t%L0, %L0, 0\n\t"					\
 		".set\tpop"						\
-		: "=r" (__res)						\
+		: "=r" (__val)						\
 		: "i" (sel));						\
+	local_irq_restore(__flags);					\
+									\
+	__val;								\
+})
+
+#define __read_64bit_gc0_register(source, sel)				\
+({ unsigned long long __res;						\
+	if (sizeof(unsigned long) == 4)					\
+		__res = __read_64bit_gc0_split(source, sel);		\
+	else								\
+		__asm__ __volatile__(					\
+			".set\tpush\n\t"				\
+			".set\tmips64r2\n\t"				\
+			_ASM_SET_VIRT					\
+			"dmfgc0\t%0, " #source ", %1\n\t"		\
+			".set\tpop"					\
+			: "=r" (__res)					\
+			: "i" (sel));					\
 	__res;								\
 })
 
@@ -1988,16 +2012,39 @@ do {									\
 		    "i" (sel));						\
 } while (0)
 
-#define __write_64bit_gc0_register(register, sel, value)		\
+#define __write_64bit_gc0_split(register, sel, value)			\
 do {									\
+	unsigned long long __val = (value);				\
+	unsigned long __tmp = __val;					\
+	unsigned long __flags;						\
+									\
+	local_irq_save(__flags);					\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tmips64r2\n\t"					\
 		_ASM_SET_VIRT						\
-		"dmtgc0\t%z0, " #register ", %1\n\t"			\
+		"dins\t%0, %1, 32, 32\n\t"				\
+		"dmtgc0\t%0, " #register ", %2\n\t"			\
 		".set\tpop"						\
-		: : "Jr" (value),					\
-		    "i" (sel));						\
+		: "+r" (__tmp)						\
+		: "r" ((long)(__val >> 32)),				\
+		  "i" (sel));						\
+	local_irq_restore(__flags);					\
+} while (0)
+
+#define __write_64bit_gc0_register(register, sel, value)		\
+do {									\
+	if (sizeof(unsigned long) == 4)					\
+		__write_64bit_gc0_split(register, sel, value);		\
+	else								\
+		__asm__ __volatile__(					\
+			".set\tpush\n\t"				\
+			".set\tmips64r2\n\t"				\
+			_ASM_SET_VIRT					\
+			"dmtgc0\t%z0, " #register ", %1\n\t"		\
+			".set\tpop"					\
+			: : "Jr" (value),				\
+			    "i" (sel));					\
 } while (0)
 
 #define __read_ulong_gc0_register(reg, sel)				\
