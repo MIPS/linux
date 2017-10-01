@@ -67,6 +67,20 @@ static int __gic_with_next_online_cpu(int prev)
 {
 	unsigned int cpu;
 
+	/*
+	 * Unlock access to the previous CPU's GIC local register block.
+	 *
+	 * Delegate to the CM locking code in the multi-cluster case, since
+	 * other clusters can only be accessed using GCR_CL_REDIRECT.
+	 *
+	 * In the single cluster case we don't need to do anything; the caller
+	 * is responsible for maintaining gic_lock & nothing should be
+	 * expecting any particular value of GIC_VL_OTHER so we can leave it
+	 * as-is.
+	 */
+	if ((prev != -1) && mips_cps_multicluster_cpus())
+		mips_cm_unlock_other();
+
 	/* Discover the next online CPU */
 	cpu = cpumask_next(prev, cpu_online_mask);
 
@@ -77,10 +91,16 @@ static int __gic_with_next_online_cpu(int prev)
 	/*
 	 * Lock access to the next CPU's GIC local register block.
 	 *
+	 * Delegate to the CM locking code in the multi-cluster case, since
+	 * other clusters can only be accessed using GCR_CL_REDIRECT.
+	 *
 	 * In the single cluster case we simply set GIC_VL_OTHER. The caller
 	 * holds gic_lock so nothing can clobber the value we write.
 	 */
-	write_gic_vl_other(mips_cm_vp_id(cpu));
+	if (mips_cps_multicluster_cpus())
+		mips_cm_lock_other_cpu(cpu, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
+	else
+		write_gic_vl_other(mips_cm_vp_id(cpu));
 
 	return cpu;
 }
