@@ -39,18 +39,14 @@ static u64 notrace gic_read_count(void)
 
 static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 {
-	int cpu = cpumask_first(evt->cpumask);
 	u64 cnt;
 	int res;
 
+	BUG_ON(cpumask_first(evt->cpumask) != smp_processor_id());
+
 	cnt = gic_read_count();
 	cnt += (u64)delta;
-	if (cpu == raw_smp_processor_id()) {
-		write_gic_vl_compare(cnt);
-	} else {
-		write_gic_vl_other(mips_cm_vp_id(cpu));
-		write_gic_vo_compare(cnt);
-	}
+	write_gic_vl_compare(cnt);
 	res = ((int)(gic_read_count() - cnt) >= 0) ? -ETIME : 0;
 	return res;
 }
