@@ -486,8 +486,6 @@ asmlinkage void do_be(struct pt_regs *regs)
 
 	if (board_be_handler)
 		action = board_be_handler(regs, fixup != NULL);
-	else
-		mips_cm_error_report();
 
 	switch (action) {
 	case MIPS_BE_DISCARD:
@@ -505,6 +503,7 @@ asmlinkage void do_be(struct pt_regs *regs)
 	/*
 	 * Assume it would be too dangerous to continue ...
 	 */
+	mips_cm_error_report();
 	printk(KERN_ALERT "%s bus error, epc == %0*lx, ra == %0*lx\n",
 	       data ? "Data" : "Instruction",
 	       field, regs->cp0_epc, field, regs->regs[31]);
