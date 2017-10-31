@@ -444,11 +444,42 @@ asmlinkage void do_be(struct pt_regs *regs)
 	int data = regs->cp0_cause & 4;
 	int action = MIPS_BE_FATAL;
 	enum ctx_state prev_state;
+	unsigned long epc;
 
 	prev_state = exception_enter();
-	/* XXX For now.	 Fixme, this searches the wrong table ...  */
-	if (data && !user_mode(regs))
-		fixup = search_dbe_tables(exception_epc(regs));
+
+	if (data && !user_mode(regs)) {
+		epc = exception_epc(regs);
+
+		/*
+		 * In general we can't make use of the regular exception tables
+		 * to discover fixups, because bus errors are not known to be
+		 * precise exceptions. This means that epc might not
+		 * necessarily reflect the instruction that actually triggered
+		 * the exception - it may merely be nearby - and if this is the
+		 * case then by searching for a fixup we'll may find one for
+		 * the wrong instruction. Executing that fixup would have
+		 * unpredictable results.
+		 *
+		 * There are however some cases in which we know that a bus
+		 * error exception is precise. A notable case of this is when
+		 * reading CM/CPC/GIC registers. In these cases it can be
+		 * desirable to use regular fixups, for example to recover from
+		 * bad loads from the GIC user page, so we search the main
+		 * exception table here when appropriate.
+		 */
+		if (mips_cm_error_precise())
+			fixup = search_exception_tables(epc);
+
+		/*
+		 * If we didn't find a fixup above, search the special
+		 * __dbe_table which some platforms use via the get_dbe() &
+		 * put_dbe() macros in cases where exceptions should be
+		 * precise.
+		 */
+		if (!fixup)
+			fixup = search_dbe_tables(epc);
+	}
 
 	if (fixup)
 		action = MIPS_BE_FIXUP;
