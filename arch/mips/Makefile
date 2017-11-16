@@ -283,6 +283,12 @@ ifdef CONFIG_64BIT
   endif
 endif
 
+ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+KBUILD_AFLAGS	+= -Os
+else
+KBUILD_AFLAGS	+= -O2
+endif
+
 KBUILD_AFLAGS	+= $(cflags-y)
 KBUILD_CFLAGS	+= $(cflags-y)
 KBUILD_CPPFLAGS += -DVMLINUX_LOAD_ADDRESS=$(load-y)
