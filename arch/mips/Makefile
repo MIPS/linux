@@ -107,8 +107,6 @@ ifeq ($(CONFIG_RELOCATABLE),y)
 LDFLAGS_vmlinux			+= --emit-relocs
 endif
 
-cflags-$(CONFIG_CPU_NANOMIPS)	+= -mlong-calls
-
 #
 # pass -msoft-float to GAS if it supports it.  However on newer binutils
 # (specifically newer than 2.24.51.20140728) we then also need to explicitly
