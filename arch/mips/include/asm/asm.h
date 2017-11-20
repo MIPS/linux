@@ -123,7 +123,7 @@ symbol		=	value
 
 #define TEXT(msg)					\
 		.pushsection .data;			\
-8:		.asciiz msg;				\
+8:		.asciz msg;				\
 		.popsection;
 
 /*
@@ -134,7 +134,7 @@ symbol		=	value
 		.word	1f;				\
 		.popsection				\
 		.pushsection .data;			\
-1:		.asciiz string;				\
+1:		.asciz string;				\
 		.popsection
 
 /*
