@@ -53,18 +53,20 @@
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
+		"	.set	push				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"1:	"user_ll("%1", "%4")" # __futex_atomic_op\n"	\
-		"	.set	mips0				\n"	\
+		"	.set	pop				\n"	\
 		"	" insn	"				\n"	\
+		"	.set	push				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"2:	"user_sc("$at", "%2")"			\n"	\
+		"	.set	pop				\n"	\
 		"	beqz	$at, 1b				\n"	\
+		"	.set	pop				\n"	\
 		__WEAK_LLSC_MB						\
 		"3:						\n"	\
 		"	.insn					\n"	\
-		"	.set	pop				\n"	\
-		"	.set	mips0				\n"	\
 		"	.section .fixup,\"ax\"			\n"	\
 		"4:	li	%0, %6				\n"	\
 		"	j	3b				\n"	\
@@ -183,13 +185,16 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		"# futex_atomic_cmpxchg_inatomic			\n"
 		"	.set	push					\n"
 		"	.set	noat					\n"
+		"	.set	push					\n"
 		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
 		"1:	"user_ll("%1", "%3")"				\n"
+		"	.set	pop					\n"
 		"	bne	%1, %z4, 3f				\n"
-		"	.set	mips0					\n"
 		"	move	$at, %z5				\n"
+		"	.set	push					\n"
 		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
 		"2:	"user_sc("$at", "%2")"				\n"
+		"	.set	pop					\n"
 		"	beqz	$at, 1b					\n"
 		__WEAK_LLSC_MB
 		"3:							\n"
