@@ -51,9 +51,6 @@
 #ifndef EF_MIPS_ABI
 # define EF_MIPS_ABI		0xf000
 #endif
-#ifndef EF_MIPS_ABI_P32
-# define EF_MIPS_ABI_P32	0x5000
-#endif
 
 enum {
 	ABI_O32 = (1 << 0),
