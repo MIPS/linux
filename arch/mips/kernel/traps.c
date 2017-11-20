@@ -1744,6 +1744,7 @@ static inline void parity_protection_init(void)
 	case CPU_P5600:
 	case CPU_QEMU_GENERIC:
 	case CPU_P6600:
+	case CPU_I7200:
 		{
 			unsigned long errctl;
 			unsigned int l1parity_present, l2parity_present;

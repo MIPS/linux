@@ -1648,6 +1648,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_M6250;
 		__cpu_name[cpu] = "MIPS M6250";
 		break;
+	case PRID_IMP_I7200:
+		c->cputype = CPU_I7200;
+		__cpu_name[cpu] = "MIPS I7200";
+		break;
 	}
 
 	decode_configs(c);
