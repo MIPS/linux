@@ -760,6 +760,8 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 			break;
 		}
 	}
+	/* Hazard to force new i-fetch */
+	instruction_hazard();
 }
 
 static inline void local_r4k_flush_icache_range(unsigned long start,
@@ -817,7 +819,6 @@ static void __r4k_flush_icache_range(unsigned long start, unsigned long end,
 	}
 	r4k_on_each_cpu(args.type, local_r4k_flush_icache_range_ipi, &args);
 	preempt_enable();
-	instruction_hazard();
 }
 
 static void r4k_flush_icache_range(unsigned long start, unsigned long end)
