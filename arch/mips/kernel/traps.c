@@ -2067,17 +2067,22 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		 * If no shadow set is selected then use the default handler
 		 * that does normal register saving and standard interrupt exit
 		 */
-		extern char except_vec_vi, except_vec_vi_lui;
-		extern char except_vec_vi_ori, except_vec_vi_end;
+		extern char except_vec_vi, except_vec_vi_end;
 		extern char rollback_except_vec_vi;
 		char *vec_start = using_rollback_handler() ?
 			&rollback_except_vec_vi : &except_vec_vi;
-#if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_BIG_ENDIAN)
+#if defined(CONFIG_CPU_NANOMIPS)
+		extern char except_vec_vi_li48;
+		const int li48_offset = &except_vec_vi_li48 - vec_start;
+#else
+		extern char except_vec_vi_lui, except_vec_vi_ori;
+# if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_BIG_ENDIAN)
 		const int lui_offset = &except_vec_vi_lui - vec_start + 2;
 		const int ori_offset = &except_vec_vi_ori - vec_start + 2;
-#else
+# else
 		const int lui_offset = &except_vec_vi_lui - vec_start;
 		const int ori_offset = &except_vec_vi_ori - vec_start;
+# endif
 #endif
 		const int handler_len = &except_vec_vi_end - vec_start;
 
@@ -2095,10 +2100,16 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 #else
 				handler_len);
 #endif
+#ifdef CONFIG_CPU_NANOMIPS
+		h = (u16 *)(b + li48_offset);
+		h[1] = handler;
+		h[2] = handler >> 16;
+#else
 		h = (u16 *)(b + lui_offset);
 		*h = (handler >> 16) & 0xffff;
 		h = (u16 *)(b + ori_offset);
 		*h = (handler & 0xffff);
+#endif
 		local_flush_icache_range((unsigned long)b,
 					 (unsigned long)(b+handler_len));
 	}

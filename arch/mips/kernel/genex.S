@@ -270,10 +270,15 @@ NESTED(except_vec_vi, 0, sp)
 	PTR_LA	v1, except_vec_vi_handler
 	.set	push
 	.set	noreorder
+#ifdef CONFIG_CPU_NANOMIPS
+FEXPORT(except_vec_vi_li48)
+	li48	v0, 0		/* Patched */
+#else
 FEXPORT(except_vec_vi_lui)
 	lui	v0, 0		/* Patched */
 FEXPORT(except_vec_vi_ori)
 	ori	v0, 0		/* Patched */
+#endif
 	.set	pop
 	jr	v1
 	END(except_vec_vi)
