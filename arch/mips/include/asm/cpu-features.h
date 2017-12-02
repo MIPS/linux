@@ -356,7 +356,11 @@
 #endif
 
 #ifndef cpu_has_dsp
-#define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
+# ifdef CONFIG_CPU_NANOMIPS
+#  define cpu_has_dsp		0
+# else
+#  define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
+# endif
 #endif
 
 #ifndef cpu_has_dsp2
