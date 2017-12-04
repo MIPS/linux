@@ -31,7 +31,6 @@
 /* The ABI of a file. */
 #define EF_MIPS_ABI_O32		0x00001000	/* O32 ABI.  */
 #define EF_MIPS_ABI_O64		0x00002000	/* O32 extended for 64 bit.  */
-#define EF_MIPS_ABI_P32		0x00005000
 
 #define PT_MIPS_REGINFO		0x70000000
 #define PT_MIPS_RTPROC		0x70000001
@@ -354,8 +353,6 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 	if (!mips_elf_check_machine(__h))				\
 		__res = 0;						\
 	if (__h->e_ident[EI_CLASS] != ELFCLASS32)			\
-		__res = 0;						\
-	if ((__h->e_flags & EF_MIPS_ABI) != EF_MIPS_ABI_P32)		\
 		__res = 0;						\
 									\
 	__res;								\
