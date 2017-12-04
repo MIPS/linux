@@ -36,6 +36,7 @@
 	};
 
 	pci0: pci@10000000 {
+		status = "disabled";
 		compatible = "xlnx,axi-pcie-host-1.00.a";
 		device_type = "pci";
 		reg = <0x10000000 0x2000000>;
@@ -64,6 +65,7 @@
 	};
 
 	pci1: pci@12000000 {
+		status = "disabled";
 		compatible = "xlnx,axi-pcie-host-1.00.a";
 		device_type = "pci";
 		reg = <0x12000000 0x2000000>;
