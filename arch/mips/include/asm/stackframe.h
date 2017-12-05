@@ -115,7 +115,12 @@
 		.macro	set_saved_sp stackp temp temp2
 		ASM_CPUID_MFC0	\temp, ASM_SMP_CPUID_REG
 		LONG_SRL	\temp, SMP_CPUID_PTRSHIFT
+#ifdef __nanomips__
+		addiu	\temp, \temp, kernelsp
+		LONG_S	\stackp, 0(\temp)
+#else
 		LONG_S	\stackp, kernelsp(\temp)
+#endif
 		.endm
 #else /* !CONFIG_SMP */
 		.macro	get_saved_sp	/* Uniprocessor variation */
