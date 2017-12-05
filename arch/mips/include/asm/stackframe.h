@@ -43,7 +43,6 @@
 		LONG_S	$14, PT_R14(sp)
 		LONG_S	$15, PT_R15(sp)
 		LONG_S	$24, PT_R24(sp)
-		LONG_S	$25, PT_R25(sp)
 #else
 # ifdef CONFIG_CPU_HAS_SMARTMIPS
 		mflhxu	v1
@@ -231,9 +230,7 @@
 		LONG_S	$11, PT_R11(sp)
 #endif
 		LONG_S	k0, PT_EPC(sp)
-#if _MIPS_ABI != _MIPS_ABI_PABI32
 		LONG_S	$25, PT_R25(sp)
-#endif
 		LONG_S	$28, PT_R28(sp)
 		LONG_S	$31, PT_R31(sp)
 
@@ -281,7 +278,6 @@
 		LONG_L	$14, PT_R14(sp)
 		LONG_L	$15, PT_R15(sp)
 		LONG_L	$24, PT_R24(sp)
-		LONG_L	$25, PT_R25(sp)
 #else
 # ifdef CONFIG_CPU_CAVIUM_OCTEON
 		/* Restore the Octeon multiplier state */
@@ -383,6 +379,7 @@
 		MTC0	a1, CP0_EPC
 		LONG_L	$31, PT_R31(sp)
 		LONG_L	$28, PT_R28(sp)
+		LONG_L	$25, PT_R25(sp)
 		LONG_L	$11, PT_R11(sp)
 		LONG_L	$9, PT_R9(sp)
 		LONG_L	$8, PT_R8(sp)
