@@ -741,6 +741,9 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 			else
 				blast_dcache_range(start, end);
 		}
+
+		/* Ensure dcache operation has completed */
+		mb();
 	}
 
 	if (type == R4K_INDEX ||
