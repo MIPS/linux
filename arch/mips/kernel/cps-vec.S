@@ -440,7 +440,7 @@ LEAF(mips_cps_boot_vpes)
 	mftc0	t0, CP0_TCSTATUS
 	li	t1, ~TCSTATUS_IXMT
 	and	t0, t0, t1
-	ori	t0, t0, TCSTATUS_A
+	or	t0, t0, TCSTATUS_A
 	mttc0	t0, CP0_TCSTATUS
 
 	/* Clear the TC halt bit */
