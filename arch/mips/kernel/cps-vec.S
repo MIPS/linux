@@ -305,7 +305,9 @@ LEAF(mips_cps_get_bootcfg)
 	 */
 	mfc0	t9, $3, 1
 	andi	t9, t9, 0xff
-#elif defined(CONFIG_MIPS_MT_SMP)
+#endif
+1:
+#if defined(CONFIG_MIPS_MT_SMP)
 	has_mt	ta2, 1f
 
 	/* Find the number of VPEs present in the core */
@@ -360,13 +362,15 @@ LEAF(mips_cps_boot_vpes)
 	PTR_S	ta2, CPC_CL_VC_STOP_OFS(t1)
 	ehb
 
-#elif defined(CONFIG_MIPS_MT)
+#endif
+
+#if defined(CONFIG_MIPS_MT)
 
 	.set	push
 	.set	mt
 
 	/* If the core doesn't support MT then return */
-	has_mt	t0, 5f
+5:	has_mt	t0, 5f
 
 	/* Enter VPE configuration state */
 	dvpe

@@ -372,11 +372,7 @@
 #endif
 
 #ifndef cpu_has_mipsmt
-# if __mips_isa_rev >= 6
-#  define cpu_has_mipsmt	0
-# else
-#  define cpu_has_mipsmt	(cpu_data[0].ases & MIPS_ASE_MIPSMT)
-# endif
+# define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
 #endif
 
 #ifndef cpu_has_vp
