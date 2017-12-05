@@ -26,7 +26,7 @@
  * arch/mips/kernel/ptrace.c.
  */
 struct pt_regs {
-#ifdef CONFIG_32BIT
+#if _MIPS_SIM == _MIPS_SIM_ABI32
 	/* Pad bytes for argument save space on the stack. */
 	unsigned long pad0[8];
 #endif
