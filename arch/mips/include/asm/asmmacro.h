@@ -206,6 +206,7 @@
 	.endm
 #endif /* !CONFIG_CPU_MIPSR2 || !CONFIG_CPU_MIPSR6 */
 
+#if __mips_isa_rev < 2
 /*
  * Temporary until all gas have MT ASE support
  */
@@ -232,6 +233,7 @@
 	.macro	MTTR	rt=0, rd=0, u=0, sel=0
 	 .word	0x41800000 | (\rt << 16) | (\rd << 11) | (\u << 5) | (\sel)
 	.endm
+#endif
 
 #ifdef TOOLCHAIN_SUPPORTS_MSA
 /* preprocessor replaces the fp in ".set fp=64" with $30 otherwise */

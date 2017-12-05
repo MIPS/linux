@@ -189,6 +189,58 @@ static inline unsigned core_nvpes(void)
 	return ((conf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
 }
 
+#if __mips_isa_rev >= 2
+
+static inline unsigned int dvpe(void)
+{
+	int res;
+
+	asm volatile(
+		".set	push\n\t"
+		".set	mt\n\t"
+		"dvpe\t%0\n\t"
+		".set	pop"
+		: "=r"(res));
+	instruction_hazard();
+	return res;
+}
+
+static inline void __raw_evpe(void)
+{
+	asm volatile(
+		".set	push\n\t"
+		".set	mt\n\t"
+		"evpe\n\t"
+		"ehb\n\t"
+		".set	pop");
+}
+
+static inline unsigned int dmt(void)
+{
+	int res;
+
+	asm volatile(
+		".set	push\n\t"
+		".set	mt\n\t"
+		"dmt\t%0\n\t"
+		".set	pop"
+		: "=r"(res));
+	instruction_hazard();
+	return res;
+}
+
+static inline void __raw_emt(void)
+{
+	asm volatile(
+		".set	push\n\t"
+		".set	mt\n\t"
+		"emt\n\t"
+		"ehb\n\t"
+		".set	pop");
+}
+
+#else
+
 static inline unsigned int dvpe(void)
 {
 	int res = 0;
@@ -221,17 +273,6 @@ static inline void __raw_evpe(void)
 	"	.set	pop						\n");
 }
 
-/* Enable virtual processor execution if previous suggested it should be.
-   EVPE_ENABLE to force */
-
-#define EVPE_ENABLE MVPCONTROL_EVP
-
-static inline void evpe(int previous)
-{
-	if ((previous & MVPCONTROL_EVP))
-		__raw_evpe();
-}
-
 static inline unsigned int dmt(void)
 {
 	int res;
@@ -262,6 +303,19 @@ static inline void __raw_emt(void)
 	"	.set	reorder");
 }
 
+#endif
+
+/* Enable virtual processor execution if previous suggested it should be.
+   EVPE_ENABLE to force */
+
+#define EVPE_ENABLE MVPCONTROL_EVP
+
+static inline void evpe(int previous)
+{
+	if ((previous & MVPCONTROL_EVP))
+		__raw_evpe();
+}
+
 /* enable multi-threaded execution if previous suggested it should be.
    EMT_ENABLE to force */
 
@@ -281,6 +335,59 @@ static inline void ehb(void)
 	"	ehb						\n"
 	"	.set	pop					\n");
 }
+
+#if __mips_isa_rev >= 2
+
+#define mftc0(rt,sel)							\
+({									\
+	 unsigned long	__res;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	mt					\n"	\
+	"	mftc0	%0, $" #rt ", " #sel "			\n"	\
+	"	.set	pop					\n"	\
+	: "=r" (__res));						\
+									\
+	__res;								\
+})
+
+#define mttc0(rd, sel, v)						\
+({									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	mt					\n"	\
+	"	mttc0	%0, $" #rd ", " #sel "			\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (v));							\
+})
+
+#define mftgpr(rt)							\
+({									\
+	unsigned long __res;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	mt					\n"	\
+	"	mftgpr	%0, $r" #rt "				\n"	\
+	"	.set	pop					\n"	\
+	: "=r" (__res));						\
+									\
+	__res;								\
+})
+
+#define mttgpr(rd,v)							\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	mt					\n"	\
+	"	mttgpr	%0, $r" #rd "				\n"	\
+	"	.set	pop					\n"	\
+	: : "r" (v));							\
+} while (0)
+
+#else
 
 #define mftc0(rt,sel)							\
 ({									\
@@ -316,17 +423,6 @@ static inline void ehb(void)
 	__res;								\
 })
 
-#define mftr(rt, u, sel)							\
-({									\
-	unsigned long __res;						\
-									\
-	__asm__ __volatile__(						\
-	"	mftr	%0, " #rt ", " #u ", " #sel "		\n"	\
-	: "=r" (__res));						\
-									\
-	__res;								\
-})
-
 #define mttgpr(rd,v)							\
 do {									\
 	__asm__ __volatile__(						\
@@ -354,6 +450,18 @@ do {									\
 	: "r" (v));							\
 })
 
+#endif
+
+#define mftr(rt, u, sel)							\
+({									\
+	unsigned long __res;						\
+									\
+	__asm__ __volatile__(						\
+	"	mftr	%0, " #rt ", " #u ", " #sel "		\n"	\
+	: "=r" (__res));						\
+									\
+	__res;								\
+})
 
 #define mttr(rd, u, sel, v)						\
 ({									\
