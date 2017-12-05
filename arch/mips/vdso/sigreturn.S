@@ -26,7 +26,11 @@ LEAF(__vdso_rt_sigreturn)
 	.cfi_signal_frame
 
 	li	scn, __NR_rt_sigreturn
+#if __nanomips__
+	syscall32
+#else
 	syscall
+#endif
 
 	.cfi_endproc
 	END(__vdso_rt_sigreturn)
