@@ -90,6 +90,11 @@ static inline int is_arm_mapping_symbol(const char *str)
 	       && (str[2] == '\0' || str[2] == '.');
 }
 
+static inline int is_nanomips_local_symbol(const char *str)
+{
+	return str[0] == '.' && str[1] == 'L';
+}
+
 static int check_symbol_range(const char *sym, unsigned long long addr,
 			      struct addr_range *ranges, int entries)
 {
@@ -152,7 +157,8 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 
 	}
 	else if (toupper(stype) == 'U' ||
-		 is_arm_mapping_symbol(sym))
+		 is_arm_mapping_symbol(sym) ||
+		 is_nanomips_local_symbol(sym))
 		return -1;
 	/* exclude also MIPS ELF local symbols ($L123 instead of .L123) */
 	else if (str[0] == '$')
