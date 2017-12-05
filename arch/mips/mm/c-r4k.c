@@ -763,6 +763,8 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 			break;
 		}
 	}
+	/* Ensure icache operation has completed */
+	mb();
 	/* Hazard to force new i-fetch */
 	instruction_hazard();
 }
