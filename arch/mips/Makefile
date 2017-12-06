@@ -461,7 +461,7 @@ define archhelp
 	echo '  If you are targeting a system supported by generic kernels you may'
 	echo '  configure the kernel for a given architecture target like so:'
 	echo
-	echo '  {micro32,32,64}{r1,r2,r6}{el,}_defconfig <BOARDS="list of boards">'
+	echo '  {nano32,micro32,32,64}{r1,r2,r6}{el,}_defconfig <BOARDS="list of boards">'
 	echo
 	echo '  Otherwise, the following default configurations are available:'
 endef
@@ -496,6 +496,7 @@ endef
 
 $(eval $(call gen_generic_defconfigs,32 64,r1 r2 r6,eb el))
 $(eval $(call gen_generic_defconfigs,micro32,r2,eb el))
+$(eval $(call gen_generic_defconfigs,nano32,r6,eb el))
 
 .PHONY: $(generic_defconfigs)
 $(generic_defconfigs):
