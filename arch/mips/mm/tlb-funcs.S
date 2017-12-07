@@ -61,11 +61,21 @@ EXPORT(tlbmiss_handler_setup_pgd_end)
 	ext	k1, k1, _PAGE_SHIFT, _PGDIR_SHIFT - _PAGE_SHIFT
 	lsa	k0, k1, k0, _PTE_T_LOG2
 #endif
+#ifdef CONFIG_SMP
+0:	ll	k1, 0(k0)
+#else
 	lw	k1, 0(k0)
+#endif
 	tlbp
 .endm
 
 .macro tlbchange_tail
+#ifdef CONFIG_SMP
+	sc	k1, 0(k0)
+	beqz	k1, 0b
+#else
+	sw	k1, 0(k0)
+#endif
 	ori	k0, k0, _PTE_T_SIZE
 
 	lw	$1, -_PTE_T_SIZE(k0)
@@ -92,7 +102,6 @@ LEAF(handle_tlbm)
 	beqz	$1, 1f
 
 	ori	k1, k1, __PAGE_ACCESSED | __PAGE_MODIFIED | __PAGE_VALID | __PAGE_DIRTY
-	sw	k1, 0(k0)
 
 	tlbchange_tail
 1:
@@ -109,7 +118,6 @@ LEAF(handle_tlbs)
 	bnez	$1, 1f
 
 	ori	k1, k1, __PAGE_ACCESSED | __PAGE_MODIFIED | __PAGE_VALID | __PAGE_DIRTY
-	sw	k1, 0(k0)
 
 	tlbchange_tail
 1:
@@ -125,7 +133,6 @@ LEAF(handle_tlbl)
 	beqz	$1, 1f
 
 	ori	k1, k1, __PAGE_ACCESSED | __PAGE_VALID
-	sw	k1, 0(k0)
 
 	tlbchange_tail
 1:
