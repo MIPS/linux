@@ -66,7 +66,6 @@ static inline unsigned long exception_epc(struct pt_regs *regs)
 	if (likely(!delay_slot(regs)))
 		return regs->cp0_epc;
 
-	WARN_ON(cpu_has_nanomips);
 	if (get_isa16_mode(regs->cp0_epc))
 		return __isa_exception_epc(regs);
 
