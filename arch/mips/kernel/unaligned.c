@@ -2281,8 +2281,287 @@ sigill:
 	force_sig(SIGILL, current);
 }
 
+static unsigned int nanomips_dec_gpr3(unsigned int r3)
+{
+	if (r3 < 4)
+		return 16 + r3;
+	return r3;
+}
+
+static unsigned int nanomips_dec_gpr3_src_store(unsigned int r3)
+{
+	return r3 ? nanomips_dec_gpr3(r3) : 0;
+}
+
+static unsigned int nanomips_dec_gpr4(unsigned int r4)
+{
+	if (r4 < 4 || r4 >= 8)
+		return 8 + r4;
+	return r4;
+}
+
+static unsigned int nanomips_dec_gpr4_zero(unsigned int r4)
+{
+	return (r4 == 3) ? 0 : nanomips_dec_gpr4(r4);
+}
+
+static void emulate_load_store_nanoMIPS(struct pt_regs *regs, void __user *addr)
+{
+	u16 insn[3], __user *epc;
+	unsigned int rt;
+	int i, err;
+	union {
+		s32 s32;
+		u16 u16;
+		s16 s16;
+	} data;
+	char insn_str[(ARRAY_SIZE(insn) * 5) + 1];
+
+	/* Read the first half-word of the instruction */
+	epc = (u16 __user *)regs->cp0_epc;
+	if (__get_user(insn[0], epc))
+		goto fault;
+
+	/* Decode length from the first half-word, read the whole instruction */
+	for (i = 1; i < nanomips_insn_len(insn[0]) / sizeof(insn[0]); i++) {
+		if (__get_user(insn[i], &epc[i]))
+			goto fault;
+	}
+
+	/* Default to the standard 32 bit rt encoding */
+	rt = (insn[0] >> 5) & 0x1f;
+
+	switch (insn[0] >> 10) {
+	case 0x05: /* LW[16] */
+		rt = nanomips_dec_gpr3((insn[0] >> 7) & 0x7);
+		goto lw;
+	case 0x08: /* P32A */
+		switch (insn[1] & 0x7) {
+		case 0x7: /* _POOL32A7 */
+			switch ((insn[1] >> 3) & 0x7) {
+			case 0x0: /* P.LSX */
+				rt = insn[1] >> 11;
+				switch ((insn[1] >> 6) & 0x1) {
+				case 0x0: /* PP.LSX */
+					switch ((insn[1] >> 7) & 0xf) {
+					case 0x4: /* LHX */
+						goto lh;
+					case 0x5: /* SHX */
+						goto sh;
+					case 0x6: /* LHUX */
+						goto lhu;
+					case 0x8: /* LWX */
+						goto lw;
+					case 0x9: /* SWX */
+						goto sw;
+					default:
+						goto sigill;
+					}
+				case 0x1: /* PP.LSXS */
+					switch ((insn[1] >> 7) & 0xf) {
+					case 0x4: /* LHXS */
+						goto lh;
+					case 0x5: /* SHXS */
+						goto sh;
+					case 0x6: /* LHUXS */
+						goto lhu;
+					case 0x8: /* LWXS[32] */
+						goto lw;
+					case 0x9: /* SWXS */
+						goto sw;
+					default:
+						goto sigill;
+					}
+				}
+			default:
+				goto sigill;
+			}
+		default:
+			goto sigill;
+		}
+	case 0x0d: /* LW[SP] */
+		goto lw;
+	case 0x10: /* P.GP.W */
+		switch (insn[1] & 0x3) {
+		case 0x2: /* LW[GP] */
+			goto lw;
+		case 0x3: /* SW[GP] */
+			goto sw;
+		default:
+			goto sigill;
+		}
+	case 0x11: /* P.GP.BH */
+		switch ((insn[0] >> 2) & 0x7) {
+		case 0x4: /* P.GP.LH */
+			switch (insn[1] & 0x1) {
+			case 0x0: /* LH[GP] */
+				goto lh;
+			case 0x1: /* LHU[GP] */
+				goto lhu;
+			}
+		case 0x5: /* P.GP.SH */
+			switch (insn[1] & 0x1) {
+			case 0x0: /* SH[GP] */
+				goto sh;
+			default:
+				goto sigill;
+			}
+		default:
+			goto sigill;
+		}
+	case 0x14: /* P16C */
+		switch (insn[0] & 0x1) {
+		case 0x1: /* LWXS[16] */
+			rt = nanomips_dec_gpr3((insn[0] >> 1) & 0x7);
+			goto lw;
+		default:
+			goto sigill;
+		}
+	case 0x15: /* LW[GP16] */
+		rt = nanomips_dec_gpr3((insn[0] >> 7) & 0x7);
+		goto lw;
+	case 0x18: /* POOL48I */
+		switch (insn[0] & 0x1f) {
+		case 0x0b: /* LWPC[48] */
+			goto lw;
+		case 0x0f: /* SWPC[48] */
+			goto sw;
+		default:
+			goto sigill;
+		}
+	case 0x1d: /* LW[4X4] */
+		rt = nanomips_dec_gpr4(((insn[0] >> 6) & 0x8) |
+				       ((insn[0] >> 5) & 0x7));
+		goto lw;
+	case 0x1f: /* P16.LH */
+		rt = nanomips_dec_gpr3((insn[0] >> 7) & 0x7);
+		switch (((insn[0] >> 2) & 0x2) | (insn[0] & 0x1)) {
+		case 0x0: /* LH[16] */
+			goto lh;
+		case 0x1: /* SH[16] */
+			goto sh;
+		case 0x2: /* LHU[16] */
+			goto lhu;
+		default:
+			goto sigill;
+		}
+	case 0x21: /* P.LS.U12 */
+		switch (insn[1] >> 12) {
+		case 0x4: /* LH[U12] */
+			goto lh;
+		case 0x5: /* SH[U12] */
+			goto sh;
+		case 0x6: /* LHU[U12] */
+			goto lhu;
+		case 0x8: /* LW[U12] */
+			goto lw;
+		case 0x9: /* SW[U12] */
+			goto sw;
+		default:
+			goto sigill;
+		}
+	case 0x25: /* SW[16] */
+		rt = nanomips_dec_gpr3_src_store((insn[0] >> 7) & 0x7);
+		goto sw;
+	case 0x29: /* P.LS.S9 */
+		switch ((insn[1] >> 8) & 0x7) {
+		case 0x0: /* P.LS.S0 */
+			switch ((insn[1] >> 11) & 0xf) {
+			case 0x4: /* LH[S9] */
+				goto lh;
+			case 0x5: /* SH[S9] */
+				goto sh;
+			case 0x6: /* LHU[S9] */
+				goto lhu;
+			case 0x8: /* LW[S9] */
+				goto lw;
+			case 0x9: /* SW[S9] */
+				goto sw;
+			default:
+				goto sigill;
+			}
+		default:
+			goto sigill;
+		}
+	case 0x2d: /* SW[SP] */
+		goto sw;
+	case 0x35: /* SW[GP16] */
+		rt = nanomips_dec_gpr3_src_store((insn[0] >> 7) & 0x7);
+		goto lw;
+	case 0x3d: /* SW[4X4] */
+		rt = nanomips_dec_gpr4_zero(((insn[0] >> 6) & 0x8) |
+					    ((insn[0] >> 5) & 0x7));
+		goto sw;
+	default:
+		goto sigill;
+	}
+
+	/*
+	 * The switch statements above should always jump to one of the labels
+	 * below, so we should never fall through to here. If we do then
+	 * something is wrong so warn about it.
+	 */
+	for (i = 0; i < nanomips_insn_len(insn[0]) / sizeof(insn[0]); i++)
+		sprintf(&insn_str[i * 5], "%04x ", insn[i]);
+	insn_str[(i * 5) - 1] = 0;
+	WARN(1, "Bad case in %s, insn %s\n", __func__, insn_str);
+	goto sigill;
+
+lh:
+	err = get_user(data.s16, (s16 __user *)addr);
+	if (err)
+		goto fault;
+	regs->regs[rt] = (long)data.s16;
+	goto done;
+
+lhu:
+	err = get_user(data.u16, (u16 __user *)addr);
+	if (err)
+		goto fault;
+	regs->regs[rt] = data.u16;
+	goto done;
+
+lw:
+	err = get_user(data.s32, (s32 __user *)addr);
+	if (err)
+		goto fault;
+	regs->regs[rt] = (long)data.s32;
+	goto done;
+
+sh:
+	data.s16 = regs->regs[rt];
+	err = put_user(data.s16, (s16 __user *)addr);
+	if (err)
+		goto fault;
+	goto done;
+
+sw:
+	data.s32 = regs->regs[rt];
+	err = put_user(data.s32, (s32 __user *)addr);
+	if (err)
+		goto fault;
+	goto done;
+
+done:
+#ifdef CONFIG_DEBUG_FS
+	unaligned_instructions++;
+#endif
+	return;
+
+fault:
+	die_if_kernel("Unhandled kernel unaligned access", regs);
+	force_sig(SIGSEGV, current);
+	return;
+
+sigill:
+	die_if_kernel("Unhandled kernel unaligned access or invalid instruction",
+		      regs);
+	force_sig(SIGILL, current);
+}
+
 asmlinkage void do_ade(struct pt_regs *regs)
 {
+	void (*emu_func)(struct pt_regs *regs, void __user *addr);
 	enum ctx_state prev_state;
 	unsigned int __user *pc;
 	mm_segment_t seg;
@@ -2319,29 +2598,23 @@ asmlinkage void do_ade(struct pt_regs *regs)
 		if (unaligned_action == UNALIGNED_ACTION_SHOW)
 			show_registers(regs);
 
-		WARN_ON(cpu_has_nanomips);
+		if (cpu_has_nanomips)
+			emu_func = emulate_load_store_nanoMIPS;
+		else if (cpu_has_mmips)
+			emu_func = emulate_load_store_microMIPS;
+		else if (cpu_has_mips16)
+			emu_func = emulate_load_store_MIPS16e;
+		else
+			emu_func = NULL;
 
-		if (cpu_has_mmips) {
+		if (emu_func) {
 			seg = get_fs();
 			if (!user_mode(regs))
 				set_fs(KERNEL_DS);
-			emulate_load_store_microMIPS(regs,
-				(void __user *)regs->cp0_badvaddr);
+			emu_func(regs, (void __user *)regs->cp0_badvaddr);
 			set_fs(seg);
-
 			return;
 		}
-
-		if (cpu_has_mips16) {
-			seg = get_fs();
-			if (!user_mode(regs))
-				set_fs(KERNEL_DS);
-			emulate_load_store_MIPS16e(regs,
-				(void __user *)regs->cp0_badvaddr);
-			set_fs(seg);
-
-			return;
-	}
 
 		goto sigbus;
 	}
