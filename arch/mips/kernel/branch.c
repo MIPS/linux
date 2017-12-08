@@ -35,9 +35,7 @@ int __isa_exception_epc(struct pt_regs *regs)
 		force_sig(SIGSEGV, current);
 		return epc;
 	}
-	if (cpu_has_nanomips) {
-		epc += nanomips_insn_len(inst);
-	} else if (cpu_has_mips16) {
+	if (cpu_has_mips16) {
 		union mips16e_instruction inst_mips16e;
 
 		inst_mips16e.full = inst;
