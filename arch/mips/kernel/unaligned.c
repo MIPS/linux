@@ -2307,8 +2307,8 @@ static unsigned int nanomips_dec_gpr4_zero(unsigned int r4)
 
 static void emulate_load_store_nanoMIPS(struct pt_regs *regs, void __user *addr)
 {
+	unsigned int rt, insn_len;
 	u16 insn[3], __user *epc;
-	unsigned int rt;
 	int i, err;
 	union {
 		s32 s32;
@@ -2323,7 +2323,8 @@ static void emulate_load_store_nanoMIPS(struct pt_regs *regs, void __user *addr)
 		goto fault;
 
 	/* Decode length from the first half-word, read the whole instruction */
-	for (i = 1; i < nanomips_insn_len(insn[0]) / sizeof(insn[0]); i++) {
+	insn_len = nanomips_insn_len(insn[0]);
+	for (i = 1; i < insn_len / sizeof(insn[0]); i++) {
 		if (__get_user(insn[i], &epc[i]))
 			goto fault;
 	}
@@ -2501,7 +2502,7 @@ static void emulate_load_store_nanoMIPS(struct pt_regs *regs, void __user *addr)
 	 * below, so we should never fall through to here. If we do then
 	 * something is wrong so warn about it.
 	 */
-	for (i = 0; i < nanomips_insn_len(insn[0]) / sizeof(insn[0]); i++)
+	for (i = 0; i < insn_len / sizeof(insn[0]); i++)
 		sprintf(&insn_str[i * 5], "%04x ", insn[i]);
 	insn_str[(i * 5) - 1] = 0;
 	WARN(1, "Bad case in %s, insn %s\n", __func__, insn_str);
@@ -2543,6 +2544,7 @@ sw:
 	goto done;
 
 done:
+	regs->cp0_epc += insn_len;
 #ifdef CONFIG_DEBUG_FS
 	unaligned_instructions++;
 #endif
