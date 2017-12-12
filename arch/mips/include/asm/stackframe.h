@@ -195,14 +195,16 @@
 		.set	push
 		.set	noat
 		.set	reorder
-		mfc0	k0, CP0_STATUS
-		sll	k0, 3		/* extract cu0 bit */
-		.set	noreorder
-		bltz	k0, 8f
-		 move	k0, sp
+		mfc0	k1, CP0_STATUS
+		sll	k1, 3		/* extract cu0 bit */
+
+		move	k0, sp
 		.if \docfi
 		.cfi_register sp, k0
 		.endif
+
+		bltz	k1, 8f
+
 #ifdef CONFIG_EVA
 		/*
 		 * Flush interAptiv's Return Prediction Stack (RPS) by writing
@@ -228,7 +230,6 @@
 		MFC0	k0, CP0_ENTRYHI
 		MTC0	k0, CP0_ENTRYHI
 #endif
-		.set	reorder
 		/* Called from user mode, new stack. */
 		get_saved_sp docfi=\docfi tosp=1
 8:
