@@ -497,6 +497,14 @@ unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 	unsigned long size, ofs;
 	struct pt_regs *regs;
 	int leaf;
+#if defined(CONFIG_FRAME_POINTER)
+	/*
+	 * NanoMIPS gcc uses a 4096 byte bias between the fp register value
+	 * and the logical fp. This allows greater stack coverage using 12 bit
+	 * offsets from the fp register
+	 */
+	unsigned long lfp = *fp + 4096;
+#endif
 
 	if (!stack_page)
 		return 0;
@@ -555,10 +563,20 @@ unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 
 #ifdef CONFIG_FRAME_POINTER
 	/* Is the frame pointer in the right ball park? */
-	if (*fp >= *sp && *fp <= (*sp | (THREAD_SIZE-sizeof(void *)))) {
-		*sp = *fp + 2 * sizeof(void *);
-		pc = ((unsigned long *)(*fp))[0];
-		*fp = ((unsigned long *)(*fp))[1];
+	if ((lfp >= low) && (lfp <= high)) {
+		if (unlikely(lfp == irq_stack_high)) {
+			/*
+			 * This frame is at the top of the IRQ stack. Set SP
+			 * so that the next iteration will detect the top of
+			 * IRQ stack and jump to the interrupted task stack.
+			 */
+			*sp = irq_stack_high;
+		}
+
+		/* Retrieve pc / fp from save location */
+		pc = ((unsigned long *)(lfp))[-2];
+		*fp = ((unsigned long *)(lfp))[-1];
+
 		return __kernel_text_address(pc) ? pc : 0;
 	} else {
 		return 0;
