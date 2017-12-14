@@ -168,7 +168,7 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 		 str[2] == 1 && str[3] == '\0')
 		return -1;
 	/* exclude debugging symbols */
-	else if (stype == 'N')
+	else if (stype == 'N' || stype == 'n')
 		return -1;
 
 	/* include the type field in the symbol name, so that it gets

@@ -19,10 +19,6 @@
 	.cfi_sections	.debug_frame
 
 LEAF(__vdso_rt_sigreturn)
-	.cfi_startproc
-	.frame	sp, 0, ra
-	.mask	0x00000000, 0
-	.fmask	0x00000000, 0
 	.cfi_signal_frame
 
 	li	scn, __NR_rt_sigreturn
@@ -32,22 +28,16 @@ LEAF(__vdso_rt_sigreturn)
 	syscall
 #endif
 
-	.cfi_endproc
 	END(__vdso_rt_sigreturn)
 
 #if _MIPS_SIM == _MIPS_SIM_ABI32
 
 LEAF(__vdso_sigreturn)
-	.cfi_startproc
-	.frame	sp, 0, ra
-	.mask	0x00000000, 0
-	.fmask	0x00000000, 0
 	.cfi_signal_frame
 
 	li	scn, __NR_sigreturn
 	syscall
 
-	.cfi_endproc
 	END(__vdso_sigreturn)
 
 #endif

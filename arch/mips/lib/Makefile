@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for MIPS-specific library files..
 #
@@ -13,7 +14,7 @@ lib-y += strncpy_user.o
 lib-y += strnlen_user.o
 lib-y += uncached.o
 
-obj-y			+= iomap.o
+obj-y			+= iomap.o iomap_copy.o
 obj-$(CONFIG_PCI)	+= iomap-pci.o
 lib-$(CONFIG_GENERIC_CSUM)	:= $(filter-out csum_partial.o, $(lib-y))
 

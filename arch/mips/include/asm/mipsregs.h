@@ -49,6 +49,7 @@
 #define CP0_ENTRYLO0 $2
 #define CP0_ENTRYLO1 $3
 #define CP0_CONF $3
+#define CP0_GLOBALNUMBER $3, 1
 #define CP0_CONTEXT $4
 #define CP0_PAGEMASK $5
 #define CP0_SEGCTL0 $5, 2
@@ -147,6 +148,16 @@
 #define MIPS_ENTRYLO_PFN_SHIFT	6
 #define MIPS_ENTRYLO_XI		(_ULCAST_(1) << (BITS_PER_LONG - 2))
 #define MIPS_ENTRYLO_RI		(_ULCAST_(1) << (BITS_PER_LONG - 1))
+
+/*
+ * MIPSr6+ GlobalNumber register definitions
+ */
+#define MIPS_GLOBALNUMBER_VP_SHF	0
+#define MIPS_GLOBALNUMBER_VP		(_ULCAST_(0xff) << MIPS_GLOBALNUMBER_VP_SHF)
+#define MIPS_GLOBALNUMBER_CORE_SHF	8
+#define MIPS_GLOBALNUMBER_CORE		(_ULCAST_(0xff) << MIPS_GLOBALNUMBER_CORE_SHF)
+#define MIPS_GLOBALNUMBER_CLUSTER_SHF	16
+#define MIPS_GLOBALNUMBER_CLUSTER	(_ULCAST_(0xf) << MIPS_GLOBALNUMBER_CLUSTER_SHF)
 
 /*
  * Values for PageMask register
@@ -1426,6 +1437,7 @@ do {									\
 
 #define __write_64bit_c0_split(source, sel, val)			\
 do {									\
+	unsigned long long __tmp;					\
 	unsigned long __flags;						\
 									\
 	local_irq_save(__flags);					\
@@ -1435,24 +1447,26 @@ do {									\
 		__asm__ __volatile__(					\
 			".set\tpush\n\t"				\
 			".set\t" MIPS_ISA_LEVEL "\n\t"			\
-			"dsll\t%L0, %L0, 32\n\t"			\
+			"dsll\t%L0, %L1, 32\n\t"			\
 			"dsrl\t%L0, %L0, 32\n\t"			\
-			"dsll\t%M0, %M0, 32\n\t"			\
+			"dsll\t%M0, %M1, 32\n\t"			\
 			"or\t%L0, %L0, %M0\n\t"				\
 			"dmtc0\t%L0, " #source "\n\t"			\
 			".set\tpop"					\
-			: : "r" (val));					\
+			: "=&r,r" (__tmp)				\
+			: "r,0" (val));					\
 	else								\
 		__asm__ __volatile__(					\
 			".set\tpush\n\t"				\
 			".set\t" MIPS_ISA_LEVEL "\n\t"			\
-			"dsll\t%L0, %L0, 32\n\t"			\
+			"dsll\t%L0, %L1, 32\n\t"			\
 			"dsrl\t%L0, %L0, 32\n\t"			\
-			"dsll\t%M0, %M0, 32\n\t"			\
+			"dsll\t%M0, %M1, 32\n\t"			\
 			"or\t%L0, %L0, %M0\n\t"				\
 			"dmtc0\t%L0, " #source ", " #sel "\n\t"		\
 			".set\tpop"					\
-			: : "r" (val));					\
+			: "=&r,r" (__tmp)				\
+			: "r,0" (val));					\
 	local_irq_restore(__flags);					\
 } while (0)
 
@@ -1511,6 +1525,8 @@ do {									\
 
 #define read_c0_conf()		__read_32bit_c0_register($3, 0)
 #define write_c0_conf(val)	__write_32bit_c0_register($3, 0, val)
+
+#define read_c0_globalnumber()	__read_32bit_c0_register($3, 1)
 
 #define read_c0_context()	__read_ulong_c0_register($4, 0)
 #define write_c0_context(val)	__write_ulong_c0_register($4, 0, val)

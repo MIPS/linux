@@ -10,6 +10,12 @@
  * Copyright (C) 2000 MIPS Technologies, Inc.
  *    written by Carsten Langgaard, carstenl@mips.com
  */
+#include <asm/asm.h>
+#include <asm/export.h>
+#include <asm/asm-offsets.h>
+#include <asm/mipsregs.h>
+#include <asm/regdef.h>
+#include <asm/stackframe.h>
 
 /*
  * task_struct *resume(task_struct *prev, task_struct *next,
