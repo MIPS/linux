@@ -701,7 +701,21 @@
 #define MIPS_WATCHHI_I		(_ULCAST_(1) << 2)
 #define MIPS_WATCHHI_R		(_ULCAST_(1) << 1)
 #define MIPS_WATCHHI_W		(_ULCAST_(1) << 0)
+#define MIPS_WATCHHI_RW		(_ULCAST_(0x3) << 0)
 #define MIPS_WATCHHI_IRW	(_ULCAST_(0x7) << 0)
+
+/* Special I7200 WATCHHI fields */
+
+#define MIPS_WATCHHI_U		(_ULCAST_(1) << 16)
+#define MIPS_WATCHHI_MTEN_ID_S  11
+/* All TCs of VPE X */
+#define MIPS_WATCHHI_MTEN_ID_VPE  (_ULCAST_(0x10) << MIPS_WATCHHI_MTEN_ID_S)
+#define MIPS_WATCHHI_WHEXT_SEL  (_ULCAST_(3) << 8)
+#define MIPS_WATCHHI_I_RSLT	(_ULCAST_(1) << 5)
+#define MIPS_WATCHHI_R_RSLT	(_ULCAST_(1) << 4)
+#define MIPS_WATCHHI_W_RSLT	(_ULCAST_(1) << 3)
+#define MIPS_WATCHHI_IRW_RSLT	(_ULCAST_(0x7) << 3)
+
 
 /* PerfCnt control register definitions */
 #define MIPS_PERFCTRL_EXL	(_ULCAST_(1) << 0)

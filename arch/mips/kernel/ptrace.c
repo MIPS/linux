@@ -199,6 +199,7 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 int ptrace_get_watch_regs(struct task_struct *child,
 			  struct pt_watch_regs __user *addr)
 {
+	unsigned long watchhi_mask = MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW;
 	enum pt_watch_style style;
 	int i;
 
@@ -208,7 +209,12 @@ int ptrace_get_watch_regs(struct task_struct *child,
 		return -EIO;
 
 #ifdef CONFIG_32BIT
-	style = pt_watch_style_mips32;
+	if ((boot_cpu_data.processor_id & PRID_IMP_MASK) == PRID_IMP_I7200) {
+		style = pt_watch_style_i7200;
+		watchhi_mask = MIPS_WATCHHI_IRW_RSLT | MIPS_WATCHHI_IRW;
+	} else {
+		style = pt_watch_style_mips32;
+	}
 #define WATCH_STYLE mips32
 #else
 	style = pt_watch_style_mips64;
@@ -222,7 +228,7 @@ int ptrace_get_watch_regs(struct task_struct *child,
 		__put_user(child->thread.watch.mips3264.watchlo[i],
 			   &addr->WATCH_STYLE.watchlo[i]);
 		__put_user(child->thread.watch.mips3264.watchhi[i] &
-				(MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW),
+			   watchhi_mask,
 			   &addr->WATCH_STYLE.watchhi[i]);
 		__put_user(boot_cpu_data.watch_reg_masks[i],
 			   &addr->WATCH_STYLE.watch_masks[i]);
@@ -239,6 +245,7 @@ int ptrace_get_watch_regs(struct task_struct *child,
 int ptrace_set_watch_regs(struct task_struct *child,
 			  struct pt_watch_regs __user *addr)
 {
+	enum pt_watch_style style;
 	int i;
 	int watch_active = 0;
 	unsigned long lt[NUM_WATCH_REGS];
@@ -248,6 +255,16 @@ int ptrace_set_watch_regs(struct task_struct *child,
 		return -EIO;
 	if (!access_ok(VERIFY_READ, addr, sizeof(struct pt_watch_regs)))
 		return -EIO;
+
+#ifdef CONFIG_32BIT
+	if ((boot_cpu_data.processor_id & PRID_IMP_MASK) == PRID_IMP_I7200)
+		style = pt_watch_style_i7200;
+	else
+		style = pt_watch_style_mips32;
+#else
+	style = pt_watch_style_mips64;
+#endif
+
 	/* Check the values. */
 	for (i = 0; i < boot_cpu_data.watch_reg_use_cnt; i++) {
 		__get_user(lt[i], &addr->WATCH_STYLE.watchlo[i]);
@@ -264,13 +281,24 @@ int ptrace_set_watch_regs(struct task_struct *child,
 		}
 #endif
 		__get_user(ht[i], &addr->WATCH_STYLE.watchhi[i]);
-		if (ht[i] & ~MIPS_WATCHHI_MASK)
-			return -EINVAL;
+		if (style == pt_watch_style_i7200) {
+			if (ht[i] & MIPS_WATCHHI_MASK)
+				return -EINVAL;
+		} else {
+			if (ht[i] & ~MIPS_WATCHHI_MASK)
+				return -EINVAL;
+		}
 	}
 	/* Install them. */
 	for (i = 0; i < boot_cpu_data.watch_reg_use_cnt; i++) {
-		if (lt[i] & MIPS_WATCHLO_IRW)
-			watch_active = 1;
+		if (style == pt_watch_style_i7200) {
+			/* i7200 watch enabled via watchhi IRW bits */
+			if (ht[i] & MIPS_WATCHHI_IRW)
+				watch_active = 1;
+		} else {
+			if (lt[i] & MIPS_WATCHLO_IRW)
+				watch_active = 1;
+		}
 		child->thread.watch.mips3264.watchlo[i] = lt[i];
 		/* Set the G bit. */
 		child->thread.watch.mips3264.watchhi[i] = ht[i];
