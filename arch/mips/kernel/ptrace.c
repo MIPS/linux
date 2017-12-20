@@ -767,8 +767,11 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 	}
 
-	/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKETEXT: /* write the word at location addr. */
+		ret = generic_ptrace_pokedata(child, addr, data);
+		__flush_cache_all();
+		break;
+
 	case PTRACE_POKEDATA:
 		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
