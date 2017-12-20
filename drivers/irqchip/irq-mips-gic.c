@@ -52,6 +52,7 @@ static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
 static struct irq_domain *gic_ipi_domain;
 static int gic_shared_intrs;
+static unsigned int shared_cpu_pin;
 static unsigned int gic_cpu_pin;
 static unsigned int timer_cpu_pin;
 static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
@@ -406,6 +407,11 @@ static void __gic_irq_dispatch(void)
 	gic_handle_shared_int(false);
 }
 
+static void __gic_irq_dispatch_shared(void)
+{
+	gic_handle_shared_int(false);
+}
+
 static void gic_irq_dispatch(struct irq_desc *desc)
 {
 	gic_handle_local_int(true);
@@ -422,7 +428,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	data = irq_get_irq_data(virq);
 
 	spin_lock_irqsave(&gic_lock, flags);
-	write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin);
+	write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | shared_cpu_pin);
 	write_gic_map_vp(intr, BIT(mips_cm_vp_id(cpu)));
 	gic_clear_pcpu_masks(intr);
 	set_bit(intr, per_cpu_ptr(pcpu_masks, cpu));
@@ -734,8 +740,13 @@ static int __init gic_of_init(struct device_node *node,
 		timer_cpu_pin = gic_cpu_pin;
 		set_vi_handler(gic_cpu_pin + GIC_PIN_TO_VEC_OFFSET,
 			       __gic_irq_dispatch);
+
+		/* Route all shared interrupts to pin 1, vector 2 */
+		shared_cpu_pin = 1;
+		set_vi_handler(shared_cpu_pin + GIC_PIN_TO_VEC_OFFSET,
+			       __gic_irq_dispatch_shared);
 	} else {
-		gic_cpu_pin = cpu_vec - GIC_CPU_PIN_OFFSET;
+		shared_cpu_pin = gic_cpu_pin = cpu_vec - GIC_CPU_PIN_OFFSET;
 		irq_set_chained_handler(MIPS_CPU_IRQ_BASE + cpu_vec,
 					gic_irq_dispatch);
 		/*
