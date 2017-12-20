@@ -314,6 +314,28 @@ static inline bool mips_gic_present(void)
 	return IS_ENABLED(CONFIG_MIPS_GIC) && mips_gic_base;
 }
 
+
+/**
+ * mips_gic_enable_eic() - Enable EIC mode if supported
+ *
+ * Attempt to enable the GICs EIC mode if supported by the hardware.
+ * EIC is enabled via the GIC CTL register. If the bit sticks, then the mode
+ * is supported and active. CP0.Config3.VEIC reflects this state and is read
+ * to determine if the mode has successfully been activated. If it has, update
+ * the boot cpu flags such that cpu_has_veic reflects the new mode.
+ */
+static inline void mips_gic_enable_eic(void)
+{
+	set_gic_vl_ctl(GIC_VX_CTL_EIC);
+	mb();		/* Ensure write to GIC register completes */
+	ehb();		/* Ensure mfc0 does not start early */
+	if (read_c0_config3() & MIPS_CONF3_VEIC) {
+		/* GIC & CPU now in VEIC mode */
+		pr_debug("GIC EIC mode activated\n");
+		boot_cpu_data.options |= MIPS_CPU_VEIC;
+	}
+}
+
 /**
  * gic_get_c0_compare_int() - Return cp0 count/compare interrupt virq
  *
