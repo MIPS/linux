@@ -53,7 +53,7 @@ static struct irq_domain *gic_irq_domain;
 static struct irq_domain *gic_ipi_domain;
 static int gic_shared_intrs;
 static unsigned int shared_cpu_pin;
-static unsigned int gic_cpu_pin;
+static unsigned int local_cpu_pin;
 static unsigned int timer_cpu_pin;
 static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
 static DECLARE_BITMAP(ipi_resrv, GIC_MAX_INTRS);
@@ -401,10 +401,9 @@ static struct irq_chip gic_all_vpes_local_irq_controller = {
 	.irq_cpu_online		= gic_all_vpes_irq_cpu_online,
 };
 
-static void __gic_irq_dispatch(void)
+static void __gic_irq_dispatch_local(void)
 {
 	gic_handle_local_int(false);
-	gic_handle_shared_int(false);
 }
 
 static void __gic_irq_dispatch_shared(void)
@@ -482,7 +481,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	}
 
 	intr = GIC_HWIRQ_TO_LOCAL(hwirq);
-	map = GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin;
+	map = GIC_MAP_PIN_MAP_TO_PIN | local_cpu_pin;
 
 	switch (intr) {
 	case GIC_LOCAL_INT_TIMER:
@@ -735,18 +734,17 @@ static int __init gic_of_init(struct device_node *node,
 	mips_gic_enable_eic();
 
 	if (cpu_has_veic) {
-		/* Always use vector 1 in EIC mode */
-		gic_cpu_pin = 0;
-		timer_cpu_pin = gic_cpu_pin;
-		set_vi_handler(gic_cpu_pin + GIC_PIN_TO_VEC_OFFSET,
-			       __gic_irq_dispatch);
+		/* Route all local interrupts to pin 0, vector 1 */
+		timer_cpu_pin = local_cpu_pin = 0;
+		set_vi_handler(local_cpu_pin + GIC_PIN_TO_VEC_OFFSET,
+			       __gic_irq_dispatch_local);
 
 		/* Route all shared interrupts to pin 1, vector 2 */
 		shared_cpu_pin = 1;
 		set_vi_handler(shared_cpu_pin + GIC_PIN_TO_VEC_OFFSET,
 			       __gic_irq_dispatch_shared);
 	} else {
-		shared_cpu_pin = gic_cpu_pin = cpu_vec - GIC_CPU_PIN_OFFSET;
+		shared_cpu_pin = local_cpu_pin = cpu_vec - GIC_CPU_PIN_OFFSET;
 		irq_set_chained_handler(MIPS_CPU_IRQ_BASE + cpu_vec,
 					gic_irq_dispatch);
 		/*
@@ -768,7 +766,7 @@ static int __init gic_of_init(struct device_node *node,
 						timer_cpu_pin,
 						gic_irq_dispatch);
 		} else {
-			timer_cpu_pin = gic_cpu_pin;
+			timer_cpu_pin = local_cpu_pin;
 		}
 	}
 
