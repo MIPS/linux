@@ -119,8 +119,8 @@ not_nmi:
 	mtc0	t0, CP0_STATUS
 
 	/* Skip cache & coherence setup if we're already coherent */
-	cmgcrb	v1
-	lw	s7, GCR_CL_COHERENCE_OFS(v1)
+	cmgcrb	t8
+	lw	s7, GCR_CL_COHERENCE_OFS(t8)
 	bnez	s7, 1f
 
 	/* Initialize the L1 caches */
@@ -128,7 +128,7 @@ not_nmi:
 
 	/* Enter the coherent domain */
 	li	t0, 0xff
-	sw	t0, GCR_CL_COHERENCE_OFS(v1)
+	sw	t0, GCR_CL_COHERENCE_OFS(t8)
 	ehb
 
 	/* Set Kseg0 CCA to that in s0 */
