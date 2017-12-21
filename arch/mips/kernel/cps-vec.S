@@ -167,9 +167,9 @@ not_nmi:
 	jal	mips_cps_boot_vpes
 
 	/* Off we go! */
-1:	PTR_L	t1, VPEBOOTCFG_PC(v1)
-	PTR_L	gp, VPEBOOTCFG_GP(v1)
-	PTR_L	sp, VPEBOOTCFG_SP(v1)
+1:	PTR_L	t1, VPEBOOTCFG_PC(s1)
+	PTR_L	gp, VPEBOOTCFG_GP(s1)
+	PTR_L	sp, VPEBOOTCFG_SP(s1)
 	jr	t1
 	END(mips_cps_core_entry)
 
@@ -281,7 +281,7 @@ LEAF(mips_cps_core_init)
  * mips_cps_get_bootcfg() - retrieve boot configuration pointers
  *
  * Returns: pointer to struct core_boot_config in v0, pointer to
- *          struct vpe_boot_config in v1, VPE ID in t9
+ *          struct vpe_boot_config in s1, VPE ID in t9
  */
 LEAF(mips_cps_get_bootcfg)
 	/* Calculate a pointer to this cores struct core_boot_config */
@@ -331,9 +331,9 @@ LEAF(mips_cps_get_bootcfg)
 
 1:	/* Calculate a pointer to this VPEs struct vpe_boot_config */
 	li	t1, VPEBOOTCFG_SIZE
-	mul	v1, t9, t1
+	mul	s1, t9, t1
 	PTR_L	ta3, COREBOOTCFG_VPECONFIG(v0)
-	PTR_ADDU v1, v1, ta3
+	PTR_ADDU s1, s1, ta3
 
 	jr	ra
 	END(mips_cps_get_bootcfg)
