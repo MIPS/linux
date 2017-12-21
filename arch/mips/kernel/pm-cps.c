@@ -678,6 +678,11 @@ static int __init cps_pm_init(void)
 		return 0;
 	}
 
+#ifdef __nanomips__
+	pr_warn("pm-cps: not yet supported for nanoMIPS\n");
+	return 0;
+#endif
+
 	/*
 	 * If interrupts were enabled whilst running a wait instruction on a
 	 * non-coherent core then the VPE may end up processing interrupts
