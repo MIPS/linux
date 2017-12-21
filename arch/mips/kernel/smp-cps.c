@@ -366,7 +366,8 @@ static void cps_init_secondary(void)
 	if (cpu_has_mipsmt)
 		dmt();
 
-	if (mips_cm_revision() >= CM_REV_CM3) {
+	if ((mips_cm_revision() >= CM_REV_CM3) ||
+	    (mips_cm_revision() == CM_REV_CM2_6)) {
 		unsigned int ident = read_gic_vl_ident();
 
 		/*

@@ -162,6 +162,7 @@ GCR_ACCESSOR_RO(32, 0x030, rev)
 
 #define CM_REV_CM2				CM_ENCODE_REV(6, 0)
 #define CM_REV_CM2_5				CM_ENCODE_REV(7, 0)
+#define CM_REV_CM2_6				CM_ENCODE_REV(6, 0x10)
 #define CM_REV_CM3				CM_ENCODE_REV(8, 0)
 #define CM_REV_CM3_5				CM_ENCODE_REV(9, 0)
 
@@ -370,6 +371,9 @@ static inline unsigned int mips_cm_max_vp_width(void)
 
 	if (mips_cm_revision() >= CM_REV_CM3)
 		return read_gcr_sys_config2() & CM_GCR_SYS_CONFIG2_MAXVPW;
+
+	if (mips_cm_revision() == CM_REV_CM2_6)
+		return 4;
 
 	if (mips_cm_present()) {
 		/*
