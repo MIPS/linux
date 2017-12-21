@@ -501,23 +501,23 @@ LEAF(mips_cps_cache_init)
 	ehb
 
 	/* Primary cache configuration is indicated by Config1 */
-	mfc0	v0, CP0_CONFIG, 1
+	mfc0	ta0, CP0_CONFIG, 1
 
 	/* Detect I-cache line size */
-	_EXT	t0, v0, MIPS_CONF1_IL_SHF, MIPS_CONF1_IL_SZ
+	_EXT	t0, ta0, MIPS_CONF1_IL_SHF, MIPS_CONF1_IL_SZ
 	li	t1, 2
 	beqz	t0, icache_done
 	sllv	t0, t1, t0
 
 	/* Detect I-cache size */
-	_EXT	t1, v0, MIPS_CONF1_IS_SHF, MIPS_CONF1_IS_SZ
+	_EXT	t1, ta0, MIPS_CONF1_IS_SHF, MIPS_CONF1_IS_SZ
 	xori	t2, t1, 0x7
 	li	t3, 32
 	beqz	t2, 1f
 	addiu	t1, t1, 1
 	sllv	t1, t3, t1
 1:	/* At this point t1 == I-cache sets per way */
-	_EXT	t2, v0, MIPS_CONF1_IA_SHF, MIPS_CONF1_IA_SZ
+	_EXT	t2, ta0, MIPS_CONF1_IA_SHF, MIPS_CONF1_IA_SZ
 	addiu	t2, t2, 1
 	mul	t1, t1, t0
 	mul	t1, t1, t2
@@ -530,20 +530,20 @@ LEAF(mips_cps_cache_init)
 icache_done:
 
 	/* Detect D-cache line size */
-	_EXT	t0, v0, MIPS_CONF1_DL_SHF, MIPS_CONF1_DL_SZ
+	_EXT	t0, ta0, MIPS_CONF1_DL_SHF, MIPS_CONF1_DL_SZ
 	li	t1, 2
 	beqz	t0, dcache_done
 	sllv	t0, t1, t0
 
 	/* Detect D-cache size */
-	_EXT	t1, v0, MIPS_CONF1_DS_SHF, MIPS_CONF1_DS_SZ
+	_EXT	t1, ta0, MIPS_CONF1_DS_SHF, MIPS_CONF1_DS_SZ
 	xori	t2, t1, 0x7
 	li	t3, 32
 	beqz	t2, 1f
 	addiu	t1, t1, 1
 	sllv	t1, t3, t1
 1:	/* At this point t1 == D-cache sets per way */
-	_EXT	t2, v0, MIPS_CONF1_DA_SHF, MIPS_CONF1_DA_SZ
+	_EXT	t2, ta0, MIPS_CONF1_DA_SHF, MIPS_CONF1_DA_SZ
 	addiu	t2, t2, 1
 	mul	t1, t1, t0
 	mul	t1, t1, t2
