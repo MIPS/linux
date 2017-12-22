@@ -10,21 +10,19 @@
 #ifndef _UAPI_ASM_SIGNAL_H
 #define _UAPI_ASM_SIGNAL_H
 
-#include <linux/types.h>
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+
+#include <asm-generic/signal.h>
+
+#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
 
 #if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
     (_MIPS_SIM == _MIPS_SIM_NABI32) || \
     (_MIPS_SIM == _MIPS_SIM_ABI64)
-#define _NSIG		128
-#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
 
-#if _MIPS_SIM == _MIPS_SIM_PABI32
-/*
- * 128 signals is problematic as signal 128 doesn't fit in various 8 bit fields,
- * such as in process exit codes.
- */
-#define _NSIG		64
-#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
+#include <linux/types.h>
+
+#define _NSIG		128
 
 #define _NSIG_BPW	(sizeof(unsigned long) * 8)
 #define _NSIG_WORDS	(_NSIG / _NSIG_BPW)
@@ -129,5 +127,6 @@ typedef struct sigaltstack {
 	int ss_flags;
 } stack_t;
 
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
 
 #endif /* _UAPI_ASM_SIGNAL_H */

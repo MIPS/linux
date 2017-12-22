@@ -1140,7 +1140,9 @@ asmlinkage void do_ri(struct pt_regs *regs)
 		status = mipsr2_decoder(regs, opcode, &fcr31);
 		switch (status) {
 		case 0:
+#ifdef SIGEMT
 		case SIGEMT:
+#endif
 			return;
 		case SIGILL:
 			goto no_r2_instr;
