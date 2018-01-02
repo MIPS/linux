@@ -22,7 +22,7 @@ void mips_install_watch_registers(struct task_struct *t)
 			       MIPS_WATCHHI_IRW;	/* Clear result bits */
 	unsigned int vpe;
 
-	if ((boot_cpu_data.processor_id & PRID_IMP_MASK) == PRID_IMP_I7200 {
+	if (boot_cpu_type() == CPU_I7200) {
 		vpe = cpu_vpe_id(&current_cpu_data);
 		watchhi = MIPS_WATCHHI_U |		/* Match user mode */
 			  MIPS_WATCHHI_MTEN_ID_VPE |	/* Match all TCs  */
@@ -59,7 +59,7 @@ void mips_read_watch_registers(void)
 		&current->thread.watch.mips3264;
 	unsigned int watchhi_mask = MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW;
 
-	if ((boot_cpu_data.processor_id & PRID_IMP_MASK) == PRID_IMP_I7200 {
+	if (boot_cpu_type() == CPU_I7200) {
 		/* Return only result & enable bits to userspace */
 		watchhi_mask = MIPS_WATCHHI_IRW_RSLT | MIPS_WATCHHI_IRW;
 	}
@@ -206,8 +206,8 @@ void mips_probe_watch_registers(struct cpuinfo_mips *c)
 {
 	unsigned int t;
 
-	switch (c->processor_id & PRID_IMP_MASK) {
-	case PRID_IMP_I7200:
+	switch (boot_cpu_type()) {
+	case CPU_I7200:
 		/* I7200 has non-standard watch registers */
 		return mips_probe_i7200_watch_registers(c);
 	}

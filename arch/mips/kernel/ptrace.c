@@ -209,7 +209,7 @@ int ptrace_get_watch_regs(struct task_struct *child,
 		return -EIO;
 
 #ifdef CONFIG_32BIT
-	if ((boot_cpu_data.processor_id & PRID_IMP_MASK) == PRID_IMP_I7200) {
+	if (boot_cpu_type() == CPU_I7200) {
 		style = pt_watch_style_i7200;
 		watchhi_mask = MIPS_WATCHHI_IRW_RSLT | MIPS_WATCHHI_IRW;
 	} else {
@@ -257,7 +257,7 @@ int ptrace_set_watch_regs(struct task_struct *child,
 		return -EIO;
 
 #ifdef CONFIG_32BIT
-	if ((boot_cpu_data.processor_id & PRID_IMP_MASK) == PRID_IMP_I7200)
+	if (boot_cpu_type() == CPU_I7200)
 		style = pt_watch_style_i7200;
 	else
 		style = pt_watch_style_mips32;
