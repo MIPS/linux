@@ -244,6 +244,24 @@ static int save_extcontext(void __user *buf)
 {
 	int sz = 0, __maybe_unused res;
 
+#if 0
+	/* TODO implement DSP support on nanoMIPS */
+	res = save_dsp_extcontext(buf);
+	if (res < 0)
+		return res;
+	buf += res;
+	sz += res;
+#endif
+
+#if defined(CONFIG_FP_SUPPORT) && defined(__MIPS_REDUCED_SIGCONTEXT)
+	/* TODO implement FP support on nanoMIPS */
+	res = save_fpu_extcontext(buf);
+	if (res < 0)
+		return res;
+	buf += res;
+	sz += res;
+#endif /* CONFIG_FP_SUPPORT && __MIPS_REDUCED_SIGCONTEXT */
+
 #ifndef __MIPS_REDUCED_SIGCONTEXT
 	res = save_msa_extcontext(buf);
 	if (res < 0)
@@ -476,6 +494,7 @@ static size_t extcontext_max_size(void)
 	 * the extended context for the current task at the current time.
 	 */
 
+	/* FIXME handle nanoMIPS FPU / DSP extended context */
 	if (thread_msa_context_live())
 		sz += sizeof(struct msa_extcontext);
 
