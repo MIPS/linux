@@ -10,26 +10,34 @@
 #ifndef _UAPI_ASM_SIGINFO_H
 #define _UAPI_ASM_SIGINFO_H
 
-
-#define __ARCH_SIGEV_PREAMBLE_SIZE (sizeof(long) + 2*sizeof(int))
+/* FIXME enable this for P32? */
 #undef __ARCH_SI_TRAPNO /* exception code needs to fill this ...  */
 
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
+
 #define HAVE_ARCH_SIGINFO_T
+#define __ARCH_SIGSYS
+
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
 
 /*
  * Careful to keep union _sifields from shifting ...
  */
-#if _MIPS_SZLONG == 32
-#define __ARCH_SI_PREAMBLE_SIZE (3 * sizeof(int))
-#elif _MIPS_SZLONG == 64
+#if _MIPS_SZLONG == 64
 #define __ARCH_SI_PREAMBLE_SIZE (4 * sizeof(int))
-#else
+#elif _MIPS_SZLONG != 32
 #error _MIPS_SZLONG neither 32 nor 64
 #endif
 
-#define __ARCH_SIGSYS
-
 #include <asm-generic/siginfo.h>
+
+/*
+ * nanoMIPS p32 ABI uses the generic struct siginfo defined in
+ * asm-generic/siginfo.h.
+ */
+#ifdef HAVE_ARCH_SIGINFO_T
 
 /* We can't use generic siginfo_t, because our si_code and si_errno are swapped */
 typedef struct siginfo {
@@ -123,5 +131,7 @@ typedef struct siginfo {
 #define SI_ASYNCIO	-2	/* sent by AIO completion */
 #define SI_TIMER	-3	/* sent by timer expiration */
 #define SI_MESGQ	-4	/* sent by real time mesq state change */
+
+#endif /* HAVE_ARCH_SIGINFO_T */
 
 #endif /* _UAPI_ASM_SIGINFO_H */
