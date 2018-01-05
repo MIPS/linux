@@ -224,7 +224,11 @@ void output_mm_defines(void)
 	BLANK();
 }
 
-#if defined(CONFIG_32BIT) && !defined(CONFIG_CPU_NANOMIPS)
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
+
+#if defined(CONFIG_32BIT)
 void output_sc_defines(void)
 {
 	COMMENT("Linux sigcontext offsets.");
@@ -246,7 +250,7 @@ void output_sc_defines(void)
 }
 #endif
 
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_NANOMIPS)
+#if defined(CONFIG_64BIT)
 void output_sc_defines(void)
 {
 	COMMENT("Linux sigcontext offsets.");
@@ -259,6 +263,20 @@ void output_sc_defines(void)
 	BLANK();
 }
 #endif
+
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
+
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+
+void output_sc_defines(void)
+{
+	COMMENT("Linux sigcontext offsets.");
+	OFFSET(SC_REGS, sigcontext, sc_regs);
+	OFFSET(SC_PC, sigcontext, sc_pc);
+	BLANK();
+}
+
+#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
 
 void output_signal_defined(void)
 {

@@ -42,8 +42,10 @@
 
 #include "signal-common.h"
 
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 static int (*save_fp_context)(void __user *sc);
 static int (*restore_fp_context)(void __user *sc);
+#endif /* __MIPS_REDUCED_SIGCONTEXT */
 
 struct sigframe {
 	u32 sf_ass[4];		/* argument save space for o32 */
@@ -62,6 +64,7 @@ struct rt_sigframe {
 	struct ucontext rs_uc;
 };
 
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 /*
  * Thread saved context copy to/from a signal context presumed to be on the
  * user stack, and therefore accessed with appropriate macros from uaccess.h.
@@ -124,6 +127,7 @@ static int restore_hw_fp_context(void __user *sc)
 
 	return _restore_fp_context(fpregs, csr);
 }
+#endif /* !__MIPS_REDUCED_SIGCONTEXT */
 
 /*
  * Extended context handling.
@@ -142,6 +146,7 @@ static inline void __user *sc_to_extcontext(void __user *sc)
 	return &uc->uc_extcontext;
 }
 
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 static int save_msa_extcontext(void __user *buf)
 {
 	struct msa_extcontext __user *msa = buf;
@@ -233,15 +238,19 @@ static int restore_msa_extcontext(void __user *buf, unsigned int size)
 
 	return err;
 }
+#endif /* !__MIPS_REDUCED_SIGCONTEXT */
 
 static int save_extcontext(void __user *buf)
 {
-	int sz;
+	int sz = 0, __maybe_unused res;
 
-	sz = save_msa_extcontext(buf);
-	if (sz < 0)
-		return sz;
-	buf += sz;
+#ifndef __MIPS_REDUCED_SIGCONTEXT
+	res = save_msa_extcontext(buf);
+	if (res < 0)
+		return res;
+	buf += res;
+	sz += res;
+#endif /* __MIPS_REDUCED_SIGCONTEXT */
 
 	/* If no context was saved then trivially return */
 	if (!sz)
@@ -274,9 +283,11 @@ static int restore_extcontext(void __user *buf)
 			return err;
 
 		switch (ext.magic) {
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 		case MSA_EXTCONTEXT_MAGIC:
 			err = restore_msa_extcontext(buf, ext.size);
 			break;
+#endif /* __MIPS_REDUCED_SIGCONTEXT */
 
 		default:
 			err = -EINVAL;
@@ -296,8 +307,10 @@ static int restore_extcontext(void __user *buf)
 int protected_save_fp_context(void __user *sc)
 {
 	struct mips_abi *abi = current->thread.abi;
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
 	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+#endif /* !__MIPS_REDUCED_SIGCONTEXT */
 	uint32_t __user *used_math = sc + abi->off_sc_used_math;
 	unsigned int used, ext_sz;
 	int err;
@@ -318,6 +331,7 @@ int protected_save_fp_context(void __user *sc)
 	if (IS_ENABLED(CONFIG_EVA))
 		lose_fpu(1);
 
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 	while (1) {
 		lock_fpu_owner();
 		if (is_fpu_owner()) {
@@ -336,6 +350,7 @@ int protected_save_fp_context(void __user *sc)
 		if (err)
 			return err;	/* really bad sigcontext */
 	}
+#endif /* !__MIPS_REDUCED_SIGCONTEXT */
 
 fp_done:
 	ext_sz = err = save_extcontext(sc_to_extcontext(sc));
@@ -349,8 +364,10 @@ fp_done:
 int protected_restore_fp_context(void __user *sc)
 {
 	struct mips_abi *abi = current->thread.abi;
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
 	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+#endif /* !__MIPS_REDUCED_SIGCONTEXT */
 	uint32_t __user *used_math = sc + abi->off_sc_used_math;
 	unsigned int used;
 	int err, sig = 0, tmp __maybe_unused;
@@ -369,6 +386,7 @@ int protected_restore_fp_context(void __user *sc)
 	if (!(used & USED_FP))
 		goto fp_done;
 
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 	err = sig = fpcsr_pending(csr);
 	if (err < 0)
 		return err;
@@ -399,6 +417,7 @@ int protected_restore_fp_context(void __user *sc)
 		if (err)
 			break;	/* really bad sigcontext */
 	}
+#endif /* !__MIPS_REDUCED_SIGCONTEXT */
 
 fp_done:
 	if (!err && (used & USED_EXTCONTEXT))
@@ -421,6 +440,7 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 #ifdef CONFIG_CPU_HAS_SMARTMIPS
 	err |= __put_user(regs->acx, &sc->sc_acx);
 #endif
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 	err |= __put_user(regs->hi, &sc->sc_mdhi);
 	err |= __put_user(regs->lo, &sc->sc_mdlo);
 	if (cpu_has_dsp) {
@@ -432,6 +452,7 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		err |= __put_user(mflo3(), &sc->sc_lo3);
 		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
 	}
+#endif /* __MIPS_REDUCED_SIGCONTEXT */
 
 
 	/*
@@ -486,7 +507,7 @@ int fpcsr_pending(unsigned int __user *fpcsr)
 
 int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
-	unsigned long treg;
+	unsigned long __maybe_unused treg;
 	int err = 0;
 	int i;
 
@@ -498,6 +519,8 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 #ifdef CONFIG_CPU_HAS_SMARTMIPS
 	err |= __get_user(regs->acx, &sc->sc_acx);
 #endif
+
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 	err |= __get_user(regs->hi, &sc->sc_mdhi);
 	err |= __get_user(regs->lo, &sc->sc_mdlo);
 	if (cpu_has_dsp) {
@@ -509,6 +532,7 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		err |= __get_user(treg, &sc->sc_lo3); mtlo3(treg);
 		err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
 	}
+#endif /* __MIPS_REDUCED_SIGCONTEXT */
 
 	for (i = 1; i < 32; i++)
 		err |= __get_user(regs->regs[i], &sc->sc_regs[i]);
@@ -762,8 +786,10 @@ struct mips_abi mips_abi = {
 	.setup_rt_frame = setup_rt_frame,
 	.restart	= __NR_restart_syscall,
 
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 	.off_sc_fpregs = offsetof(struct sigcontext, sc_fpregs),
 	.off_sc_fpc_csr = offsetof(struct sigcontext, sc_fpc_csr),
+#endif /* __MIPS_REDUCED_SIGCONTEXT */
 	.off_sc_used_math = offsetof(struct sigcontext, sc_used_math),
 
 	.vdso		= &vdso_image,
@@ -901,7 +927,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 	user_enter();
 }
 
-#ifdef CONFIG_SMP
+#if !defined(__MIPS_REDUCED_SIGCONTEXT) && defined(CONFIG_SMP)
 static int smp_save_fp_context(void __user *sc)
 {
 	return raw_cpu_has_fpu
@@ -915,7 +941,7 @@ static int smp_restore_fp_context(void __user *sc)
 	       ? restore_hw_fp_context(sc)
 	       : copy_fp_from_sigcontext(sc);
 }
-#endif
+#endif /* __MIPS_REDUCED_SIGCONTEXT && CONFIG_SMP */
 
 static int signal_setup(void)
 {
@@ -929,6 +955,7 @@ static int signal_setup(void)
 		     (offsetof(struct rt_sigframe, rs_uc.uc_extcontext) -
 		      offsetof(struct rt_sigframe, rs_uc.uc_mcontext)));
 
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 #ifdef CONFIG_SMP
 	/* For now just do the cpu_has_fpu check when the functions are invoked */
 	save_fp_context = smp_save_fp_context;
@@ -942,6 +969,7 @@ static int signal_setup(void)
 		restore_fp_context = copy_fp_from_sigcontext;
 	}
 #endif /* CONFIG_SMP */
+#endif /* !__MIPS_REDUCED_SIGCONTEXT */
 
 	return 0;
 }

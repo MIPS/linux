@@ -91,27 +91,17 @@ struct sigcontext {
 #if _MIPS_SIM == _MIPS_SIM_PABI32
 
 /*
- * FIXME Stare at this. Do we need to extend more directly for MSA, maybe with
- * an FP stride and more built in extensibility?
- * FIXME do sc_regs and sc_pc need to be 64-bit?
+ * nanoMIPS makes the sigcontext a bit more minimal, with all optional ASE
+ * context (DSP, FPU and MSA) represented as extended context entries.
  */
 struct sigcontext {
 	__u64		sc_regs[32];
-	__u64		sc_fpregs[32];
 	__u64		sc_pc;
-	__u64		sc_mdhi;
-	__u64		sc_mdlo;
-	unsigned long	sc_hi1;
-	unsigned long	sc_hi2;
-	unsigned long	sc_hi3;
-	unsigned long	sc_lo1;
-	unsigned long	sc_lo2;
-	unsigned long	sc_lo3;
-	__u32		sc_fpc_csr;
 	__u32		sc_used_math;
-	__u32		sc_dsp;
 	__u32		sc_reserved;
 };
+
+#define __MIPS_REDUCED_SIGCONTEXT
 
 #endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
 
