@@ -52,7 +52,7 @@
 #endif
 
 #ifndef EM_NANOMIPS
-#define EM_NANOMIPS	0x5237
+#define EM_NANOMIPS	249
 #endif
 
 static int fd_map;	/* File descriptor for file being modified. */
