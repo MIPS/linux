@@ -46,7 +46,7 @@
 # define SHT_MIPS_ABIFLAGS	0x7000002a
 #endif
 #ifndef EM_NANOMIPS
-# define EM_NANOMIPS		0x5237
+# define EM_NANOMIPS		249
 #endif
 #ifndef EF_MIPS_ABI
 # define EF_MIPS_ABI		0xf000
