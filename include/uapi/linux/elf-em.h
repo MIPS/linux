@@ -42,6 +42,7 @@
 #define EM_MICROBLAZE	189	/* Xilinx MicroBlaze */
 #define EM_TILEGX	191	/* Tilera TILE-Gx */
 #define EM_BPF		247	/* Linux BPF - in-kernel virtual machine */
+#define EM_NANOMIPS	249	/* nanoMIPS */
 #define EM_FRV		0x5441	/* Fujitsu FR-V */
 
 /*
@@ -56,7 +57,5 @@
 #define EM_S390_OLD	0xA390
 /* Also Panasonic/MEI MN10300, AM33 */
 #define EM_CYGNUS_MN10300 0xbeef
-
-#define EM_NANOMIPS	0x5237	/* nanoMIPS */
 
 #endif /* _LINUX_ELF_EM_H */
