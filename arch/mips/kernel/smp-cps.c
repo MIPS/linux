@@ -414,7 +414,7 @@ static int cps_cpu_disable(void)
 	return 0;
 }
 
-static unsigned cpu_death_sibling;
+static int cpu_death_sibling;
 static enum {
 	CPU_DEATH_HALT,
 	CPU_DEATH_POWER,
@@ -433,17 +433,13 @@ void play_dead(void)
 	pr_debug("CPU%d going offline\n", cpu);
 
 	if (cpu_has_mipsmt || cpu_has_vp) {
-		/* Look for another online VPE within the core */
-		for_each_online_cpu(cpu_death_sibling) {
-			if (!cpus_are_siblings(cpu, cpu_death_sibling))
-				continue;
-
+		cpu_death_sibling = smp_get_online_sibling(cpu);
+		if (cpu_death_sibling >= 0) {
 			/*
 			 * There is an online VPE within the core. Just halt
 			 * this TC and leave the core alone.
 			 */
 			cpu_death = CPU_DEATH_HALT;
-			break;
 		}
 	}
 
