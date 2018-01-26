@@ -402,7 +402,12 @@ static int cps_cpu_disable(void)
 	if (!cpu)
 		return -EBUSY;
 
-	if (!cps_pm_support_state(CPS_PM_POWER_GATED))
+	/*
+	 * Check that the PM code will be able to perform the power down if this
+	 * is the last CPU to be offlined in a core. If not, block the attempt
+	 */
+	if ((smp_get_online_sibling(cpu) < 0) &&
+	    (!cps_pm_support_state(CPS_PM_POWER_GATED)))
 		return -EINVAL;
 
 	core_cfg = &mips_cps_core_bootcfg[cpu_core(&current_cpu_data)];
