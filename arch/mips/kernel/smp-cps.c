@@ -302,7 +302,7 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 	struct core_boot_config *core_cfg = &mips_cps_core_bootcfg[core];
 	struct vpe_boot_config *vpe_cfg = &core_cfg->vpe_config[vpe_id];
 	unsigned long core_entry;
-	unsigned int remote;
+	int remote;
 	int err;
 
 	/* We don't yet support booting CPUs in other clusters */
@@ -331,14 +331,8 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 	}
 
 	if (!cpus_are_siblings(cpu, smp_processor_id())) {
-		/* Boot a VPE on another powered up core */
-		for (remote = 0; remote < NR_CPUS; remote++) {
-			if (!cpus_are_siblings(cpu, remote))
-				continue;
-			if (cpu_online(remote))
-				break;
-		}
-		if (remote >= NR_CPUS) {
+		remote = smp_get_online_sibling(cpu);
+		if (remote < 0) {
 			pr_crit("No online CPU in core %u to start CPU%d\n",
 				core, cpu);
 			goto out;
