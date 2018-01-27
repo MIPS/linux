@@ -2509,21 +2509,21 @@ static void emulate_load_store_nanoMIPS(struct pt_regs *regs, void __user *addr)
 	goto sigill;
 
 lh:
-	err = get_user(data.s16, (s16 __user *)addr);
+	LoadHW(addr, data.s16, err);
 	if (err)
 		goto fault;
 	regs->regs[rt] = (long)data.s16;
 	goto done;
 
 lhu:
-	err = get_user(data.u16, (u16 __user *)addr);
+	LoadHWU(addr, data.u16, err);
 	if (err)
 		goto fault;
 	regs->regs[rt] = data.u16;
 	goto done;
 
 lw:
-	err = get_user(data.s32, (s32 __user *)addr);
+	LoadW(addr, data.s32, err);
 	if (err)
 		goto fault;
 	regs->regs[rt] = (long)data.s32;
@@ -2531,14 +2531,14 @@ lw:
 
 sh:
 	data.s16 = regs->regs[rt];
-	err = put_user(data.s16, (s16 __user *)addr);
+	StoreHW(addr, data.s16, err);
 	if (err)
 		goto fault;
 	goto done;
 
 sw:
 	data.s32 = regs->regs[rt];
-	err = put_user(data.s32, (s32 __user *)addr);
+	StoreW(addr, data.s32, err);
 	if (err)
 		goto fault;
 	goto done;
