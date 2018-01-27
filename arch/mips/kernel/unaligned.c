@@ -2509,6 +2509,8 @@ static void emulate_load_store_nanoMIPS(struct pt_regs *regs, void __user *addr)
 	goto sigill;
 
 lh:
+	if (!access_ok(VERIFY_READ, addr, 2))
+		goto sigbus;
 	LoadHW(addr, data.s16, err);
 	if (err)
 		goto fault;
@@ -2516,6 +2518,8 @@ lh:
 	goto done;
 
 lhu:
+	if (!access_ok(VERIFY_READ, addr, 2))
+		goto sigbus;
 	LoadHWU(addr, data.u16, err);
 	if (err)
 		goto fault;
@@ -2523,6 +2527,8 @@ lhu:
 	goto done;
 
 lw:
+	if (!access_ok(VERIFY_READ, addr, 4))
+		goto sigbus;
 	LoadW(addr, data.s32, err);
 	if (err)
 		goto fault;
@@ -2530,6 +2536,8 @@ lw:
 	goto done;
 
 sh:
+	if (!access_ok(VERIFY_WRITE, addr, 2))
+		goto sigbus;
 	data.s16 = regs->regs[rt];
 	StoreHW(addr, data.s16, err);
 	if (err)
@@ -2537,6 +2545,8 @@ sh:
 	goto done;
 
 sw:
+	if (!access_ok(VERIFY_WRITE, addr, 4))
+		goto sigbus;
 	data.s32 = regs->regs[rt];
 	StoreW(addr, data.s32, err);
 	if (err)
@@ -2553,6 +2563,11 @@ done:
 fault:
 	die_if_kernel("Unhandled kernel unaligned access", regs);
 	force_sig(SIGSEGV, current);
+	return;
+
+sigbus:
+	die_if_kernel("Unhandled kernel unaligned access", regs);
+	force_sig(SIGBUS, current);
 	return;
 
 sigill:
