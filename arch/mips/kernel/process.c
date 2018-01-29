@@ -491,7 +491,7 @@ arch_initcall(frame_info_init);
 /*
  * Return saved PC of a blocked thread.
  */
-unsigned long thread_saved_pc(struct task_struct *tsk)
+static unsigned long thread_saved_pc(struct task_struct *tsk)
 {
 	struct thread_struct *t = &tsk->thread;
 
@@ -748,6 +748,18 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 
 	/* We can do nothing sensible if we have no FP support */
 	if (!IS_ENABLED(CONFIG_FP_SUPPORT))
+		return -EOPNOTSUPP;
+
+	/* If nothing to change, return right away, successfully.  */
+	if (value == mips_get_process_fp_mode(task))
+		return 0;
+
+	/* Only accept a mode change if 64-bit FP enabled for o32.  */
+	if (!IS_ENABLED(CONFIG_MIPS_O32_FP64_SUPPORT))
+		return -EOPNOTSUPP;
+
+	/* And only for o32 tasks.  */
+	if (IS_ENABLED(CONFIG_64BIT) && !test_thread_flag(TIF_32BIT_REGS))
 		return -EOPNOTSUPP;
 
 	/* Check the value is valid */

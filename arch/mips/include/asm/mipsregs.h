@@ -1428,20 +1428,18 @@ do {									\
 		__asm__ __volatile__(					\
 			".set\tpush\n\t"				\
 			".set\t" MIPS_ISA_LEVEL "\n\t"			\
-			"dmfc0\t%M0, " #source "\n\t"			\
-			"dsll\t%L0, %M0, 32\n\t"			\
-			"dsra\t%M0, %M0, 32\n\t"			\
-			"dsra\t%L0, %L0, 32\n\t"			\
+			"dmfc0\t%L0, " #source "\n\t"			\
+			"dsra\t%M0, %L0, 32\n\t"			\
+			"sll\t%L0, %L0, 0\n\t"				\
 			".set\tpop"					\
 			: "=r" (__val));				\
 	else								\
 		__asm__ __volatile__(					\
 			".set\tpush\n\t"				\
 			".set\t" MIPS_ISA_LEVEL "\n\t"			\
-			"dmfc0\t%M0, " #source ", " #sel "\n\t"		\
-			"dsll\t%L0, %M0, 32\n\t"			\
-			"dsra\t%M0, %M0, 32\n\t"			\
-			"dsra\t%L0, %L0, 32\n\t"			\
+			"dmfc0\t%L0, " #source ", " #sel "\n\t"		\
+			"dsra\t%M0, %L0, 32\n\t"			\
+			"sll\t%L0, %L0, 0\n\t"				\
 			".set\tpop"					\
 			: "=r" (__val));				\
 	local_irq_restore(__flags);					\
