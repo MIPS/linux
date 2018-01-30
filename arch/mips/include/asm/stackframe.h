@@ -57,52 +57,43 @@
 		.endm
 
 		.macro	SAVE_TEMP docfi=0
-#if _MIPS_ABI == _MIPS_ABI_PABI32
-		cfi_st	$3, PT_R3, \docfi
-		cfi_st	$10, PT_R10, \docfi
-		cfi_st	$11, PT_R11, \docfi
-		cfi_st	$12, PT_R12, \docfi
-		cfi_st	$13, PT_R13, \docfi
-		cfi_st	$14, PT_R14, \docfi
-		cfi_st	$15, PT_R15, \docfi
-		cfi_st	$24, PT_R24, \docfi
-#else
-# ifdef CONFIG_CPU_HAS_SMARTMIPS
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
 		mflhxu	v1
 		LONG_S	v1, PT_LO(sp)
 		mflhxu	v1
 		LONG_S	v1, PT_HI(sp)
 		mflhxu	v1
 		LONG_S	v1, PT_ACX(sp)
-# elif !defined(CONFIG_CPU_MIPSR6)
+#elif !defined(CONFIG_CPU_MIPSR6)
 		mfhi	v1
-# endif
-# ifdef CONFIG_32BIT
+#endif
+#if _MIPS_ABI == _MIPS_ABI_PABI32
+		cfi_st	$3, PT_R3, \docfi
+#elif defined(CONFIG_32BIT)
 		cfi_st	$8, PT_R8, \docfi
 		cfi_st	$9, PT_R9, \docfi
-# endif
+#endif
 		cfi_st	$10, PT_R10, \docfi
 		cfi_st	$11, PT_R11, \docfi
 		cfi_st	$12, PT_R12, \docfi
-# if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
+#if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
 		LONG_S	v1, PT_HI(sp)
 		mflo	v1
-# endif
+#endif
 		cfi_st	$13, PT_R13, \docfi
 		cfi_st	$14, PT_R14, \docfi
 		cfi_st	$15, PT_R15, \docfi
 		cfi_st	$24, PT_R24, \docfi
-# if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
+#if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
 		LONG_S	v1, PT_LO(sp)
-# endif
-# ifdef CONFIG_CPU_CAVIUM_OCTEON
+#endif
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
 		/*
 		 * The Octeon multiplier state is affected by general
 		 * multiply instructions. It must be saved before and
 		 * kernel code might corrupt it
 		 */
 		jal     octeon_mult_save
-# endif
 #endif
 		.endm
 
@@ -328,37 +319,29 @@
 		.endm
 
 		.macro	RESTORE_TEMP docfi=0
-#if _MIPS_ABI == _MIPS_ABI_PABI32
-		cfi_ld	$3, PT_R3, \docfi
-		cfi_ld	$10, PT_R10, \docfi
-		cfi_ld	$11, PT_R11, \docfi
-		cfi_ld	$12, PT_R12, \docfi
-		cfi_ld	$13, PT_R13, \docfi
-		cfi_ld	$14, PT_R14, \docfi
-		cfi_ld	$15, PT_R15, \docfi
-		cfi_ld	$24, PT_R24, \docfi
-#else
-# ifdef CONFIG_CPU_CAVIUM_OCTEON
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
 		/* Restore the Octeon multiplier state */
 		jal	octeon_mult_restore
-# endif
-# ifdef CONFIG_CPU_HAS_SMARTMIPS
+#endif
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
 		LONG_L	$24, PT_ACX(sp)
 		mtlhx	$24
 		LONG_L	$24, PT_HI(sp)
 		mtlhx	$24
 		LONG_L	$24, PT_LO(sp)
 		mtlhx	$24
-# elif !defined(CONFIG_CPU_MIPSR6)
+#elif !defined(CONFIG_CPU_MIPSR6)
 		LONG_L	$24, PT_LO(sp)
 		mtlo	$24
 		LONG_L	$24, PT_HI(sp)
 		mthi	$24
-# endif
-# ifdef CONFIG_32BIT
+#endif
+#if _MIPS_ABI == _MIPS_ABI_PABI32
+		cfi_ld	$3, PT_R3, \docfi
+#elif defined(CONFIG_32BIT)
 		cfi_ld	$8, PT_R8, \docfi
 		cfi_ld	$9, PT_R9, \docfi
-# endif
+#endif
 		cfi_ld	$10, PT_R10, \docfi
 		cfi_ld	$11, PT_R11, \docfi
 		cfi_ld	$12, PT_R12, \docfi
@@ -366,7 +349,6 @@
 		cfi_ld	$14, PT_R14, \docfi
 		cfi_ld	$15, PT_R15, \docfi
 		cfi_ld	$24, PT_R24, \docfi
-#endif
 		.endm
 
 		.macro	RESTORE_STATIC docfi=0
