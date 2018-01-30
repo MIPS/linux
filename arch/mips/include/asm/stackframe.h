@@ -58,9 +58,9 @@
 
 		.macro	SAVE_TEMP docfi=0
 #if _MIPS_ABI == _MIPS_ABI_PABI32
-		cfi_st	$2, PT_R2, \docfi
 		cfi_st	$3, PT_R3, \docfi
 		cfi_st	$10, PT_R10, \docfi
+		cfi_st	$11, PT_R11, \docfi
 		cfi_st	$12, PT_R12, \docfi
 		cfi_st	$13, PT_R13, \docfi
 		cfi_st	$14, PT_R14, \docfi
@@ -272,9 +272,7 @@
 		 */
 		LONG_S	$0, PT_R0(sp)
 		mfc0	k0, CP0_STATUS
-#if _MIPS_ABI != _MIPS_ABI_PABI32
 		cfi_st	$2, PT_R2, \docfi
-#endif
 		LONG_S	k0, PT_STATUS(sp)
 		cfi_st	$4, PT_R4, \docfi
 		mfc0	k0, CP0_CAUSE
@@ -287,9 +285,6 @@
 #if defined(CONFIG_64BIT) || (_MIPS_ABI == _MIPS_ABI_PABI32)
 		cfi_st	$8, PT_R8, \docfi
 		cfi_st	$9, PT_R9, \docfi
-#endif
-#if _MIPS_ABI == _MIPS_ABI_PABI32
-		cfi_st	$11, PT_R11, \docfi
 #endif
 		LONG_S	ra, PT_EPC(sp)
 		.if \docfi
@@ -334,9 +329,9 @@
 
 		.macro	RESTORE_TEMP docfi=0
 #if _MIPS_ABI == _MIPS_ABI_PABI32
-		cfi_ld	$2, PT_R2, \docfi
 		cfi_ld	$3, PT_R3, \docfi
 		cfi_ld	$10, PT_R10, \docfi
+		cfi_ld	$11, PT_R11, \docfi
 		cfi_ld	$12, PT_R12, \docfi
 		cfi_ld	$13, PT_R13, \docfi
 		cfi_ld	$14, PT_R14, \docfi
@@ -448,13 +443,13 @@
 		cfi_ld	$31, PT_R31, \docfi
 		cfi_ld	$28, PT_R28, \docfi
 		cfi_ld	$25, PT_R25, \docfi
-		cfi_ld	$11, PT_R11, \docfi
 		cfi_ld	$9,  PT_R9, \docfi
 		cfi_ld	$8,  PT_R8, \docfi
 		cfi_ld	$7,  PT_R7, \docfi
 		cfi_ld	$6,  PT_R6, \docfi
 		cfi_ld	$5,  PT_R5, \docfi
 		cfi_ld	$4,  PT_R4, \docfi
+		cfi_ld	$2,  PT_R2, \docfi
 		.set	pop
 		.endm
 

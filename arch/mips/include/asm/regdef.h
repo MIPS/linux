@@ -62,8 +62,6 @@
 #define t9	$25
 #define jp	$25	/* PIC jump register */
 
-#define scn	v0	/* syscall number */
-
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32
@@ -88,8 +86,6 @@
 #define t8	$24	/* caller saved */
 #define t9	$25	/* callee address for PIC/temp */
 #define jp	$25	/* PIC jump register */
-
-#define scn	v0	/* syscall number */
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32 */
 
@@ -116,8 +112,6 @@
 #define t3	$15
 #define t8	$24
 #define t9	$25
-
-#define scn	a7	/* syscall number */
 
 #endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
 

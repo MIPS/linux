@@ -900,11 +900,10 @@ static void do_signal(struct pt_regs *regs)
 			break;
 
 		case ERESTART_RESTARTBLOCK:
+			regs->regs[2] = current->thread.abi->restart;
 #ifdef CONFIG_CPU_NANOMIPS
-			regs->regs[11] = current->thread.abi->restart;
 			regs->regs[4] = regs->regs[26];
 #else
-			regs->regs[2] = current->thread.abi->restart;
 			regs->regs[7] = regs->regs[26];
 #endif
 			regs->cp0_epc -= 4;

@@ -42,11 +42,12 @@ NESTED(handle_sys, PT_SIZE, sp)
 	bnez	t0, syscall_trace_entry
 
 syscall_common:
-	sltiu   t0, a7, __NR_syscalls
+	# Syscall number is in t4 ($2)
+	sltiu   t0, t4, __NR_syscalls
 	beqz	t0, illegal_syscall
 
 	PTR_LA	t0, sys_call_table
-	PTR_LXS	t0, a7(t0)		# load entry from table
+	PTR_LXS	t0, t4(t0)		# load entry from table
 
 	jalr	t0			# Do The Real Thing (TM)
 
@@ -62,19 +63,19 @@ syscall_exit:
 syscall_trace_entry:
 	SAVE_STATIC
 	move	a0, sp
-	move	a1, a7
+	move	a1, t4
 	jal	syscall_trace_enter
 
 	bltz	v0, 1f			# seccomp failed? Skip syscall
 
 	RESTORE_STATIC
+	LONG_L	t4, PT_R2(sp)		# Restore syscall (maybe modified)
 	LONG_L	a0, PT_R4(sp)		# Restore argument registers
 	LONG_L	a1, PT_R5(sp)
 	LONG_L	a2, PT_R6(sp)
 	LONG_L	a3, PT_R7(sp)
 	LONG_L	a4, PT_R8(sp)
 	LONG_L	a5, PT_R9(sp)
-	LONG_L	a7, PT_R11(sp)		# Restore syscall (maybe modified)
 	j	syscall_common
 
 1:	j	syscall_exit

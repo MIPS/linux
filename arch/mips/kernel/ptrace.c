@@ -908,8 +908,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		case 0 ... 31:
 			regs->regs[addr] = data;
 			/* System call number may have been changed */
-			if ((IS_ENABLED(CONFIG_CPU_NANOMIPS) && addr == 11) ||
-			    (!IS_ENABLED(CONFIG_CPU_NANOMIPS) && addr == 2))
+			if (addr == 2)
 				mips_syscall_update_nr(child, regs);
 			else if (addr == 4 &&
 				 mips_syscall_is_indirect(child, regs))
@@ -1051,13 +1050,8 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 	}
 #endif
 
-#ifdef CONFIG_CPU_NANOMIPS
-	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
-		trace_sys_enter(regs, regs->regs[11]);
-#else
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->regs[2]);
-#endif
 
 	audit_syscall_entry(syscall, regs->regs[4], regs->regs[5],
 			    regs->regs[6], regs->regs[7]);
