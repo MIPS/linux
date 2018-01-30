@@ -47,12 +47,16 @@ static inline void mips_syscall_update_nr(struct task_struct *task,
 {
 	/*
 	 * v0 is the system call number, except for O32 ABI syscall(), where it
-	 * ends up in a0.
+	 * ends up in a0, and nanoMIPS p32 where it is in a7.
 	 */
+#ifdef CONFIG_CPU_NANOMIPS
+	task_thread_info(task)->syscall = regs->regs[11];
+#else
 	if (mips_syscall_is_indirect(task, regs))
 		task_thread_info(task)->syscall = regs->regs[4];
 	else
 		task_thread_info(task)->syscall = regs->regs[2];
+#endif
 }
 
 static inline unsigned long mips_get_syscall_arg(unsigned long *arg,

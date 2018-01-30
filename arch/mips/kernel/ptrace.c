@@ -908,7 +908,8 @@ long arch_ptrace(struct task_struct *child, long request,
 		case 0 ... 31:
 			regs->regs[addr] = data;
 			/* System call number may have been changed */
-			if (addr == 2)
+			if ((IS_ENABLED(CONFIG_CPU_NANOMIPS) && addr == 11) ||
+			    (!IS_ENABLED(CONFIG_CPU_NANOMIPS) && addr == 2))
 				mips_syscall_update_nr(child, regs);
 			else if (addr == 4 &&
 				 mips_syscall_is_indirect(child, regs))
