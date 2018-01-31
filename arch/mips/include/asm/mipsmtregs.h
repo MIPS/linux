@@ -364,6 +364,12 @@ static inline void ehb(void)
 	: "r" (v));							\
 })
 
+#ifdef __nanomips__
+# define _r_pfx "r"
+#else
+# define _r_pfx
+#endif
+
 #define mftgpr(rt)							\
 ({									\
 	unsigned long __res;						\
@@ -371,7 +377,7 @@ static inline void ehb(void)
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	mt					\n"	\
-	"	mftgpr	%0, $r" #rt "				\n"	\
+	"	mftgpr	%0, $" _r_pfx #rt "			\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res));						\
 									\
@@ -383,7 +389,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	mt					\n"	\
-	"	mttgpr	%0, $r" #rd "				\n"	\
+	"	mttgpr	%0, $" _r_pfx #rd "			\n"	\
 	"	.set	pop					\n"	\
 	: : "r" (v));							\
 } while (0)
