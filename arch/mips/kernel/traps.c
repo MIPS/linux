@@ -1484,14 +1484,17 @@ asmlinkage void do_msa_fpe(struct pt_regs *regs, unsigned int msacsr)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
-	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
-	if (notify_die(DIE_MSAFP, "MSA FP exception", regs, 0,
-		       current->thread.trap_nr, SIGFPE) == NOTIFY_STOP)
-		goto out;
 
-	/* Clear MSACSR.Cause before enabling interrupts */
-	write_msa_csr(msacsr & ~MSA_CSR_CAUSEF);
-	local_irq_enable();
+	if (IS_ENABLED(CONFIG_CPU_HAS_MSA)) {
+		current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
+		if (notify_die(DIE_MSAFP, "MSA FP exception", regs, 0,
+			       current->thread.trap_nr, SIGFPE) == NOTIFY_STOP)
+			goto out;
+
+		/* Clear MSACSR.Cause before enabling interrupts */
+		write_msa_csr(msacsr & ~MSA_CSR_CAUSEF);
+		local_irq_enable();
+	}
 
 	die_if_kernel("do_msa_fpe invoked from kernel context!", regs);
 	force_sig(SIGFPE, current);
