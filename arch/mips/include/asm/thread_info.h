@@ -15,6 +15,81 @@
 
 #include <asm/processor.h>
 
+#ifdef CONFIG_HAVE_ARCH_WITHIN_STACK_FRAMES
+
+/*
+ * Walks up the stack frames to make sure that the specified object is
+ * entirely contained by a single stack frame.
+ *
+ * Returns:
+ *	GOOD_FRAME	if within a frame
+ *	BAD_STACK	if placed across a frame boundary (or outside stack)
+ *	NOT_STACK	unable to determine
+ */
+static inline int arch_within_stack_frames(const void *const stack,
+					   const void *const stackend,
+					   const void *obj, unsigned long len)
+{
+	/* Avoid header recursion by just declaring this here */
+	extern unsigned long unwind_stack_by_address(
+						unsigned long stack_page,
+						unsigned long *sp,
+						unsigned long *fp,
+						unsigned long pc,
+						unsigned long *ra);
+	unsigned long sp, lastsp, ra, pc;
+	int skip_frames;
+
+	/* Get this frame's details */
+	sp = (unsigned long)__builtin_frame_address(0);
+	pc = (unsigned long)current_text_addr();
+
+	/*
+	 * Skip initial frames to get back the function requesting the copy.
+	 * Unwind the frames of:
+	 *   arch_within_stack_frames (inlined into check_stack_object)
+	 *   __check_object_size
+	 * This leaves sp & pc in the frame associated with
+	 *   copy_{to,from}_user() (inlined into do_usercopy_stack)
+	 */
+	for (skip_frames = 0; skip_frames < 2; skip_frames++) {
+		pc = unwind_stack_by_address((unsigned long)stack, &sp, NULL, pc, &ra);
+		if (!pc)
+			return BAD_STACK;
+	}
+
+	if ((unsigned long)obj < sp) {
+		/* obj is not in the frame of the requestor or it's callers */
+		return BAD_STACK;
+	}
+
+	/*
+	 * low ---------------------------------------> high
+	 * [local vars][saved regs][ra][local vars']
+	 * ^                           ^
+	 * lastsp                      sp
+	 * ^----------------------^
+	 *  allow copies only within here
+	 */
+	do {
+		lastsp = sp;
+		pc = unwind_stack_by_address((unsigned long)stack, &sp, NULL, pc, &ra);
+		if ((((unsigned long)obj) >= lastsp) &&
+		    (((unsigned long)obj + len) <= (sp - sizeof(void *)))) {
+			/* obj is entirely within this stack frame */
+			return GOOD_FRAME;
+		}
+	} while (pc);
+
+	/*
+	 * We can't unwind any further. If we haven't found the object entirely
+	 * within one of our callers frames, it must be a bad object.
+	 */
+	return BAD_STACK;
+}
+
+#endif /* CONFIG_HAVE_ARCH_WITHIN_STACK_FRAMES */
+
 /*
  * low level task data that entry.S needs immediate access to
  * - this struct should fit entirely inside of one cache line
