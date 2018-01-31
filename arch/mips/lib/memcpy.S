@@ -551,7 +551,7 @@ SEXC(1)
 	.align	5
 LEAF(memcpy)					/* a0=dst a1=src a2=len */
 EXPORT_SYMBOL(memcpy)
-#if _MIPS_ABI == _MIPS_ABI_PABI32
+#if _MIPS_SIM == _MIPS_SIM_PABI32
 	move	ta3, a0
 # define dst	ta3
 #else

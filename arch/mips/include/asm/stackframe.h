@@ -67,7 +67,7 @@
 #elif !defined(CONFIG_CPU_MIPSR6)
 		mfhi	v1
 #endif
-#if _MIPS_ABI == _MIPS_ABI_PABI32
+#if _MIPS_SIM == _MIPS_SIM_PABI32
 		cfi_st	$3, PT_R3, \docfi
 #elif defined(CONFIG_32BIT)
 		cfi_st	$8, PT_R8, \docfi
@@ -253,7 +253,7 @@
 		.endif
 		cfi_st	k0, PT_R29, \docfi
 		cfi_rel_offset  sp, PT_R29, \docfi
-#if _MIPS_ABI != _MIPS_ABI_PABI32
+#if _MIPS_SIM != _MIPS_SIM_PABI32
 		cfi_st	v1, PT_R3, \docfi
 #endif
 		/*
@@ -273,7 +273,7 @@
 		cfi_st	ra, PT_R31, \docfi
 		MFC0	ra, CP0_EPC
 		cfi_st	$7, PT_R7, \docfi
-#if defined(CONFIG_64BIT) || (_MIPS_ABI == _MIPS_ABI_PABI32)
+#if defined(CONFIG_64BIT) || (_MIPS_SIM == _MIPS_SIM_PABI32)
 		cfi_st	$8, PT_R8, \docfi
 		cfi_st	$9, PT_R9, \docfi
 #endif
@@ -336,7 +336,7 @@
 		LONG_L	$24, PT_HI(sp)
 		mthi	$24
 #endif
-#if _MIPS_ABI == _MIPS_ABI_PABI32
+#if _MIPS_SIM == _MIPS_SIM_PABI32
 		cfi_ld	$3, PT_R3, \docfi
 #elif defined(CONFIG_32BIT)
 		cfi_ld	$8, PT_R8, \docfi
@@ -406,7 +406,7 @@
 		.set	pop
 		.endm
 
-#elif _MIPS_ABI == _MIPS_ABI_PABI32
+#elif _MIPS_SIM == _MIPS_SIM_PABI32
 
 		.macro	RESTORE_SOME docfi=0
 		.set	push
