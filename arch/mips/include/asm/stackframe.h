@@ -95,7 +95,7 @@
 #endif
 
 		/* Set thread_info if we're coming from user mode */
-		get_saved_ti $28, v1
+		get_saved_ti $28, k0
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 		.set	push
 		.set	mips64
