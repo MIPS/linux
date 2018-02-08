@@ -93,6 +93,8 @@ static inline int smp_get_online_sibling(int cpu)
 
 	/* Look for another online VP(E) within the core */
 	for_each_online_cpu(sibling_cpu) {
+		if (sibling_cpu == cpu)
+			continue;
 		if (cpus_are_siblings(cpu, sibling_cpu))
 			return sibling_cpu;
 	}
