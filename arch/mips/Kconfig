@@ -2654,6 +2654,17 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config SMP_SINGLE_IPI
+	bool "Route all IPIs through a single vector"
+	depends on SMP && GENERIC_IRQ_IPI
+	help
+	  This option reduces the number of IPIs required for Linux to one
+	  per CPU rather than the traditional 2, at the expense of a slightly
+	  higher latency. This allows Linux to run on devices that do not have
+	  enough interrupts available for IPIs.
+
+	  If you don't know what to do here, say N.
+
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
 	depends on SMP && SYS_SUPPORTS_HOTPLUG_CPU

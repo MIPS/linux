@@ -152,6 +152,71 @@ void register_smp_ops(const struct plat_smp_ops *ops)
 }
 
 #ifdef CONFIG_GENERIC_IRQ_IPI
+
+#ifdef CONFIG_SMP_SINGLE_IPI
+/* A per-cpu mask of pending IPI requests */
+static DEFINE_PER_CPU_SHARED_ALIGNED(atomic_t, ipi_action);
+static unsigned int ipi_virq;
+
+static irqreturn_t handle_IPI(int irq, void *dev_id)
+{
+	atomic_t *pending_ipis = this_cpu_ptr(&ipi_action);
+	unsigned long actions;
+
+	while ((actions = atomic_xchg(pending_ipis, 0)) != 0) {
+		if (actions & SMP_CALL_FUNCTION)
+			generic_smp_call_function_interrupt();
+
+		if (actions & SMP_RESCHEDULE_YOURSELF)
+			scheduler_ipi();
+	}
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction irq_ipi = {
+	.handler	= handle_IPI,
+	.flags		= IRQF_PERCPU,
+	.name		= "IPI"
+};
+
+void mips_smp_send_ipi_single(int cpu, unsigned int action)
+{
+	unsigned long flags;
+	unsigned int core;
+
+	local_irq_save(flags);
+
+	atomic_or(action, &per_cpu(ipi_action, cpu));
+	ipi_send_single(ipi_virq, cpu);
+
+	if (IS_ENABLED(CONFIG_CPU_PM) && mips_cpc_present() &&
+	    !cpus_are_siblings(cpu, smp_processor_id())) {
+		/*
+		 * When CPU Idle is enabled, ensure that the target CPU
+		 * is powered up and able to receive the incoming IPI
+		 */
+		while (!cpumask_test_cpu(cpu, &cpu_coherent_mask)) {
+			core = cpu_core(&cpu_data[cpu]);
+			mips_cm_lock_other_cpu(cpu, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
+			mips_cpc_lock_other(core);
+			write_cpc_co_cmd(CPC_Cx_CMD_PWRUP);
+			mips_cpc_unlock_other();
+			mips_cm_unlock_other();
+		}
+	}
+	local_irq_restore(flags);
+}
+
+void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
+{
+	int cpu;
+
+	for_each_cpu(cpu, mask)
+		mips_smp_send_ipi_single(cpu, action);
+}
+
+#else /* CONFIG_SMP_SINGLE_IPI */
 static unsigned int call_virq, sched_virq;
 static struct irq_desc *call_desc;
 static struct irq_desc *sched_desc;
@@ -229,6 +294,8 @@ static struct irqaction irq_call = {
 	.name		= "IPI call"
 };
 
+#endif /* CONFIG_SMP_SINGLE_IPI */
+
 static void smp_ipi_init_one(unsigned int virq,
 				    struct irqaction *action)
 {
@@ -272,6 +339,21 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 		return 0;
 	}
 
+#ifdef CONFIG_SMP_SINGLE_IPI
+	virq = irq_reserve_ipi(ipidomain, mask);
+	BUG_ON(!virq);
+	if (!ipi_virq)
+		ipi_virq = virq;
+
+	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
+		int cpu;
+
+		for_each_cpu(cpu, mask)
+			smp_ipi_init_one(ipi_virq + cpu, &irq_ipi);
+	} else {
+		smp_ipi_init_one(ipi_virq, &irq_ipi);
+	}
+#else
 	virq = irq_reserve_ipi(ipidomain, mask);
 	BUG_ON(!virq);
 	if (!call_virq)
@@ -293,6 +375,7 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 		smp_ipi_init_one(call_virq, &irq_call);
 		smp_ipi_init_one(sched_virq, &irq_resched);
 	}
+#endif /* CONFIG_SMP_SINGLE_IPI */
 
 	return 0;
 }
@@ -315,6 +398,15 @@ int mips_smp_ipi_free(const struct cpumask *mask)
 
 	BUG_ON(!ipidomain);
 
+#ifdef CONFIG_SMP_SINGLE_IPI
+	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
+		int cpu;
+
+		for_each_cpu(cpu, mask)
+			remove_irq(ipi_virq + cpu, &irq_ipi);
+	}
+	irq_destroy_ipi(ipi_virq, mask);
+#else
 	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
 		int cpu;
 
@@ -325,6 +417,7 @@ int mips_smp_ipi_free(const struct cpumask *mask)
 	}
 	irq_destroy_ipi(call_virq, mask);
 	irq_destroy_ipi(sched_virq, mask);
+#endif /* CONFIG_SMP_SINGLE_IPI */
 	return 0;
 }
 
@@ -336,8 +429,10 @@ static int __init mips_smp_ipi_init(void)
 
 	mips_smp_ipi_allocate(cpu_possible_mask);
 
+#ifndef CONFIG_SMP_SINGLE_IPI
 	call_desc = irq_to_desc(call_virq);
 	sched_desc = irq_to_desc(sched_virq);
+#endif /* CONFIG_SMP_SINGLE_IPI */
 
 	return 0;
 }
