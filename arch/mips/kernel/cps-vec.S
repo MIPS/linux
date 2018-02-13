@@ -415,10 +415,12 @@ LEAF(mips_cps_boot_vpes)
 	/* Set the TC stack pointer */
 	lw	t1, VPEBOOTCFG_SP(t0)
 	mttgpr	t1, sp
+	mttgpr	sp, t1
 
 	/* Set the TC global pointer */
 	lw	t1, VPEBOOTCFG_GP(t0)
 	mttgpr	t1, gp
+	mttgpr	gp, t1
 
 	/* Copy config from this VPE */
 	mfc0	t0, CP0_CONFIG
