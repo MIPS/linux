@@ -190,7 +190,7 @@ static inline unsigned core_nvpes(void)
 	return ((conf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
 }
 
-#if __mips_isa_rev >= 2
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 
 static inline unsigned int dvpe(void)
 {
@@ -337,7 +337,7 @@ static inline void ehb(void)
 	"	.set	pop					\n");
 }
 
-#if __mips_isa_rev >= 2
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 
 #define mftc0(rt,sel)							\
 ({									\

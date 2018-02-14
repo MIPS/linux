@@ -211,7 +211,7 @@
 	.endm
 #endif /* !CONFIG_CPU_MIPSR2 || !CONFIG_CPU_MIPSR6 */
 
-#if __mips_isa_rev < 2
+#if !defined(__mips_isa_rev) || (__mips_isa_rev < 2)
 /*
  * Temporary until all gas have MT ASE support
  */
