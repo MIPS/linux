@@ -104,7 +104,7 @@
 #define cpu_has_divec		(cpu_data[0].options & MIPS_CPU_DIVEC)
 #endif
 #ifndef cpu_has_vce
-# if __mips_isa_rev >= 6
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 6)
 #  define cpu_has_vce		0
 # else
 #  define cpu_has_vce		(cpu_data[0].options & MIPS_CPU_VCE)
@@ -348,7 +348,7 @@
  * DSBH and DSHD.
  */
 #ifndef cpu_has_wsbh
-# if __mips_isa_rev >= 2
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 #  define cpu_has_wsbh		1
 # else
 #  define cpu_has_wsbh		cpu_has_mips_r2
