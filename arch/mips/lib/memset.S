@@ -111,7 +111,7 @@
 	.set		at
 #endif
 
-#if defined(__mips_isa_rev) && (__mips_isa_rev < 6)
+#if !defined(__mips_isa_rev) || (__mips_isa_rev < 6))
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
