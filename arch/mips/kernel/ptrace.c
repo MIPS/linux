@@ -891,9 +891,11 @@ long arch_ptrace(struct task_struct *child, long request,
 	}
 
 	case PTRACE_POKETEXT: /* write the word at location addr. */
+#ifdef __nanomips__
 		ret = generic_ptrace_pokedata(child, addr, data);
 		__flush_cache_all();
 		break;
+#endif /* __nanomips__ */
 
 	case PTRACE_POKEDATA:
 		ret = generic_ptrace_pokedata(child, addr, data);
