@@ -38,11 +38,44 @@ extern int __cpu_logical_map[NR_CPUS];
 
 #define NO_PROC_ID	(-1)
 
-#define SMP_RESCHEDULE_YOURSELF 0x1	/* XXX braindead */
-#define SMP_CALL_FUNCTION	0x2
-/* Octeon - Tell another core to flush its icache */
-#define SMP_ICACHE_FLUSH	0x4
-#define SMP_ASK_C0COUNT		0x8
+enum ipi_action {
+	/*
+	 * Used to request that a remote CPU should call scheduler_ipi() in
+	 * order to reschedule.
+	 */
+	_SMP_RESCHEDULE_YOURSELF,
+# define SMP_RESCHEDULE_YOURSELF	BIT(_SMP_RESCHEDULE_YOURSELF)
+
+	/*
+	 * Used to request that a remote CPU calls a function specified by the
+	 * CPU which sent the IPI.
+	 */
+	_SMP_CALL_FUNCTION,
+# define SMP_CALL_FUNCTION		BIT(_SMP_CALL_FUNCTION)
+
+#ifdef CPU_CAVIUM_OCTEON
+	/*
+	 * Used by Cavium Octeon systems to request that a remote CPU flushes
+	 * its icache.
+	 */
+	_SMP_ICACHE_FLUSH,
+# define SMP_ICACHE_FLUSH		BIT(_SMP_ICACHE_FLUSH)
+#else
+# define SMP_ICACHE_FLUSH		0
+#endif
+
+#ifdef MACH_LOONGSON64
+	/*
+	 * Used by Loongson64 secondary CPUs to ask core 0 for its current cop0
+	 * Count value which is used to approximately synchronise the Count
+	 * value on the secondaries.
+	 */
+	_SMP_ASK_C0COUNT,
+# define SMP_ASK_C0COUNT		BIT(_SMP_ASK_C0COUNT)
+#else
+# define SMP_ASK_C0COUNT		0
+#endif
+};
 
 /* Mask of CPUs which are currently definitely operating coherently */
 extern cpumask_t cpu_coherent_mask;
