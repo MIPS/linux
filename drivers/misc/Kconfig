@@ -496,6 +496,14 @@ config PCI_ENDPOINT_TEST
            Enable this configuration option to enable the host side test driver
            for PCI Endpoint.
 
+config MIPS_ITC
+	bool "MIPS ITC passthrough driver"
+	depends on MIPS
+	default y
+	help
+	  Enable this to expose the Inter-Thread Communication unit provided by
+	  some MIPS systems to userland via sysfs.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
