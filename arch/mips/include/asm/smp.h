@@ -75,6 +75,17 @@ enum ipi_action {
 #else
 # define SMP_ASK_C0COUNT		0
 #endif
+
+#ifdef CONFIG_SMP_SINGLE_IPI
+	/*
+	 * Used to implement arch_trigger_cpumask_backtrace(), which cannot use
+	 * SMP_CALL_FUNCTION because it may be invoked in IRQ context.
+	 */
+	_SMP_BACKTRACE,
+# define SMP_BACKTRACE			BIT(_SMP_BACKTRACE)
+#else
+# define SMP_BACKTRACE			0
+#endif
 };
 
 /* Mask of CPUs which are currently definitely operating coherently */
