@@ -84,11 +84,6 @@ static cpumask_t cpu_core_setup_map;
 
 cpumask_t cpu_coherent_mask;
 
-#ifdef CONFIG_GENERIC_IRQ_IPI
-static struct irq_desc *call_desc;
-static struct irq_desc *sched_desc;
-#endif
-
 static inline void set_cpu_sibling_map(int cpu)
 {
 	int i;
@@ -157,6 +152,10 @@ void register_smp_ops(const struct plat_smp_ops *ops)
 }
 
 #ifdef CONFIG_GENERIC_IRQ_IPI
+static unsigned int call_virq, sched_virq;
+static struct irq_desc *call_desc;
+static struct irq_desc *sched_desc;
+
 void mips_smp_send_ipi_single(int cpu, unsigned int action)
 {
 	mips_smp_send_ipi_mask(cpumask_of(cpu), action);
@@ -239,8 +238,6 @@ static void smp_ipi_init_one(unsigned int virq,
 	ret = setup_irq(virq, action);
 	BUG_ON(ret);
 }
-
-static unsigned int call_virq, sched_virq;
 
 int mips_smp_ipi_allocate(const struct cpumask *mask)
 {
