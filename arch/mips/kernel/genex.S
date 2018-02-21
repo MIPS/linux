@@ -40,10 +40,14 @@ NESTED(except_vec3_generic, 0, sp)
 #ifdef CONFIG_64BIT
 	dsll	k1, k1, 1
 #endif
-	PTR_LI  k0, exception_handlers
+#ifdef CONFIG_CPU_NANOMIPS
+	PTR_LA  k0, exception_handlers
 	PTR_ADDU \
 		k0, k0, k1
 	PTR_L	k0, 0(k0)
+#else
+	PTR_L	k0, exception_handlers(k1)
+#endif
 	jr	k0
 	.set	pop
 	END(except_vec3_generic)
