@@ -53,7 +53,7 @@ enum ipi_action {
 	_SMP_CALL_FUNCTION,
 # define SMP_CALL_FUNCTION		BIT(_SMP_CALL_FUNCTION)
 
-#ifdef CPU_CAVIUM_OCTEON
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
 	/*
 	 * Used by Cavium Octeon systems to request that a remote CPU flushes
 	 * its icache.
@@ -64,7 +64,7 @@ enum ipi_action {
 # define SMP_ICACHE_FLUSH		0
 #endif
 
-#ifdef MACH_LOONGSON64
+#ifdef CONFIG_MACH_LOONGSON64
 	/*
 	 * Used by Loongson64 secondary CPUs to ask core 0 for its current cop0
 	 * Count value which is used to approximately synchronise the Count
