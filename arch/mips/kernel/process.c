@@ -658,12 +658,14 @@ unsigned long arch_align_stack(unsigned long sp)
 
 static void raise_backtrace_nmi(cpumask_t *mask)
 {
+#ifdef CONFIG_SMP
 	if (SMP_BACKTRACE != 0) {
 		mips_smp_send_ipi_mask(mask, SMP_BACKTRACE);
 		return;
 	}
 
 	WARN_ONCE(1, "arch_trigger_cpumask_backtrace is unsupported on this system\n");
+#endif /* CONFIG_SMP */
 }
 
 void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)
