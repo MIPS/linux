@@ -1722,7 +1722,7 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	if (result < 0)
 		return result;
 
-	copy_from_page(page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
+	copy_from_page(page, vaddr, &opcode, sizeof(opcode));
 	put_page(page);
  out:
 	/* This needs to return true for any variant of the trap insn */
