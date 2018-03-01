@@ -1705,7 +1705,12 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	int result;
 
 	pagefault_disable();
+#ifdef uprobe_opcode_equal
+	result = copy_from_user(&opcode, (uprobe_opcode_t __user *)vaddr,
+				sizeof(opcode));
+#else
 	result = __get_user(opcode, (uprobe_opcode_t __user *)vaddr);
+#endif
 	pagefault_enable();
 
 	if (likely(result == 0))
