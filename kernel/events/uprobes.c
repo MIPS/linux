@@ -223,7 +223,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
  */
 bool __weak is_swbp_insn(uprobe_opcode_t *insn)
 {
-	return *insn == UPROBE_SWBP_INSN;
+	return uprobe_opcode_equal(*insn, UPROBE_SWBP_INSN);
 }
 
 /**
