@@ -991,7 +991,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 		if (cpu_has_nanomips) {
 			if (nanomips_insn_len(instr[0]) == 2) {
 				/* 16-bit nanoMIPS BREAK[16] */
-				bcode = instr[0] & 0x3;
+				bcode = instr[0] & 0x7;
 			} else {
 				/* 32-bit nanoMIPS BREAK[32] */
 				if (__get_user(instr[1], (u16 __user *)(epc + 2)))
