@@ -22,6 +22,9 @@
 #define GCR_CL_COHERENCE_OFS	0x2008
 #define GCR_CL_ID_OFS		0x2028
 
+#define CPC_CL_CMD_OFS		0x2000
+#define CPC_CL_CMD_PWRDOWN	0x2
+
 #define CPC_CL_VC_STOP_OFS	0x2020
 #define CPC_CL_VC_RUN_OFS	0x2028
 
@@ -594,3 +597,134 @@ LEAF(mips_cps_pm_restore)
 	END(mips_cps_pm_restore)
 
 #endif /* CONFIG_MIPS_CPS_PM && CONFIG_CPU_PM */
+
+#ifdef CONFIG_CPU_NANOMIPS
+/*
+ * Hardcode PM entry / exit code for Shaolin
+ * until uasm grows support for nanomips.
+ */
+LEAF(nanomips_cps_nc_entry_fn_2)
+	/* Enter state 2 (power gated) */
+	cmgcrb	t8
+
+	/* if (coupled_coherence) { == 1 */
+	sync
+lbl_incready:
+	ll	t1, 0(a1)
+	addiu	t2, t1, 1
+	sc	t2, 0(a1)
+	beqz	t2, lbl_incready
+	 addiu	t1, t1, 1
+	sync
+
+	/* If last VPE, go to disable coherence */
+	beq	t1, a0, lbl_disable_coherence
+	 nop
+
+	/* Halt this TC to stop VPE */
+	addiu	t0, zero, TCHALT_H
+	mtc0	t0, CP0_TCHALT
+
+lbl_secondary_hang:
+	b	lbl_secondary_hang
+	 nop
+
+
+lbl_disable_coherence:
+	/* Invalidate L1 icache */
+	mfc0	ta0, CP0_CONFIG, 1
+
+	/* Detect I-cache line size */
+	_EXT	t0, ta0, MIPS_CONF1_IL_SHF, MIPS_CONF1_IL_SZ
+	li	t1, 2
+	beqz	t0, icache_invalidated
+	 sllv	t0, t1, t0
+
+	/* Detect I-cache size */
+	_EXT	t1, ta0, MIPS_CONF1_IS_SHF, MIPS_CONF1_IS_SZ
+	xori	t2, t1, 0x7
+	li	t3, 32
+	beqz	t2, 1f
+	 addiu	t1, t1, 1
+	sllv	t1, t3, t1
+1:	/* At this point t1 == I-cache sets per way */
+	_EXT	t2, ta0, MIPS_CONF1_IA_SHF, MIPS_CONF1_IA_SZ
+	addiu	t2, t2, 1
+	mul	t1, t1, t0
+	mul	t1, t1, t2
+
+	li	a0, CKSEG0
+	PTR_ADD	a1, a0, t1
+1:	cache	Index_Invalidate_I, 0(a0)
+	PTR_ADD	a0, a0, t0
+	bne	a0, a1, 1b
+	 nop
+
+icache_invalidated:
+	/* Invalidate L1 dcache */
+
+	/* Detect D-cache line size */
+	_EXT	t0, ta0, MIPS_CONF1_DL_SHF, MIPS_CONF1_DL_SZ
+	li	t1, 2
+	beqz	t0, dcache_writtenback
+	 sllv	t0, t1, t0
+
+	/* Detect D-cache size */
+	_EXT	t1, ta0, MIPS_CONF1_DS_SHF, MIPS_CONF1_DS_SZ
+	xori	t2, t1, 0x7
+	li	t3, 32
+	beqz	t2, 1f
+	 addiu	t1, t1, 1
+	sllv	t1, t3, t1
+1:	/* At this point t1 == D-cache sets per way */
+	_EXT	t2, ta0, MIPS_CONF1_DA_SHF, MIPS_CONF1_DA_SZ
+	addiu	t2, t2, 1
+	mul	t1, t1, t0
+	mul	t1, t1, t2
+
+	li	a0, CKSEG0
+	PTR_ADDU a1, a0, t1
+1:	cache	Index_Writeback_Inv_D, 0(a0)
+	PTR_ADD a0, a0, t0
+	bne	a0, a1, 1b
+	 nop
+
+dcache_writtenback:
+	/* Barrier ensuring previous cache invalidates are complete */
+	sync
+	ehb
+
+	/* Disable all but self interventions */
+	PTR_L	t1, GCR_CL_ID_OFS(t8)
+	_EXT	t1, t1, CM3_GCR_Cx_ID_CORENUM_SHF, 8
+	LI	t2, 1
+	sllv	t1, t2, t1
+	PTR_S	t1, GCR_CL_COHERENCE_OFS(t8)
+	PTR_L	t1, GCR_CL_COHERENCE_OFS(t8)
+
+	/* Barrier to ensure write to coherence control is complete */
+	sync
+	ehb
+
+	/* Disable coherence */
+	PTR_S	zero, GCR_CL_COHERENCE_OFS(t8)
+	PTR_L	t1, GCR_CL_COHERENCE_OFS(t8)
+
+	/* Find base address of CPC */
+	PTR_L	t1, GCR_CPC_BASE_OFS(t8)
+	PTR_LI	t2, ~0x7fff
+	and	t1, t1, t2
+	PTR_LI	t2, UNCAC_BASE
+	PTR_ADD	t1, t1, t2
+
+	/* Powerdown this core via CPC */
+	addiu	t2, zero, CPC_CL_CMD_PWRDOWN
+	PTR_S	t2, CPC_CL_CMD_OFS(t1)
+
+lbl_hang:
+	b	lbl_hang
+	 nop
+
+	END(nanomips_cps_nc_entry_fn_2)
+
+#endif /* CONFIG_CPU_NANOMIPS */
