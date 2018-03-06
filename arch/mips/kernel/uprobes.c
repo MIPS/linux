@@ -259,20 +259,19 @@ void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 				  void *src, unsigned long len)
 {
 	unsigned long kaddr, kstart;
+#ifdef __nanomips__
+	u16 buf[sizeof(((struct arch_uprobe *)NULL)->ixol)];
+	uprobe_opcode_t *ops = src;
+	unsigned int d, i, j;
 
-	if (cpu_has_nanomips) {
-		u16 buf[sizeof(((struct arch_uprobe *)NULL)->ixol)];
-		uprobe_opcode_t *ops = src;
-		unsigned int d, i, j;
-
-		for (d = i = 0; i < ARRAY_SIZE(((struct arch_uprobe *)NULL)->ixol); i++) {
-			for (j = 0; j < (nanomips_insn_len(ops[i].h[0]) / 2); j++)
-				buf[d++] = ops[i].h[j];
-		}
-
-		src = buf;
-		len = d * sizeof(buf[0]);
+	for (d = i = 0; i < ARRAY_SIZE(((struct arch_uprobe *)NULL)->ixol); i++) {
+		for (j = 0; j < (nanomips_insn_len(ops[i].h[0]) / 2); j++)
+			buf[d++] = ops[i].h[j];
 	}
+
+	src = buf;
+	len = d * sizeof(buf[0]);
+#endif /* __nanomips__ */
 
 	/* Initialize the slot */
 	kaddr = (unsigned long)kmap_atomic(page);
