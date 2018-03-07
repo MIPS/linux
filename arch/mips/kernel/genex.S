@@ -10,6 +10,7 @@
  */
 #include <linux/init.h>
 
+#include <asm/addrspace.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/cacheops.h>
@@ -458,6 +459,18 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	KMODE
 	.endm
 
+	.macro	__build_clear_bp
+#ifdef __nanomips__
+	mfc0	t0, CP0_BADINSTR
+	li	t1, 0x001001ff		/* break 511 */
+	bnec	t0, t1, 1f
+	li	t2, CKSEG1ADDR(0x1fc00000)
+	sw	zero, 0(t2)
+1:
+#endif
+	__build_clear_sti
+	.endm
+
 	.macro	__BUILD_silent exception
 	.endm
 
@@ -506,7 +519,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER ades ade ade silent		/* #5  */
 	BUILD_HANDLER ibe be cli silent			/* #6  */
 	BUILD_HANDLER dbe be cli silent			/* #7  */
-	BUILD_HANDLER bp bp sti silent			/* #9  */
+	BUILD_HANDLER bp bp bp silent			/* #9  */
 	BUILD_HANDLER ri ri sti silent			/* #10 */
 	BUILD_HANDLER cpu cpu sti silent		/* #11 */
 	BUILD_HANDLER ov ov sti silent			/* #12 */
