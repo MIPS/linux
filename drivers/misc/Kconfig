@@ -504,6 +504,14 @@ config MIPS_I7200_SPRAM
 	  Enable this to expose the scratchpad RAMs found in the MIPS I7200 to
 	  userland.
 
+config MIPS_UNCACHED_MEMORY
+	bool "MIPS uncached memory passthrough driver"
+	depends on MIPS
+	default y
+	help
+	  Enable this to expose some DDR memory with an uncached CCA to
+	  userland via sysfs.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
