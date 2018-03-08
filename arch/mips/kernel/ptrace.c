@@ -890,13 +890,8 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 	}
 
+	/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKETEXT: /* write the word at location addr. */
-#ifdef __nanomips__
-		ret = generic_ptrace_pokedata(child, addr, data);
-		__flush_cache_all();
-		break;
-#endif /* __nanomips__ */
-
 	case PTRACE_POKEDATA:
 		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
