@@ -496,6 +496,14 @@ config PCI_ENDPOINT_TEST
            Enable this configuration option to enable the host side test driver
            for PCI Endpoint.
 
+config MIPS_I7200_SPRAM
+	bool "MIPS I7200 SPRAM driver"
+	depends on MIPS && CPU_NANOMIPS
+	default y
+	help
+	  Enable this to expose the scratchpad RAMs found in the MIPS I7200 to
+	  userland.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
