@@ -146,24 +146,6 @@ static int __init config7_set(char *str)
 }
 __setup("config7=", config7_set);
 
-/* Experimental cache flush control parameters that should go away some day */
-int mt_n_iflushes = 1;
-int mt_n_dflushes = 1;
-
-static int __init niflush(char *s)
-{
-	get_option(&s, &mt_n_iflushes);
-	return 1;
-}
-__setup("niflush=", niflush);
-
-static int __init ndflush(char *s)
-{
-	get_option(&s, &mt_n_dflushes);
-	return 1;
-}
-__setup("ndflush=", ndflush);
-
 static unsigned int itc_base;
 
 static int __init set_itc_base(char *str)
@@ -204,12 +186,6 @@ void mips_mt_set_cpuoptions(void)
 		ehb();
 		printk("Config7: 0x%08x\n", read_c0_config7());
 	}
-
-	/* Report Cache management debug options */
-	if (mt_n_iflushes != 1)
-		printk("I-Cache Flushes Repeated %d times\n", mt_n_iflushes);
-	if (mt_n_dflushes != 1)
-		printk("D-Cache Flushes Repeated %d times\n", mt_n_dflushes);
 
 	if (itc_base != 0) {
 		/*
