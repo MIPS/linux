@@ -48,6 +48,39 @@ struct sram {
 static struct sram srams[];
 static u32 sram_ctl;
 
+static unsigned long spram_get_unmapped_area(struct file *file,
+					     unsigned long addr,
+					     unsigned long len,
+					     unsigned long pgoff,
+					     unsigned long flags)
+{
+	struct miscdevice *misc = file->private_data;
+	struct sram *s = container_of(misc, struct sram, misc);
+	unsigned long off, off_end, off_align, len_align, addr_align;
+
+	off = pgoff << PAGE_SHIFT;
+	off_end = off + len;
+	off_align = round_up(off, s->size);
+
+	if ((off_end <= off_align) || ((off_end - off_align) < s->size))
+		goto fallback;
+
+	len_align = len + s->size;
+	if ((off + len_align) < off)
+		goto fallback;
+
+	addr_align = current->mm->get_unmapped_area(file, addr, len_align,
+						    pgoff, flags);
+	if (!IS_ERR_VALUE(addr_align)) {
+		addr_align += (off - addr_align) & (s->size - 1);
+		return addr_align;
+	}
+
+fallback:
+	WARN(1, "Unable to guarantee SPRAM virtual alignment\n");
+	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
+}
+
 static loff_t spram_llseek(struct file *file, loff_t offset, int orig)
 {
 	struct miscdevice *misc = file->private_data;
@@ -89,9 +122,11 @@ static ssize_t spram_write(struct file *file, const char __user *buf,
 }
 
 static ssize_t ispram_write(struct file *file, const char __user *buf,
-			   size_t size, loff_t *ppos)
+			    size_t size, loff_t *ppos)
 {
-	unsigned long flags, addr;
+	struct miscdevice *misc = file->private_data;
+	struct sram *s = container_of(misc, struct sram, misc);
+	unsigned long flags, off, paddr;
 	u32 ctl;
 	union {
 		struct {
@@ -101,9 +136,11 @@ static ssize_t ispram_write(struct file *file, const char __user *buf,
 		char ch[8];
 	} data;
 
-	for (addr = *ppos; addr < ((*ppos + size + 7) & ~7); addr += 8, buf += 8) {
+	for (off = *ppos; off < ((*ppos + size + 7) & ~7); off += 8, buf += 8) {
 		if (copy_from_user(data.ch, buf, 8))
 			return -EFAULT;
+
+		paddr = s->base + off;
 
 		local_irq_save(flags);
 		ctl = read_c0_ecc();
@@ -112,7 +149,7 @@ static ssize_t ispram_write(struct file *file, const char __user *buf,
 		write_c0_idatalo(data.lo);
 		write_c0_idatahi(data.hi);
 		back_to_back_c0_hazard();
-		__builtin_mips_cache(Cache_I | (0x3 << 2), (void *)addr);
+		__builtin_mips_cache(Cache_I | (0x3 << 2), (void *)paddr);
 		back_to_back_c0_hazard();
 		write_c0_ecc(ctl);
 		back_to_back_c0_hazard();
@@ -127,6 +164,7 @@ static ssize_t ispram_write(struct file *file, const char __user *buf,
 
 static const struct file_operations ispram_fops = {
 	.owner		= THIS_MODULE,
+	.get_unmapped_area = spram_get_unmapped_area,
 	.llseek		= spram_llseek,
 	.mmap		= spram_mmap,
 	.write		= ispram_write,
@@ -134,6 +172,7 @@ static const struct file_operations ispram_fops = {
 
 static const struct file_operations duspram_fops = {
 	.owner		= THIS_MODULE,
+	.get_unmapped_area = spram_get_unmapped_area,
 	.llseek		= spram_llseek,
 	.mmap		= spram_mmap,
 	.write		= spram_write,
