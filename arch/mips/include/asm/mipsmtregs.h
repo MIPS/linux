@@ -42,6 +42,8 @@
 #define read_c0_tccontext()		__read_32bit_c0_register($2, 5)
 #define write_c0_tccontext(val)		__write_32bit_c0_register($2, 5, val)
 
+#define write_c0_tcschedule(val)	__write_32bit_c0_register($2, 6, val)
+
 #else /* Assembly */
 /*
  * Macros for use in assembly language code
@@ -176,6 +178,9 @@
 
 /* TCHalt */
 #define TCHALT_H		(_ULCAST_(1))
+
+/* TCSchedule (MIPS I7200) */
+#define I7200_TCSCHEDULE_PRIO_EN	(_ULCAST_(1) << 1)
 
 #ifndef __ASSEMBLY__
 
