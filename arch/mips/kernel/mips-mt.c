@@ -9,6 +9,8 @@
 #include <linux/sched.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
+#include <linux/random.h>
+#include <linux/sched/task_stack.h>
 #include <linux/security.h>
 
 #include <asm/cpu.h>
@@ -297,6 +299,83 @@ void mt_cflush_release(void)
 {
 	/* FILL IN VSMP and AP/SP VERSIONS HERE */
 }
+
+#ifdef CONFIG_MIPS_MT_RAND_SCHED_POLICY
+
+static bool __mips_mt_randomize_sched_policy;
+
+static bool mips_mt_should_randomize_sched(void)
+{
+	/* Optimize code out for kernels that will never run on I7200 */
+	if (__builtin_constant_p(boot_cpu_type() != CPU_I7200) &&
+	    (boot_cpu_type() != CPU_I7200))
+		return false;
+
+	/* Only randomize policy if the user asks for it */
+	if (!__mips_mt_randomize_sched_policy)
+		return false;
+
+	return true;
+}
+
+void mips_mt_randomize_sched_policy(void)
+{
+	static atomic_t __counter;
+	unsigned int tc;
+	int count;
+
+	if (!mips_mt_should_randomize_sched())
+		return;
+
+	/* Enable greedy mode every 32nd interrupt, using WRR the rest of the time */
+	count = atomic_inc_return(&__counter);
+	change_c0_mvpcontrol(BIT(16), (count % 32) ? 0 : BIT(16));
+
+	/* Every 64th interrupt equalize threads in this core */
+	if (!(count % 64)) {
+		for (tc = 0;
+		     tc < cpumask_weight(&cpu_sibling_map[smp_processor_id()]);
+		     tc++) {
+			settc(tc);
+			write_tc_c0_tcschedule(0x3 << 2);
+		}
+	}
+}
+
+void mips_mt_randomize_sched_priority(struct task_struct *next)
+{
+	u32 rnd;
+
+	if (!mips_mt_should_randomize_sched())
+		return;
+
+	rnd = prandom_u32();
+
+	/* Use 2 pseudo-random bits as the TC's priority if in user mode */
+	if (user_mode(task_pt_regs(next)))
+		write_c0_tcschedule(rnd & (0x3 << 2));
+	else
+		write_c0_tcschedule(0x3 << 2);
+}
+
+static int __init parse_mt_random_policy(char *arg)
+{
+	switch (boot_cpu_type()) {
+	case CPU_I7200:
+		pr_info("MIPS: Enabling randomized MT scheduling policy\n");
+		__mips_mt_randomize_sched_policy = true;
+		break;
+
+	default:
+		pr_warn("MIPS: Randomized MT scheduling policy unsupported\n");
+		break;
+	}
+
+	return 0;
+}
+early_param("mt_random_policy", parse_mt_random_policy);
+
+#endif /* CONFIG_MIPS_MT_RAND_SCHED_POLICY */
 
 struct class *mt_class;
 
