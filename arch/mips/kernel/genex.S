@@ -18,7 +18,6 @@
 #include <asm/regdef.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
-#include <asm/mipsmtregs.h>
 #include <asm/stackframe.h>
 #include <asm/war.h>
 #include <asm/thread_info.h>
@@ -41,10 +40,6 @@ NESTED(except_vec3_generic, 0, sp)
 	andi	k1, k1, 0x7c
 #ifdef CONFIG_64BIT
 	dsll	k1, k1, 1
-#endif
-#ifdef CONFIG_MIPS_MT_RAND_SCHED_POLICY
-	li	k0, 0x3 << 2
-	mtc0	k0, CP0_TCSCHEDULE
 #endif
 #ifdef CONFIG_CPU_NANOMIPS
 	PTR_LA  k0, exception_handlers
@@ -192,11 +187,6 @@ NESTED(handle_int, PT_SIZE, sp)
 	CLI
 	TRACE_IRQS_OFF
 
-#ifdef CONFIG_MIPS_MT_RAND_SCHED_POLICY
-	li	t0, 0x3 << 2
-	mtc0	t0, CP0_TCSCHEDULE
-#endif
-
 	LONG_L	s0, TI_REGS($28)
 	LONG_S	sp, TI_REGS($28)
 
@@ -312,10 +302,6 @@ NESTED(except_vec_vi_handler, 0, sp)
 	move	s0, v0
 	TRACE_IRQS_OFF
 	move	v0, s0
-#endif
-#ifdef CONFIG_MIPS_MT_RAND_SCHED_POLICY
-	li	t0, 0x3 << 2
-	mtc0	t0, CP0_TCSCHEDULE
 #endif
 
 	LONG_L	s0, TI_REGS($28)

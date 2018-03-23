@@ -25,14 +25,6 @@ extern void mips_mt_set_cpuoptions(void);
 static inline void mips_mt_set_cpuoptions(void) { }
 #endif
 
-#ifdef CONFIG_MIPS_MT_RAND_SCHED_POLICY
-extern void mips_mt_randomize_sched_policy(void);
-extern void mips_mt_randomize_sched_priority(struct task_struct *next);
-#else
-static inline void mips_mt_randomize_sched_policy(void) { }
-static inline void mips_mt_randomize_sched_priority(struct task_struct *next) { }
-#endif
-
 struct class;
 extern struct class *mt_class;
 

@@ -166,18 +166,4 @@ config MIPS_HARDWARE_TRIGGERS
 	  simple for debug tools to trigger on from the RTL level, since it
 	  will always go out to the system bus.
 
-config MIPS_MT_RAND_SCHED_POLICY
-	bool "Support randomized MT scheduling policy"
-	depends on MIPS_MT_SMP
-	default y if CPU_NANOMIPS
-	help
-	  Enable this to support randomizing the MT ASE scheduling policy when
-	  the user provides an "mt_random_policy" parameter on the kernel
-	  command line.
-	  
-	  This is useful for debugging CPUs which implement multiple scheduling
-	  policies.
-	  
-	  If in doubt, say N.
-
 endmenu

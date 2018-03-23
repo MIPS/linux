@@ -42,8 +42,6 @@
 #define read_c0_tccontext()		__read_32bit_c0_register($2, 5)
 #define write_c0_tccontext(val)		__write_32bit_c0_register($2, 5, val)
 
-#define write_c0_tcschedule(val)	__write_32bit_c0_register($2, 6, val)
-
 #else /* Assembly */
 /*
  * Macros for use in assembly language code
@@ -525,7 +523,6 @@ do {									\
 #define write_tc_c0_tchalt(val)		mttc0(2, 4, val)
 #define read_tc_c0_tccontext()		mftc0(2, 5)
 #define write_tc_c0_tccontext(val)	mttc0(2, 5, val)
-#define write_tc_c0_tcschedule(val)	mttc0(2, 6, val)
 
 /* GPR */
 #define read_tc_gpr_sp()		mftgpr(29)

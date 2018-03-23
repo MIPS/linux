@@ -16,7 +16,6 @@
 #include <linux/smp.h>
 #include <linux/time.h>
 #include <asm/mips-cps.h>
-#include <asm/mips_mt.h>
 
 static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
 static int gic_timer_irq;
@@ -61,7 +60,6 @@ static irqreturn_t gic_compare_interrupt(int irq, void *dev_id)
 	struct clock_event_device *cd = dev_id;
 
 	write_gic_vl_compare(read_gic_vl_compare());
-	mips_mt_randomize_sched_policy();
 	cd->event_handler(cd);
 	return IRQ_HANDLED;
 }
