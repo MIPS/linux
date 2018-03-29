@@ -18,10 +18,12 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
+#include <asm/bcache.h>
 #include <asm/cacheflush.h>
 #include <asm/cacheops.h>
 #include <asm/cpu-type.h>
 #include <asm/mipsregs.h>
+#include <asm/r4kcache.h>
 #include <asm/tlbdebug.h>
 
 #define BOSTON_BUILD_CONFIG0 		(0x34)
@@ -71,7 +73,13 @@ static int mum_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Ensure kernel page is written back. */
-	__flush_dcache_page(virt_to_page(mum->memory));
+	preempt_disable();
+	memset(mum->memory, 0, PAGE_SIZE);
+	blast_dcache_range((unsigned long)mum->memory,
+			   (unsigned long)mum->memory + PAGE_SIZE);
+	bc_wback_inv((unsigned long)mum->memory, PAGE_SIZE);
+	__sync();
+	preempt_enable();
 
 	sysfs_bin_attr_init(&mum->battr_map);
 	mum->battr_map.attr.name = "map";
