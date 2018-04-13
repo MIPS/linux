@@ -555,6 +555,7 @@ EXPORT_SYMBOL(memcpy)
 	move	ta3, a0
 # define dst	ta3
 #else
+	move	v0, a0
 # define dst	a0
 #endif
 .L__memcpy:
