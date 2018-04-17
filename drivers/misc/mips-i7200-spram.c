@@ -30,6 +30,7 @@ __BUILD_SET_C0(sram_ctl)
 #define SRAM_CTL_DSP_EN			BIT(0)
 #define SRAM_CTL_ISP_EN			BIT(1)
 #define SRAM_CTL_USP_EN			BIT(2)
+#define SRAM_CTL_DSPPB_EN		BIT(4)
 
 #define write_c0_idatalo(val)		__write_32bit_c0_register($28, 1, val)
 #define write_c0_idatahi(val)		__write_32bit_c0_register($29, 1, val)
@@ -47,6 +48,7 @@ struct sram {
 
 static struct sram srams[];
 static u32 sram_ctl;
+static bool nodsppb;
 
 static unsigned long spram_get_unmapped_area(struct file *file,
 					     unsigned long addr,
@@ -325,6 +327,11 @@ static int __init spram_init(void)
 	sram_ctl &= ~SRAM_CTL_ISP_EN;
 	sram_ctl &= ~SRAM_CTL_USP_EN;
 
+	if (nodsppb) {
+		pr_info("Disabling DSPPB\n");
+		sram_ctl &= ~SRAM_CTL_DSPPB_EN;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(srams); i++) {
 		pr_info("%cSPRAM:", toupper(srams[i].misc.name[0]));
 
@@ -362,3 +369,10 @@ static int __init spram_init(void)
 	return 0;
 }
 device_initcall(spram_init);
+
+static int __init parse_nodsppb(char *arg)
+{
+	nodsppb = true;
+	return 0;
+}
+early_param("nodsppb", parse_nodsppb);
