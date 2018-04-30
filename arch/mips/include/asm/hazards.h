@@ -58,6 +58,15 @@
 #define __back_to_back_c0_hazard					\
 	___ehb
 
+#ifdef CC_HAVE_ASM_GOTO
+#define instruction_hazard() do {					\
+	void *tgt = &&l_done;						\
+	asm_volatile_goto("jr.hb\t%0" :: "r"(tgt) :: l_done);		\
+	unreachable();							\
+l_done:									\
+	(void)0;							\
+} while (0)
+#else
 /*
  * gcc has a tradition of misscompiling the previous construct using the
  * address of a label as argument to inline assembler.	Gas otoh has the
@@ -79,6 +88,7 @@ do {									\
 	"1:							\n"	\
 	: "=r" (tmp));							\
 } while (0)
+#endif
 
 #elif (defined(CONFIG_CPU_MIPSR1) && !defined(CONFIG_MIPS_ALCHEMY)) || \
 	defined(CONFIG_CPU_BMIPS)
