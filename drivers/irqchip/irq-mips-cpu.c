@@ -64,6 +64,8 @@ static struct irq_chip mips_cpu_irq_controller = {
 	.irq_enable	= unmask_mips_irq,
 };
 
+#ifdef CONFIG_MIPS_MT_SMP
+
 /*
  * Basically the same as above but taking care of all the MT stuff
  */
@@ -128,6 +130,8 @@ static struct irq_chip mips_mt_cpu_irq_controller = {
 #endif
 };
 
+#endif /* CONFIG_MIPS_MT_SMP */
+
 asmlinkage void __weak plat_irq_dispatch(void)
 {
 	unsigned long pending = read_c0_cause() & read_c0_status() & ST0_IM;
@@ -156,10 +160,14 @@ static int mips_cpu_intc_map(struct irq_domain *d, unsigned int irq,
 {
 	struct irq_chip *chip;
 
+#ifdef CONFIG_MIPS_MT_SMP
 	if (hw < 2 && cpu_has_mipsmt) {
 		/* Software interrupts are used for MT/CMT IPI */
 		chip = &mips_mt_cpu_irq_controller;
 	} else {
+#else
+	if (true) {
+#endif
 		chip = &mips_cpu_irq_controller;
 	}
 
@@ -176,7 +184,7 @@ static const struct irq_domain_ops mips_cpu_intc_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-#ifdef CONFIG_GENERIC_IRQ_IPI
+#if defined(CONFIG_MIPS_MT_SMP) && defined(CONFIG_GENERIC_IRQ_IPI)
 
 struct cpu_ipi_domain_state {
 	DECLARE_BITMAP(allocated, 2);
