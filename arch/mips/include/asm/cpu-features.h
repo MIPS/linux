@@ -468,7 +468,11 @@
 #endif
 
 #ifndef cpu_has_vz
-#define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
+# ifdef CONFIG_CPU_NANOMIPS
+#  define cpu_has_vz		0
+# else
+#  define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
+# endif
 #endif
 
 #if defined(CONFIG_CPU_HAS_MSA) && !defined(cpu_has_msa)
