@@ -24,12 +24,7 @@
 #define cpu_has_ftlb		(cpu_data[0].options & MIPS_CPU_FTLB)
 #endif
 #ifndef cpu_has_tlbinv
-# ifdef CONFIG_CPU_NANOMIPS
-/* TODO: remove once tlbinvf supported */
-#  define cpu_has_tlbinv	0
-# else
-#  define cpu_has_tlbinv	(cpu_data[0].options & MIPS_CPU_TLBINV)
-# endif
+#define cpu_has_tlbinv		(cpu_data[0].options & MIPS_CPU_TLBINV)
 #endif
 #ifndef cpu_has_segments
 #define cpu_has_segments	(cpu_data[0].options & MIPS_CPU_SEGMENTS)
