@@ -31,6 +31,9 @@ __BUILD_SET_C0(sram_ctl)
 #define SRAM_CTL_ISP_EN			BIT(1)
 #define SRAM_CTL_USP_EN			BIT(2)
 #define SRAM_CTL_DSPPB_EN		BIT(4)
+#define SRAM_CTL_USPDPB_DIS		BIT(5)
+#define SRAM_CTL_USPIPB_DIS		BIT(6)
+#define SRAM_CTL_ISPPB_DIS		BIT(7)
 
 #define write_c0_idatalo(val)		__write_32bit_c0_register($28, 1, val)
 #define write_c0_idatahi(val)		__write_32bit_c0_register($29, 1, val)
@@ -48,7 +51,7 @@ struct sram {
 
 static struct sram srams[];
 static u32 sram_ctl;
-static bool nodsppb;
+static bool nodsppb, nouspdpb, nouspipb, noisppb;
 
 static unsigned long spram_get_unmapped_area(struct file *file,
 					     unsigned long addr,
@@ -328,8 +331,20 @@ static int __init spram_init(void)
 	sram_ctl &= ~SRAM_CTL_USP_EN;
 
 	if (nodsppb) {
-		pr_info("Disabling DSPPB\n");
+		pr_info("Disabling DSPPB (DSPRAM predictor)\n");
 		sram_ctl &= ~SRAM_CTL_DSPPB_EN;
+	}
+	if (nouspdpb) {
+		pr_info("Disabling USPDPB (USPRAM D-side predictor)\n");
+		sram_ctl |= SRAM_CTL_USPDPB_DIS;
+	}
+	if (nouspipb) {
+		pr_info("Disabling USPIPB (USPRAM I-side predictor)\n");
+		sram_ctl |= SRAM_CTL_USPIPB_DIS;
+	}
+	if (noisppb) {
+		pr_info("Disabling ISPPB (ISPRAM predictor)\n");
+		sram_ctl |= SRAM_CTL_ISPPB_DIS;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(srams); i++) {
@@ -370,9 +385,15 @@ static int __init spram_init(void)
 }
 device_initcall(spram_init);
 
-static int __init parse_nodsppb(char *arg)
-{
-	nodsppb = true;
-	return 0;
-}
-early_param("nodsppb", parse_nodsppb);
+#define GEN_ARG_PARSE(name)			\
+static int __init parse_##name(char *arg)	\
+{						\
+	name = true;				\
+	return 0;				\
+}						\
+early_param(#name, parse_##name);
+
+GEN_ARG_PARSE(nodsppb)
+GEN_ARG_PARSE(nouspdpb)
+GEN_ARG_PARSE(nouspipb)
+GEN_ARG_PARSE(noisppb)
