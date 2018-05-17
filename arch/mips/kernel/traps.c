@@ -70,7 +70,6 @@
 #include <asm/stacktrace.h>
 #include <asm/uasm.h>
 #include <asm/debug.h>
-#include <asm/cacheops.h>
 
 extern void check_wait(void);
 extern asmlinkage void rollback_handle_int(void);
@@ -2571,11 +2570,7 @@ void mips_hwtrigger_info(const char *file, unsigned long line,
 			 struct pt_regs *regs,
 			 unsigned long code, const char *why)
 {
-	unsigned long way, idx, offset, addr;
-	unsigned int taglo;
 	char *who;
-
-	preempt_disable();
 
 	who = (regs && user_mode(regs)) ? current->comm : "kernel";
 
@@ -2586,42 +2581,6 @@ void mips_hwtrigger_info(const char *file, unsigned long line,
 		show_registers(regs);
 	else
 		dump_stack();
-
-	if (current_cpu_type() == CPU_I7200) {
-		pr_info("L1 data cache:\n");
-
-		for (way = 0;
-		     way < current_cpu_data.dcache.ways;
-		     way++) {
-			for (idx = 0;
-			     idx < current_cpu_data.dcache.sets;
-			     idx++) {
-				for (offset = 0;
-				     offset < current_cpu_data.dcache.linesz;
-				     offset += 4) {
-					addr = way << current_cpu_data.dcache.waybit;
-					addr |= idx * current_cpu_data.dcache.linesz;
-					addr |= offset;
-					__builtin_mips_cache(Index_Load_Tag_D,
-							     (void *)CKSEG0ADDR(addr));
-					back_to_back_c0_hazard();
-
-					if (!offset) {
-						taglo = read_c0_dtaglo();
-						pr_info(" 0x%01lx.0x%03lx [0x%08x %c%c%c]",
-							way, idx, taglo,
-							(taglo & BIT(7)) ? 'V' : ' ',
-							(taglo & BIT(6)) ? 'D' : ' ',
-							(taglo & BIT(5)) ? 'L' : ' ');
-					}
-
-					pr_cont(" 0x%08x", read_c0_ddatalo());
-				}
-			}
-		}
-	}
-
-	preempt_enable();
 }
 
 #ifdef CONFIG_DEBUG_FS
