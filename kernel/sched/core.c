@@ -1565,7 +1565,8 @@ int select_task_rq(struct task_struct *p, int cpu, int sd_flags, int wake_flags)
 	 *   not worry about this generic constraint ]
 	 */
 	if (unlikely(!cpumask_test_cpu(cpu, &p->cpus_allowed) ||
-		     !cpu_online(cpu)))
+		     !cpu_online(cpu) ||
+		     (!cpu_active(cpu) && !(p->flags & PF_KTHREAD))))
 		cpu = select_fallback_rq(task_cpu(p), p);
 
 	return cpu;
