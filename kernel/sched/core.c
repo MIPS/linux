@@ -1127,7 +1127,8 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 		struct migration_arg arg = { p, dest_cpu };
 		/* Need help from migration thread: drop lock and wait. */
 		task_rq_unlock(rq, p, &rf);
-		stop_one_cpu(cpu_of(rq), migration_cpu_stop, &arg);
+		ret = stop_one_cpu(cpu_of(rq), migration_cpu_stop, &arg);
+		WARN_ON(ret);
 		tlb_migrate_finish(p->mm);
 		return 0;
 	} else if (task_on_rq_queued(p)) {
