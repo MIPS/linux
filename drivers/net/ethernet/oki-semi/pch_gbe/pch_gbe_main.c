@@ -1995,7 +1995,6 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 	}
 	spin_lock_init(&adapter->hw.miim_lock);
 	spin_lock_init(&adapter->stats_lock);
-	spin_lock_init(&adapter->ethtool_lock);
 	atomic_set(&adapter->irq_sem, 0);
 	pch_gbe_irq_disable(adapter);
 
