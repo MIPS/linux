@@ -715,6 +715,9 @@ static const struct user_regset mips_regsets[] = {
 
 static const struct user_regset_view user_mips_view = {
 	.name		= "mips",
+#ifdef CONFIG_CPU_NANOMIPS
+	.e_flags	= EF_NANOMIPS_ABI_P32,
+#endif
 	.e_machine	= ELF_ARCH,
 	.ei_osabi	= ELF_OSABI,
 	.regsets	= mips_regsets,
