@@ -555,11 +555,9 @@ struct pch_gbe_privdata {
 /**
  * struct pch_gbe_adapter - board specific private data structure
  * @stats_lock:	Spinlock structure for status
- * @ethtool_lock:	Spinlock structure for ethtool
  * @irq_sem:		Semaphore for interrupt
  * @netdev:		Pointer of network device structure
  * @pdev:		Pointer of pci device structure
- * @polling_netdev:	Pointer of polling network device structure
  * @napi:		NAPI structure
  * @hw:			Pointer of hardware structure
  * @stats:		Hardware status
@@ -567,9 +565,6 @@ struct pch_gbe_privdata {
  * @mii:		MII information structure
  * @watchdog_timer:	Watchdog timer list
  * @wake_up_evt:	Wake up event
- * @config_space:	Configuration space
- * @msg_enable:		Driver message level
- * @led_status:		LED status
  * @tx_ring:		Pointer of Tx descriptor ring structure
  * @rx_ring:		Pointer of Rx descriptor ring structure
  * @rx_buffer_len:	Receive buffer length
@@ -579,12 +574,10 @@ struct pch_gbe_privdata {
 
 struct pch_gbe_adapter {
 	spinlock_t stats_lock;
-	spinlock_t ethtool_lock;
 	atomic_t irq_sem;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	int irq;
-	struct net_device *polling_netdev;
 	struct napi_struct napi;
 	struct pch_gbe_hw hw;
 	struct pch_gbe_hw_stats stats;
@@ -592,8 +585,6 @@ struct pch_gbe_adapter {
 	struct mii_if_info mii;
 	struct timer_list watchdog_timer;
 	u32 wake_up_evt;
-	u32 *config_space;
-	unsigned long led_status;
 	struct pch_gbe_tx_ring *tx_ring;
 	struct pch_gbe_rx_ring *rx_ring;
 	unsigned long rx_buffer_len;
