@@ -555,7 +555,6 @@ struct pch_gbe_privdata {
 /**
  * struct pch_gbe_adapter - board specific private data structure
  * @stats_lock:	Spinlock structure for status
- * @irq_sem:		Semaphore for interrupt
  * @netdev:		Pointer of network device structure
  * @pdev:		Pointer of pci device structure
  * @napi:		NAPI structure
@@ -574,7 +573,6 @@ struct pch_gbe_privdata {
 
 struct pch_gbe_adapter {
 	spinlock_t stats_lock;
-	atomic_t irq_sem;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	int irq;
