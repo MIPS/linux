@@ -78,9 +78,7 @@
 #define PHY_AR8031_DBG_OFF      0x1D
 #define PHY_AR8031_DBG_DAT      0x1E
 #define PHY_AR8031_SERDES       0x05
-#define PHY_AR8031_HIBERNATE    0x0B
 #define PHY_AR8031_SERDES_TX_CLK_DLY   0x0100 /* TX clock delay of 2.0ns */
-#define PHY_AR8031_PS_HIB_EN           0x8000 /* Hibernate enable */
 
 /* Phy Id Register (word 2) */
 #define PHY_REVISION_MASK        0x000F
@@ -334,44 +332,4 @@ void pch_gbe_phy_init_setting(struct pch_gbe_hw *hw)
 	/* Setup a TX clock delay on certain platforms */
 	if (adapter->pdata && adapter->pdata->phy_tx_clk_delay)
 		pch_gbe_phy_tx_clk_delay(hw);
-}
-
-/**
- * pch_gbe_phy_disable_hibernate - Disable the PHY low power state
- * @hw:	            Pointer to the HW structure
- * Returns
- *	0:		Successful.
- *	-EINVAL:	Invalid argument.
- */
-int pch_gbe_phy_disable_hibernate(struct pch_gbe_hw *hw)
-{
-	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-	u16 mii_reg;
-	int ret = 0;
-
-	switch (hw->phy.id) {
-	case PHY_AR803X_ID:
-		netdev_dbg(adapter->netdev,
-			   "Disabling hibernation for AR803X PHY\n");
-		ret = pch_gbe_phy_write_reg_miic(hw, PHY_AR8031_DBG_OFF,
-						 PHY_AR8031_HIBERNATE);
-		if (ret)
-			break;
-
-		pch_gbe_phy_read_reg_miic(hw, PHY_AR8031_DBG_DAT, &mii_reg);
-		mii_reg &= ~PHY_AR8031_PS_HIB_EN;
-		ret = pch_gbe_phy_write_reg_miic(hw, PHY_AR8031_DBG_DAT,
-						 mii_reg);
-		break;
-	default:
-		netdev_err(adapter->netdev,
-			   "Unknown PHY (%x), could not disable hibernation\n",
-			   hw->phy.id);
-		return -EINVAL;
-	}
-
-	if (ret)
-		netdev_err(adapter->netdev,
-			   "Could not disable PHY hibernation\n");
-	return ret;
 }
