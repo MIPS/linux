@@ -2137,15 +2137,13 @@ static void pch_gbe_set_multi(struct net_device *netdev)
 		pch_gbe_mac_mar_set(hw, ha->addr, i++);
 
 	/* If there are spare MAC registers, mask & clear them */
-	for (; i < PCH_GBE_MAR_ENTRIES; i++) {
-		/* Clear MAC address mask */
+	if (i < PCH_GBE_MAR_ENTRIES) {
 		adrmask = ioread32(&hw->reg->ADDR_MASK);
-		iowrite32(adrmask | BIT(i), &hw->reg->ADDR_MASK);
+		adrmask |= GENMASK(PCH_GBE_MAR_ENTRIES - 1, i);
+		iowrite32(adrmask, &hw->reg->ADDR_MASK);
+
 		/* wait busy */
 		pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
-		/* Clear MAC address */
-		iowrite32(0, &hw->reg->mac_adr[i].high);
-		iowrite32(0, &hw->reg->mac_adr[i].low);
 	}
 
 	netdev_dbg(netdev,
