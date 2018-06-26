@@ -354,22 +354,6 @@ static void pch_gbe_mac_mar_set(struct pch_gbe_hw *hw, u8 * addr, u32 index)
 	pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
 }
 
-/**
- * pch_gbe_mac_reset_hw - Reset hardware
- * @hw:	Pointer to the HW structure
- */
-static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
-{
-	/* Read the MAC address. and store to the private data */
-	pch_gbe_mac_read_mac_addr(hw);
-	iowrite32(PCH_GBE_ALL_RST, &hw->reg->RESET);
-	iowrite32(PCH_GBE_MODE_GMII_ETHER, &hw->reg->MODE);
-	pch_gbe_wait_clr_bit(&hw->reg->RESET, PCH_GBE_ALL_RST);
-	/* Setup the receive addresses */
-	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
-	return;
-}
-
 static void pch_gbe_disable_mac_rx(struct pch_gbe_hw *hw)
 {
 	u32 rctl;
@@ -384,28 +368,6 @@ static void pch_gbe_enable_mac_rx(struct pch_gbe_hw *hw)
 	/* Enables Receive MAC */
 	rctl = ioread32(&hw->reg->MAC_RX_EN);
 	iowrite32((rctl | PCH_GBE_MRE_MAC_RX_EN), &hw->reg->MAC_RX_EN);
-}
-
-/**
- * pch_gbe_mac_init_rx_addrs - Initialize receive address's
- * @hw:	Pointer to the HW structure
- * @mar_count: Receive address registers
- */
-static void pch_gbe_mac_init_rx_addrs(struct pch_gbe_hw *hw, u16 mar_count)
-{
-	u32 i;
-
-	/* Setup the receive address */
-	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
-
-	/* Zero out the other receive addresses */
-	for (i = 1; i < mar_count; i++) {
-		iowrite32(0, &hw->reg->mac_adr[i].high);
-		iowrite32(0, &hw->reg->mac_adr[i].low);
-	}
-	iowrite32(0xFFFE, &hw->reg->ADDR_MASK);
-	/* wait busy */
-	pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
 }
 
 /**
@@ -731,11 +693,18 @@ void pch_gbe_reset(struct pch_gbe_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
 
-	pch_gbe_mac_reset_hw(hw);
-	/* reprogram multicast address register after reset */
+	/* Perform the reset & wait for it to complete */
+	iowrite32(PCH_GBE_ALL_RST, &hw->reg->RESET);
+	pch_gbe_wait_clr_bit(&hw->reg->RESET, PCH_GBE_ALL_RST);
+
+	/* Configure GMII/RGMII mode */
+	iowrite32(PCH_GBE_MODE_GMII_ETHER, &hw->reg->MODE);
+
+	/* Program the MAC address */
+	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
+
+	/* Configure multicast addresses & filtering */
 	pch_gbe_set_multi(netdev);
-	/* Setup the receive address. */
-	pch_gbe_mac_init_rx_addrs(hw, PCH_GBE_MAR_ENTRIES);
 }
 
 /**
@@ -1941,7 +1910,6 @@ static void pch_gbe_watchdog(struct timer_list *t)
 		pch_gbe_set_mode(adapter, hw->mac.link_speed,
 				 hw->mac.link_duplex);
 
-		pch_gbe_set_multi(netdev);
 		pch_gbe_setup_tctl(adapter);
 		pch_gbe_configure_tx(adapter);
 		pch_gbe_setup_rctl(adapter);
