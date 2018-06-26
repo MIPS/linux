@@ -2619,10 +2619,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 
 	dev_dbg(&pdev->dev, "PCH Network Connection\n");
 
-	/* Disable hibernation on certain platforms */
-	if (adapter->pdata && adapter->pdata->phy_disable_hibernate)
-		pch_gbe_phy_disable_hibernate(&adapter->hw);
-
 	device_set_wakeup_enable(&pdev->dev, 1);
 	return 0;
 
@@ -2660,7 +2656,6 @@ static int pch_gbe_minnow_platform_init(struct pci_dev *pdev)
 
 static struct pch_gbe_privdata pch_gbe_minnow_privdata = {
 	.phy_tx_clk_delay = true,
-	.phy_disable_hibernate = true,
 	.platform_init = pch_gbe_minnow_platform_init,
 };
 
