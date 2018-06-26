@@ -758,7 +758,6 @@ static void pch_gbe_irq_disable(struct pch_gbe_adapter *adapter)
 {
 	struct pch_gbe_hw *hw = &adapter->hw;
 
-	atomic_inc(&adapter->irq_sem);
 	iowrite32(0, &hw->reg->INT_EN);
 	ioread32(&hw->reg->INT_ST);
 	synchronize_irq(adapter->irq);
@@ -775,8 +774,7 @@ static void pch_gbe_irq_enable(struct pch_gbe_adapter *adapter)
 {
 	struct pch_gbe_hw *hw = &adapter->hw;
 
-	if (likely(atomic_dec_and_test(&adapter->irq_sem)))
-		iowrite32(PCH_GBE_INT_ENABLE_MASK, &hw->reg->INT_EN);
+	iowrite32(PCH_GBE_INT_ENABLE_MASK, &hw->reg->INT_EN);
 	ioread32(&hw->reg->INT_ST);
 	netdev_dbg(adapter->netdev, "INT_EN reg : 0x%08x\n",
 		   ioread32(&hw->reg->INT_EN));
@@ -1342,7 +1340,6 @@ static irqreturn_t pch_gbe_intr(int irq, void *data)
 	    (adapter->rx_stop_flag)) {
 		if (likely(napi_schedule_prep(&adapter->napi))) {
 			/* Enable only Rx Descriptor empty */
-			atomic_inc(&adapter->irq_sem);
 			int_en = ioread32(&hw->reg->INT_EN);
 			int_en &=
 			    ~(PCH_GBE_INT_RX_DMA_CMPLT | PCH_GBE_INT_TX_CMPLT);
@@ -1951,7 +1948,6 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 	/* signal that we're down so the interrupt handler does not
 	 * reschedule our watchdog timer */
 	napi_disable(&adapter->napi);
-	atomic_set(&adapter->irq_sem, 0);
 
 	pch_gbe_irq_disable(adapter);
 	pch_gbe_free_irq(adapter);
@@ -1997,7 +1993,6 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 	}
 	spin_lock_init(&adapter->hw.miim_lock);
 	spin_lock_init(&adapter->stats_lock);
-	atomic_set(&adapter->irq_sem, 0);
 	pch_gbe_irq_disable(adapter);
 
 	pch_gbe_init_stats(adapter);
