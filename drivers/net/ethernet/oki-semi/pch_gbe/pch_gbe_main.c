@@ -614,8 +614,10 @@ static void pch_gbe_init_stats(struct pch_gbe_adapter *adapter)
 static int pch_gbe_init_phy(struct pch_gbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct pch_gbe_hw *hw = &adapter->hw;
 	u32 addr;
 	u16 bmcr, stat;
+	s32 ret_val;
 
 	/* Discover phy addr by searching addrs in order {1,0,2,..., 31} */
 	for (addr = 0; addr < PCH_GBE_PHY_REGS_LEN; addr++) {
@@ -649,6 +651,16 @@ static int pch_gbe_init_phy(struct pch_gbe_adapter *adapter)
 	adapter->mii.mdio_read = pch_gbe_mdio_read;
 	adapter->mii.mdio_write = pch_gbe_mdio_write;
 	adapter->mii.supports_gmii = mii_check_gmii_support(&adapter->mii);
+
+	ret_val = pch_gbe_phy_get_id(hw);
+	if (ret_val) {
+		netdev_err(adapter->netdev, "pch_gbe_phy_get_id error\n");
+		return -EIO;
+	}
+	pch_gbe_phy_init_setting(hw);
+	/* Setup Mac interface option RGMII */
+	pch_gbe_phy_set_rgmii(hw);
+
 	return 0;
 }
 
@@ -718,22 +730,12 @@ void pch_gbe_reset(struct pch_gbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
-	s32 ret_val;
 
 	pch_gbe_mac_reset_hw(hw);
 	/* reprogram multicast address register after reset */
 	pch_gbe_set_multi(netdev);
 	/* Setup the receive address. */
 	pch_gbe_mac_init_rx_addrs(hw, PCH_GBE_MAR_ENTRIES);
-
-	ret_val = pch_gbe_phy_get_id(hw);
-	if (ret_val) {
-		netdev_err(adapter->netdev, "pch_gbe_phy_get_id error\n");
-		return;
-	}
-	pch_gbe_phy_init_setting(hw);
-	/* Setup Mac interface option RGMII */
-	pch_gbe_phy_set_rgmii(hw);
 }
 
 /**
@@ -2574,6 +2576,8 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_free_netdev;
 
+	pch_gbe_check_options(adapter);
+
 	/* Initialize PHY */
 	ret = pch_gbe_init_phy(adapter);
 	if (ret) {
@@ -2602,8 +2606,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	timer_setup(&adapter->watchdog_timer, pch_gbe_watchdog, 0);
 
 	INIT_WORK(&adapter->reset_task, pch_gbe_reset_task);
-
-	pch_gbe_check_options(adapter);
 
 	/* initialize the wol settings based on the eeprom settings */
 	adapter->wake_up_evt = PCH_GBE_WL_INIT_SETTING;
