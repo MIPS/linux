@@ -17,7 +17,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "pch_gbe.h"
-#include "pch_gbe_phy.h"
 
 /**
  * pch_gbe_stats - Stats item information
@@ -71,41 +70,8 @@ static const struct pch_gbe_stats pch_gbe_gstrings_stats[] = {
 #define PCH_GBE_STATS_LEN (PCH_GBE_GLOBAL_STATS_LEN + PCH_GBE_QUEUE_STATS_LEN)
 
 #define PCH_GBE_MAC_REGS_LEN    (sizeof(struct pch_gbe_regs) / 4)
+#define PCH_GBE_PHY_REGS_LEN	32
 #define PCH_GBE_REGS_LEN        (PCH_GBE_MAC_REGS_LEN + PCH_GBE_PHY_REGS_LEN)
-/**
- * pch_gbe_get_link_ksettings - Get device-specific settings
- * @netdev: Network interface device structure
- * @ecmd:   Ethtool command
- * Returns:
- *	0:			Successful.
- *	Negative value:		Failed.
- */
-static int pch_gbe_get_link_ksettings(struct net_device *netdev,
-				      struct ethtool_link_ksettings *ecmd)
-{
-	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-	u32 supported, advertising;
-
-	mii_ethtool_get_link_ksettings(&adapter->mii, ecmd);
-
-	ethtool_convert_link_mode_to_legacy_u32(&supported,
-						ecmd->link_modes.supported);
-	ethtool_convert_link_mode_to_legacy_u32(&advertising,
-						ecmd->link_modes.advertising);
-
-	supported &= ~(SUPPORTED_TP | SUPPORTED_1000baseT_Half);
-	advertising &= ~(ADVERTISED_TP | ADVERTISED_1000baseT_Half);
-
-	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.supported,
-						supported);
-	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.advertising,
-						advertising);
-
-	if (!netif_carrier_ok(adapter->netdev))
-		ecmd->base.speed = SPEED_UNKNOWN;
-
-	return 0;
-}
 
 /**
  * pch_gbe_set_link_ksettings - Set device-specific settings
@@ -119,34 +85,22 @@ static int pch_gbe_set_link_ksettings(struct net_device *netdev,
 				      const struct ethtool_link_ksettings *ecmd)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
+	struct phy_device *phydev = adapter->phydev;
 	struct pch_gbe_hw *hw = &adapter->hw;
-	struct ethtool_link_ksettings copy_ecmd;
-	u32 speed = ecmd->base.speed;
 	u32 advertising;
 	int ret;
 
-	pch_gbe_phy_write_reg_miic(hw, MII_BMCR, BMCR_RESET);
-
-	memcpy(&copy_ecmd, ecmd, sizeof(*ecmd));
-
-	/* when set_settings() is called with a ethtool_cmd previously
-	 * filled by get_settings() on a down link, speed is -1: */
-	if (speed == UINT_MAX) {
-		speed = SPEED_1000;
-		copy_ecmd.base.speed = speed;
-		copy_ecmd.base.duplex = DUPLEX_FULL;
-	}
-	ret = mii_ethtool_set_link_ksettings(&adapter->mii, &copy_ecmd);
+	ret = phy_ethtool_set_link_ksettings(netdev, ecmd);
 	if (ret) {
-		netdev_err(netdev, "Error: mii_ethtool_set_link_ksettings\n");
+		netdev_err(netdev, "Error: phy_ethtool_set_link_ksettings\n");
 		return ret;
 	}
-	hw->mac.link_speed = speed;
-	hw->mac.link_duplex = copy_ecmd.base.duplex;
+	hw->mac.link_speed = phydev->speed;
+	hw->mac.link_duplex = phydev->duplex;
 	ethtool_convert_link_mode_to_legacy_u32(
-		&advertising, copy_ecmd.link_modes.advertising);
+		&advertising, ecmd->link_modes.advertising);
 	hw->phy.autoneg_advertised = advertising;
-	hw->mac.autoneg = copy_ecmd.base.autoneg;
+	hw->mac.autoneg = ecmd->base.autoneg;
 
 	/* reset the link */
 	if (netif_running(adapter->netdev)) {
@@ -197,16 +151,14 @@ static void pch_gbe_get_regs(struct net_device *netdev,
 	struct pch_gbe_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
 	u32 *regs_buff = p;
-	u16 i, tmp;
+	u16 i;
 
 	regs->version = 0x1000000 | (__u32)pdev->revision << 16 | pdev->device;
 	for (i = 0; i < PCH_GBE_MAC_REGS_LEN; i++)
 		*regs_buff++ = ioread32(&hw->reg->INT_ST + i);
 	/* PHY register */
-	for (i = 0; i < PCH_GBE_PHY_REGS_LEN; i++) {
-		pch_gbe_phy_read_reg_miic(&adapter->hw, i, &tmp);
-		*regs_buff++ = tmp;
-	}
+	for (i = 0; i < PCH_GBE_PHY_REGS_LEN; i++)
+		*regs_buff++ = phy_read(adapter->phydev, i);
 }
 
 /**
@@ -259,20 +211,6 @@ static int pch_gbe_set_wol(struct net_device *netdev,
 	if ((wol->wolopts & WAKE_MAGIC))
 		adapter->wake_up_evt |= PCH_GBE_WLC_MP;
 	return 0;
-}
-
-/**
- * pch_gbe_nway_reset - Restart autonegotiation
- * @netdev: Network interface device structure
- * Returns:
- *	0:			Successful.
- *	Negative value:		Failed.
- */
-static int pch_gbe_nway_reset(struct net_device *netdev)
-{
-	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-
-	return mii_nway_restart(&adapter->mii);
 }
 
 /**
@@ -497,7 +435,7 @@ static const struct ethtool_ops pch_gbe_ethtool_ops = {
 	.get_regs = pch_gbe_get_regs,
 	.get_wol = pch_gbe_get_wol,
 	.set_wol = pch_gbe_set_wol,
-	.nway_reset = pch_gbe_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_ringparam = pch_gbe_get_ringparam,
 	.set_ringparam = pch_gbe_set_ringparam,
@@ -506,7 +444,7 @@ static const struct ethtool_ops pch_gbe_ethtool_ops = {
 	.get_strings = pch_gbe_get_strings,
 	.get_ethtool_stats = pch_gbe_get_ethtool_stats,
 	.get_sset_count = pch_gbe_get_sset_count,
-	.get_link_ksettings = pch_gbe_get_link_ksettings,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = pch_gbe_set_link_ksettings,
 };
 
