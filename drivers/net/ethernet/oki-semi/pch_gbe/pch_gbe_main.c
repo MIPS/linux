@@ -1044,57 +1044,6 @@ static void pch_gbe_set_mode(struct pch_gbe_adapter *adapter, u16 speed,
 }
 
 /**
- * pch_gbe_watchdog - Watchdog process
- * @data:  Board private structure
- */
-static void pch_gbe_watchdog(struct timer_list *t)
-{
-	struct pch_gbe_adapter *adapter = from_timer(adapter, t,
-						     watchdog_timer);
-	struct net_device *netdev = adapter->netdev;
-	struct pch_gbe_hw *hw = &adapter->hw;
-
-	netdev_dbg(netdev, "right now = %ld\n", jiffies);
-
-	pch_gbe_update_stats(adapter);
-	if ((mii_link_ok(&adapter->mii)) && (!netif_carrier_ok(netdev))) {
-		struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
-		netdev->tx_queue_len = adapter->tx_queue_len;
-		/* mii library handles link maintenance tasks */
-		if (mii_ethtool_gset(&adapter->mii, &cmd)) {
-			netdev_err(netdev, "ethtool get setting Error\n");
-			mod_timer(&adapter->watchdog_timer,
-				  round_jiffies(jiffies +
-						PCH_GBE_WATCHDOG_PERIOD));
-			return;
-		}
-		hw->mac.link_speed = ethtool_cmd_speed(&cmd);
-		hw->mac.link_duplex = cmd.duplex;
-		/* Set the RGMII control. */
-		pch_gbe_set_rgmii_ctrl(adapter, hw->mac.link_speed,
-						hw->mac.link_duplex);
-		/* Set the communication mode */
-		pch_gbe_set_mode(adapter, hw->mac.link_speed,
-				 hw->mac.link_duplex);
-		netdev_dbg(netdev,
-			   "Link is Up %d Mbps %s-Duplex\n",
-			   hw->mac.link_speed,
-			   cmd.duplex == DUPLEX_FULL ? "Full" : "Half");
-		netif_carrier_on(netdev);
-		netif_wake_queue(netdev);
-	} else if ((!mii_link_ok(&adapter->mii)) &&
-		   (netif_carrier_ok(netdev))) {
-		netdev_dbg(netdev, "NIC Link is Down\n");
-		hw->mac.link_speed = SPEED_10;
-		hw->mac.link_duplex = DUPLEX_HALF;
-		netif_carrier_off(netdev);
-		netif_stop_queue(netdev);
-	}
-	mod_timer(&adapter->watchdog_timer,
-		  round_jiffies(jiffies + PCH_GBE_WATCHDOG_PERIOD));
-}
-
-/**
  * pch_gbe_tx_queue - Carry out queuing of the transmission data
  * @adapter:  Board private structure
  * @tx_ring:  Tx descriptor ring structure
@@ -1968,6 +1917,58 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 	rx_ring->rx_buff_pool_logic = 0;
 	rx_ring->rx_buff_pool_size = 0;
 	rx_ring->rx_buff_pool = NULL;
+}
+
+/**
+ * pch_gbe_watchdog - Watchdog process
+ * @data:  Board private structure
+ */
+static void pch_gbe_watchdog(struct timer_list *t)
+{
+	struct pch_gbe_adapter *adapter = from_timer(adapter, t,
+						     watchdog_timer);
+	struct net_device *netdev = adapter->netdev;
+	struct pch_gbe_hw *hw = &adapter->hw;
+
+	netdev_dbg(netdev, "right now = %ld\n", jiffies);
+
+	pch_gbe_update_stats(adapter);
+	if ((mii_link_ok(&adapter->mii)) && (!netif_carrier_ok(netdev))) {
+		struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
+
+		netdev->tx_queue_len = adapter->tx_queue_len;
+		/* mii library handles link maintenance tasks */
+		if (mii_ethtool_gset(&adapter->mii, &cmd)) {
+			netdev_err(netdev, "ethtool get setting Error\n");
+			mod_timer(&adapter->watchdog_timer,
+				  round_jiffies(jiffies +
+						PCH_GBE_WATCHDOG_PERIOD));
+			return;
+		}
+		hw->mac.link_speed = ethtool_cmd_speed(&cmd);
+		hw->mac.link_duplex = cmd.duplex;
+		/* Set the RGMII control. */
+		pch_gbe_set_rgmii_ctrl(adapter, hw->mac.link_speed,
+				       hw->mac.link_duplex);
+		/* Set the communication mode */
+		pch_gbe_set_mode(adapter, hw->mac.link_speed,
+				 hw->mac.link_duplex);
+		netdev_dbg(netdev,
+			   "Link is Up %d Mbps %s-Duplex\n",
+			   hw->mac.link_speed,
+			   cmd.duplex == DUPLEX_FULL ? "Full" : "Half");
+		netif_carrier_on(netdev);
+		netif_wake_queue(netdev);
+	} else if ((!mii_link_ok(&adapter->mii)) &&
+		   (netif_carrier_ok(netdev))) {
+		netdev_dbg(netdev, "NIC Link is Down\n");
+		hw->mac.link_speed = SPEED_10;
+		hw->mac.link_duplex = DUPLEX_HALF;
+		netif_carrier_off(netdev);
+		netif_stop_queue(netdev);
+	}
+	mod_timer(&adapter->watchdog_timer,
+		  round_jiffies(jiffies + PCH_GBE_WATCHDOG_PERIOD));
 }
 
 /**
