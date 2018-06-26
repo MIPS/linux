@@ -22,7 +22,8 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/mii.h>
+#include <linux/mdio.h>
+#include <linux/phy.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -578,8 +579,8 @@ struct pch_gbe_adapter {
 	struct pch_gbe_hw hw;
 	struct pch_gbe_hw_stats stats;
 	struct work_struct reset_task;
-	struct mii_if_info mii;
-	struct timer_list watchdog_timer;
+	struct mii_bus *mdiobus;
+	struct phy_device *phydev;
 	u32 wake_up_evt;
 	struct pch_gbe_tx_ring *tx_ring;
 	struct pch_gbe_rx_ring *rx_ring;
