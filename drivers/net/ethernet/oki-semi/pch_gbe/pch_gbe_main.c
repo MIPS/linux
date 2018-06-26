@@ -1834,7 +1834,6 @@ static int pch_gbe_request_irq(struct pch_gbe_adapter *adapter)
 int pch_gbe_up(struct pch_gbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct pch_gbe_tx_ring *tx_ring = adapter->tx_ring;
 	struct pch_gbe_rx_ring *rx_ring = adapter->rx_ring;
 	int err = -EINVAL;
 
@@ -1843,14 +1842,6 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 		netdev_err(netdev, "Error: Invalid MAC address\n");
 		goto out;
 	}
-
-	/* hardware has been reset, we need to reload some things */
-	pch_gbe_set_multi(netdev);
-
-	pch_gbe_setup_tctl(adapter);
-	pch_gbe_configure_tx(adapter);
-	pch_gbe_setup_rctl(adapter);
-	pch_gbe_configure_rx(adapter);
 
 	err = pch_gbe_request_irq(adapter);
 	if (err) {
@@ -1864,18 +1855,9 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 			   "Error: can't bring device up - alloc rx buffers pool failed\n");
 		goto freeirq;
 	}
-	pch_gbe_alloc_tx_buffers(adapter, tx_ring);
-	pch_gbe_alloc_rx_buffers(adapter, rx_ring, rx_ring->count);
 	adapter->tx_queue_len = netdev->tx_queue_len;
-	pch_gbe_enable_dma_rx(&adapter->hw);
-	pch_gbe_enable_mac_rx(&adapter->hw);
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
-
-	napi_enable(&adapter->napi);
-	pch_gbe_irq_enable(adapter);
-	netif_start_queue(adapter->netdev);
-
 	return 0;
 
 freeirq:
@@ -1927,6 +1909,8 @@ static void pch_gbe_watchdog(struct timer_list *t)
 {
 	struct pch_gbe_adapter *adapter = from_timer(adapter, t,
 						     watchdog_timer);
+	struct pch_gbe_rx_ring *rx_ring = adapter->rx_ring;
+	struct pch_gbe_tx_ring *tx_ring = adapter->tx_ring;
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
 
@@ -1947,12 +1931,32 @@ static void pch_gbe_watchdog(struct timer_list *t)
 		}
 		hw->mac.link_speed = ethtool_cmd_speed(&cmd);
 		hw->mac.link_duplex = cmd.duplex;
+
+		pch_gbe_reset(adapter);
+
 		/* Set the RGMII control. */
 		pch_gbe_set_rgmii_ctrl(adapter, hw->mac.link_speed,
 				       hw->mac.link_duplex);
 		/* Set the communication mode */
 		pch_gbe_set_mode(adapter, hw->mac.link_speed,
 				 hw->mac.link_duplex);
+
+		pch_gbe_set_multi(netdev);
+		pch_gbe_setup_tctl(adapter);
+		pch_gbe_configure_tx(adapter);
+		pch_gbe_setup_rctl(adapter);
+		pch_gbe_configure_rx(adapter);
+
+		pch_gbe_alloc_tx_buffers(adapter, tx_ring);
+		pch_gbe_alloc_rx_buffers(adapter, rx_ring, rx_ring->count);
+
+		pch_gbe_enable_dma_rx(&adapter->hw);
+		pch_gbe_enable_mac_rx(&adapter->hw);
+
+		napi_enable(&adapter->napi);
+		pch_gbe_irq_enable(adapter);
+		netif_start_queue(adapter->netdev);
+
 		netdev_dbg(netdev,
 			   "Link is Up %d Mbps %s-Duplex\n",
 			   hw->mac.link_speed,
@@ -2565,7 +2569,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 			  (ETH_HLEN + ETH_FCS_LEN);
 
 	pch_gbe_mac_load_mac_addr(&adapter->hw);
-	pch_gbe_mac_reset_hw(&adapter->hw);
 
 	/* setup the private structure */
 	ret = pch_gbe_sw_init(adapter);
@@ -2606,9 +2609,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	/* initialize the wol settings based on the eeprom settings */
 	adapter->wake_up_evt = PCH_GBE_WL_INIT_SETTING;
 	dev_info(&pdev->dev, "MAC address : %pM\n", netdev->dev_addr);
-
-	/* reset the hardware with the new settings */
-	pch_gbe_reset(adapter);
 
 	ret = register_netdev(netdev);
 	if (ret)
