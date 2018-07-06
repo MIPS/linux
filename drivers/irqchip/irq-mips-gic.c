@@ -708,6 +708,21 @@ static const struct irq_domain_ops gic_ipi_domain_ops = {
 
 static int gic_cpu_startup(unsigned int cpu)
 {
+	int i;
+
+	/*
+	 * If this CPU is the first in its cluster to come online then
+	 * initialise the local cluster's GIC shared registers to sane default
+	 * values.
+	 */
+	if (mips_cps_first_online_in_cluster()) {
+		for (i = 0; i < gic_shared_intrs; i++) {
+			change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
+			change_gic_trig(i, GIC_TRIG_LEVEL);
+			write_gic_rmask(i);
+		}
+	}
+
 	/* Enable or disable EIC */
 	change_gic_vl_ctl(GIC_VX_CTL_EIC,
 			  cpu_has_veic ? GIC_VX_CTL_EIC : 0);
@@ -843,13 +858,6 @@ static int __init gic_of_init(struct device_node *node,
 	bitmap_copy(ipi_available, ipi_resrv, GIC_MAX_INTRS);
 
 	board_bind_eic_interrupt = &gic_bind_eic_interrupt;
-
-	/* Setup defaults */
-	for (i = 0; i < gic_shared_intrs; i++) {
-		change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
-		change_gic_trig(i, GIC_TRIG_LEVEL);
-		write_gic_rmask(i);
-	}
 
 	return cpuhp_setup_state(CPUHP_AP_IRQ_MIPS_GIC_STARTING,
 				 "irqchip/mips/gic:starting",
