@@ -107,6 +107,10 @@ LDFLAGS_vmlinux			+= -static -n -nostdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
+ifeq ($(CONFIG_CPU_NANOMIPS),y)
+KBUILD_CFLAGS_MODULE		+= -mcmodel=medium
+KBUILD_LDFLAGS_MODULE		+= --finalize-relocs --finalize-pcrel-relocs
+endif
 ifeq ($(CONFIG_RELOCATABLE),y)
 LDFLAGS_vmlinux			+= --emit-relocs
 endif

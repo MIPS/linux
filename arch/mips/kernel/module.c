@@ -53,6 +53,7 @@ void *module_alloc(unsigned long size)
 }
 #endif
 
+#ifndef CONFIG_CPU_NANOMIPS
 static int apply_r_mips_none(struct module *me, u32 *location,
 			     u32 base, Elf_Addr v, bool rela)
 {
@@ -114,17 +115,6 @@ static int apply_r_mips_hi16(struct module *me, u32 *location,
 	me->arch.r_mips_hi16_list = n;
 
 	return 0;
-}
-
-static void free_relocation_chain(struct mips_hi16 *l)
-{
-	struct mips_hi16 *next;
-
-	while (l) {
-		next = l->next;
-		kfree(l);
-		l = next;
-	}
 }
 
 static int apply_r_mips_lo16(struct module *me, u32 *location,
@@ -282,6 +272,195 @@ static int apply_r_mips_highest(struct module *me, u32 *location,
 
 	return 0;
 }
+#else
+static int apply_r_nanomips_align(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	return 0;
+}
+
+static int apply_r_nanomips_32(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	u16 *insn_p;
+	u32 insn_encode;
+
+	insn_p = (u16 *) location;
+	insn_encode = ((u32)insn_p[0] << 16) | insn_p[1];
+	insn_encode = v;
+	insn_p[1] = insn_encode >> 16;
+	insn_p[0] = insn_encode;
+
+	return 0;
+}
+
+static int apply_r_nanomips_pc_i32(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	u16 *insn_p;
+	u32 insn_encode;
+
+	insn_p = (u16 *) location;
+	insn_encode = ((u32)insn_p[0] << 16) | insn_p[1];
+	insn_encode = v - ((unsigned long)location + 4);
+	insn_p[1] = insn_encode >> 16;
+	insn_p[0] = insn_encode;
+
+	return 0;
+}
+
+static int apply_r_nanomips_pc21_s1(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	unsigned long mask = GENMASK(20, 1);
+	u16 *insn_p;
+	u32 insn_encode;
+	long offset;
+
+	offset = v - ((unsigned long)location + 4);
+	insn_p = (u16 *) location;
+	insn_encode = ((u32)insn_p[0] << 16) | insn_p[1];
+	insn_encode = (insn_encode & ~mask) | (offset & mask);
+	insn_encode = (insn_encode & ~BIT(0)) | ((offset >> 21) & 1);
+	insn_p[0] = insn_encode >> 16;
+	insn_p[1] = insn_encode;
+
+	return 0;
+}
+
+static int apply_r_nanomips_pc_hi20(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	unsigned long mask_lo = GENMASK(11, 2);
+	unsigned long mask_mid = GENMASK(20, 12);
+	unsigned long mask_hi = GENMASK(30, 21);
+	u16 *insn_p;
+	u32 insn_encode;
+	long offset;
+
+	offset = v - (((unsigned long)location + 4) & ~(0xfff));
+	insn_p = (u16 *) location;
+	insn_encode = ((u32)insn_p[0] << 16) | insn_p[1];
+	insn_encode = (insn_encode & ~mask_lo) |
+			((offset & mask_hi) >> 19);
+	insn_encode = (insn_encode & ~mask_mid) | (offset & mask_mid);
+	insn_encode = (insn_encode & ~BIT(0)) | ((offset >> 31) & 1);
+	insn_p[0] = insn_encode >> 16;
+	insn_p[1] = insn_encode;
+
+	return 0;
+}
+
+static int apply_r_nanomips_pc14_s1(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	unsigned long mask = GENMASK(13, 1);
+	u16 *insn_p;
+	u32 insn_encode;
+	long offset;
+
+	offset = v - ((unsigned long)location + 4);
+	insn_p = (u16 *) location;
+	insn_encode = ((u32)insn_p[0] << 16) | insn_p[1];
+	insn_encode = (insn_encode & ~mask) | (offset & mask);
+	insn_encode = (insn_encode & ~BIT(0)) | ((offset >> 14) & 1);
+	insn_p[0] = insn_encode >> 16;
+	insn_p[1] = insn_encode;
+
+	return 0;
+}
+
+static int apply_r_nanomips_lo12(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	unsigned long mask = GENMASK(11, 0);
+	u16 *insn_p;
+	u32 insn_encode;
+	long offset;
+
+	offset = v;
+	insn_p = (u16 *) location;
+	insn_encode = ((u32)insn_p[0] << 16) | insn_p[1];
+	insn_encode = (insn_encode & ~mask) | (offset & mask);
+	insn_p[0] = insn_encode >> 16;
+	insn_p[1] = insn_encode;
+
+	return 0;
+}
+static int apply_r_nanomips_pc11_s1(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	unsigned long mask = GENMASK(10, 1);
+	u16 *insn_p;
+	u32 insn_encode;
+	long offset;
+
+	offset = v - ((unsigned long)location + 4);
+	insn_p = (u16 *) location;
+	insn_encode = ((u32)insn_p[0] << 16) | insn_p[1];
+	insn_encode = (insn_encode & ~mask) | (offset & mask);
+	insn_encode = (insn_encode & ~BIT(0)) | ((offset >> 11) & 1);
+	insn_p[0] = insn_encode >> 16;
+	insn_p[1] = insn_encode;
+
+	return 0;
+}
+
+static int apply_r_nanomips_pc10_s1(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	unsigned long mask = GENMASK(9, 1);
+	u16 *loc_16;
+	long offset;
+
+	offset = v - ((unsigned long)location + 2);
+	loc_16 = (u16 *)location;
+	*loc_16 = (*loc_16 & ~mask) | (offset & mask);
+	*loc_16 = (*loc_16 & ~BIT(0)) | ((offset >> 10) & 1);
+
+	return 0;
+}
+
+static int apply_r_nanomips_pc7_s1(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	unsigned long mask = GENMASK(6, 1);
+	u16 *loc_16;
+	long offset;
+
+	offset = v - ((unsigned long)location + 2);
+	loc_16 = (u16 *)location;
+	*loc_16 = (*loc_16 & ~mask) | (offset & mask);
+	*loc_16 = (*loc_16 & ~BIT(0)) | ((offset >> 7) & 1);
+
+	return 0;
+}
+
+static int apply_r_nanomips_pc4_s1(struct module *me, u32 *location,
+			       u32 base, Elf_Addr v, bool rela)
+{
+	unsigned long mask = GENMASK(3, 1);
+	u16 *loc_16;
+	long offset;
+
+	offset = v - ((unsigned long)location + 2);
+	loc_16 = (u16 *)location;
+	*loc_16 = (*loc_16 & ~mask) | (offset & mask);
+
+	return 0;
+}
+#endif
+
+static void free_relocation_chain(struct mips_hi16 *l)
+{
+	struct mips_hi16 *next;
+
+	while (l) {
+		next = l->next;
+		kfree(l);
+		l = next;
+	}
+}
 
 /**
  * reloc_handler() - Apply a particular relocation to a module
@@ -303,6 +482,7 @@ typedef int (*reloc_handler)(struct module *me, u32 *location,
 
 /* The handlers for known reloc types */
 static reloc_handler reloc_handlers[] = {
+#ifndef CONFIG_CPU_NANOMIPS
 	[R_MIPS_NONE]		= apply_r_mips_none,
 	[R_MIPS_32]		= apply_r_mips_32,
 	[R_MIPS_26]		= apply_r_mips_26,
@@ -314,6 +494,19 @@ static reloc_handler reloc_handlers[] = {
 	[R_MIPS_HIGHEST]	= apply_r_mips_highest,
 	[R_MIPS_PC21_S2]	= apply_r_mips_pc21,
 	[R_MIPS_PC26_S2]	= apply_r_mips_pc26,
+#else
+	[R_NANOMIPS_ALIGN]	= apply_r_nanomips_align,
+	[R_NANOMIPS_32]		= apply_r_nanomips_32,
+	[R_NANOMIPS_PC_I32]	= apply_r_nanomips_pc_i32,
+	[R_NANOMIPS_PC21_S1]	= apply_r_nanomips_pc21_s1,
+	[R_NANOMIPS_PC_HI20]	= apply_r_nanomips_pc_hi20,
+	[R_NANOMIPS_PC14_S1]	= apply_r_nanomips_pc14_s1,
+	[R_NANOMIPS_LO12]	= apply_r_nanomips_lo12,
+	[R_NANOMIPS_PC11_S1]	= apply_r_nanomips_pc11_s1,
+	[R_NANOMIPS_PC10_S1]	= apply_r_nanomips_pc10_s1,
+	[R_NANOMIPS_PC7_S1]	= apply_r_nanomips_pc7_s1,
+	[R_NANOMIPS_PC4_S1]	= apply_r_nanomips_pc4_s1,
+#endif
 };
 
 static int __apply_relocate(Elf_Shdr *sechdrs, const char *strtab,

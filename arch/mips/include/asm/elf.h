@@ -97,6 +97,17 @@
 #define R_MIPS_GOT_DISP		19
 #define R_MIPS_GOT_PAGE		20
 #define R_MIPS_GOT_OFST		21
+#define R_NANOMIPS_32		1
+#define R_NANOMIPS_PC21_S1	14
+#define R_NANOMIPS_PC14_S1	15
+#define R_NANOMIPS_PC11_S1	16
+#define R_NANOMIPS_PC10_S1	17
+#define R_NANOMIPS_PC7_S1	18
+#define R_NANOMIPS_PC4_S1	19
+#define R_NANOMIPS_PC_HI20	27
+#define R_NANOMIPS_LO12		29
+#define R_NANOMIPS_PC_I32	31
+#define R_NANOMIPS_ALIGN	64
 /*
  * The following two relocation types are specified in the MIPS ABI
  * conformance guide version 1.2 but not yet in the psABI.
