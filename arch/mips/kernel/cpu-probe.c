@@ -414,7 +414,6 @@ static int __init ftlb_disable(char *s)
 
 __setup("noftlb", ftlb_disable);
 
-
 static inline void check_errata(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -843,12 +842,26 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_RW_LLB;
 	if (config5 & MIPS_CONF5_MVH)
 		c->options |= MIPS_CPU_MVH;
-	if (cpu_has_mips_r6 && (config5 & MIPS_CONF5_VP))
+
+	if (!cpu_has_mips_r6)
+		goto out;
+
+	if (config5 & MIPS_CONF5_VP)
 		c->options |= MIPS_CPU_VP;
 
 	if (config5 & MIPS_CONF5_CRCP)
 		elf_hwcap |= HWCAP_MIPS_CRC32;
 
+	switch (config5 & MIPS_CONF5_GI) {
+	case MIPS_CONF5_GI_IC:
+	case MIPS_CONF5_GI_IC_TLB:
+		c->options |= MIPS_CPU_GINVI;
+		break;
+	default:
+		break;
+	}
+
+out:
 	return config5 & MIPS_CONF_M;
 }
 

@@ -48,6 +48,7 @@
 #define CP0_ENTRYLO0 $2
 #define CP0_ENTRYLO1 $3
 #define CP0_CONF $3
+#define CP0_GLOBALNUMBER $3, 1
 #define CP0_CONTEXT $4
 #define CP0_PAGEMASK $5
 #define CP0_SEGCTL0 $5, 2
@@ -652,6 +653,10 @@
 #define MIPS_CONF5_SBRI		(_ULCAST_(1) << 6)
 #define MIPS_CONF5_FRE		(_ULCAST_(1) << 8)
 #define MIPS_CONF5_UFE		(_ULCAST_(1) << 9)
+#define MIPS_CONF5_GI		(_ULCAST_(3) << 15)
+#define MIPS_CONF5_GI_IC	(_ULCAST_(2) << 15)
+#define MIPS_CONF5_GI_IC_TLB	(_ULCAST_(3) << 15)
+#define MIPS_CONF5_MI		(_ULCAST_(1) << 17)
 #define MIPS_CONF5_CRCP		(_ULCAST_(1) << 18)
 #define MIPS_CONF5_MSAEN	(_ULCAST_(1) << 27)
 #define MIPS_CONF5_EVA		(_ULCAST_(1) << 28)
@@ -1458,6 +1463,8 @@ do {									\
 #define read_c0_conf()		__read_32bit_c0_register($3, 0)
 #define write_c0_conf(val)	__write_32bit_c0_register($3, 0, val)
 
+#define read_c0_globalnumber()	__read_32bit_c0_register($3, 1)
+
 #define read_c0_context()	__read_ulong_c0_register($4, 0)
 #define write_c0_context(val)	__write_ulong_c0_register($4, 0, val)
 
@@ -1469,6 +1476,9 @@ do {									\
 
 #define read_c0_xcontextconfig()	__read_ulong_c0_register($4, 3)
 #define write_c0_xcontextconfig(val)	__write_ulong_c0_register($4, 3, val)
+
+#define read_c0_memorymapid()		__read_32bit_c0_register($4, 5)
+#define write_c0_memorymapid(val)	__write_32bit_c0_register($4, 5, val)
 
 #define read_c0_pagemask()	__read_32bit_c0_register($5, 0)
 #define write_c0_pagemask(val)	__write_32bit_c0_register($5, 0, val)

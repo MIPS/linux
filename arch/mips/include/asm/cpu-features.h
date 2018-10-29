@@ -487,6 +487,22 @@
 # define cpu_has_perf		(cpu_data[0].options & MIPS_CPU_PERF)
 #endif
 
+#ifndef cpu_has_mmid
+# ifdef CONFIG_MIPS_MMID_SUPPORT
+#  define cpu_has_mmid		(cpu_data[0].options & MIPS_CPU_MMID)
+# else
+#  define cpu_has_mmid		0
+# endif
+#endif
+
+#ifndef cpu_has_ginvi
+# ifdef CONFIG_MIPS_GINVI_SUPPORT
+#  define cpu_has_ginvi		(cpu_data[0].options & MIPS_CPU_GINVI)
+# else
+#  define cpu_has_ginvi		0
+# endif
+#endif
+
 /*
  * Guest capabilities
  */

@@ -44,4 +44,47 @@ extern void flush_tlb_one(unsigned long vaddr);
 
 #endif /* CONFIG_SMP */
 
+enum mips_global_tlb_invalidate_type {
+	invalidate_all_tlb,
+	invalidate_by_va,
+	invalidate_by_mmid,
+	invalidate_by_va_mmid,
+};
+
+#define ginvt(page, type)					\
+do {								\
+	__asm__ __volatile__(					\
+		".set	push\n\t"				\
+		".set	noat\n\t"				\
+		"move	$1, %0\n\t"				\
+		"# ginvt $1, %1\n\t"				\
+		".word	0x7c0000bd | (1 << 21) | (%1 << 8)\n\t"	\
+		".set	pop\n\t"				\
+	: /* No outputs */					\
+	: "r" (page), "i" (type)				\
+	);							\
+} while(0)
+
+static inline void global_tlb_invalidate(
+	unsigned long page, unsigned long type)
+{
+	switch (type) {
+	case invalidate_all_tlb:
+		ginvt(0, invalidate_all_tlb);
+		break;
+	case invalidate_by_va:
+		page &= (PAGE_MASK << 1);
+		ginvt(page, invalidate_by_va);
+		break;
+	case invalidate_by_mmid:
+		ginvt(0, invalidate_by_mmid);
+		break;
+	case invalidate_by_va_mmid:
+		page &= (PAGE_MASK << 1);
+		ginvt(page, invalidate_by_va_mmid);
+		break;
+	}
+	sync_ginv();
+}
+
 #endif /* __ASM_TLBFLUSH_H */
