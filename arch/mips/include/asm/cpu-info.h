@@ -78,6 +78,9 @@ struct cpuinfo_mips {
 	struct cache_desc	tcache; /* Tertiary/split secondary cache */
 	int			srsets; /* Shadow register sets */
 	int			package;/* physical package number */
+#ifdef CONFIG_CPU_MIPSR6
+	int			cluster;/* cluster number */
+#endif
 	int			core;	/* physical core number */
 #ifdef CONFIG_64BIT
 	int			vmbits; /* Virtual memory size in bits */
@@ -144,6 +147,14 @@ struct proc_cpuinfo_notifier_args {
 	struct seq_file *m;
 	unsigned long n;
 };
+
+#ifdef CONFIG_CPU_MIPSR6
+# define cpu_cluster(cpuinfo)		((cpuinfo)->cluster)
+# define cpu_set_cluster(cpuinfo, cl)	((cpuinfo)->cluster = (cl))
+#else
+# define cpu_cluster(cpuinfo)		({ (void)(cpuinfo); 0; })
+# define cpu_set_cluster(cpuinfo, cl)	WARN_ON((cl) != 0)
+#endif
 
 #if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
 # define cpu_vpe_id(cpuinfo)	((cpuinfo)->vpe_id)
