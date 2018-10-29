@@ -105,7 +105,7 @@ static bool check_update_reserved_mmid(u64 mmid, u64 newmmid)
 
 static u64 refresh_context(struct mm_struct *mm, unsigned int cpu)
 {
-	static u32 cur_idx;
+	static u32 cur_idx = 1;
 	u64 mmid = atomic64_read(&mm->context.mmid);
 	u64 generation = atomic64_read(&mmid_generation);
 
@@ -131,6 +131,10 @@ static u64 refresh_context(struct mm_struct *mm, unsigned int cpu)
 	/*
 	 * Allocate a free MMID. If we can't find one, take a note of the
 	 * currently active MMIDs and mark the TLBs as requiring flushes.
+	 *
+	 * We don't allocate MMID #0 in the first generation such that we
+	 * can use cpu_context()==0 to indicate that a struct mm has never
+	 * been used.
 	 */
 	mmid = find_next_zero_bit(mmid_map, NUM_USER_MMIDS, cur_idx);
 	if (mmid != NUM_USER_MMIDS)
@@ -166,7 +170,7 @@ void switch_mmid(struct mm_struct *mm, unsigned int cpu)
 	 */
 	if (!((mmid ^ atomic64_read(&mmid_generation)) >> mmid_bits)
 	    && atomic64_xchg_relaxed(&per_cpu(active_mmids, cpu), mmid)) {
-		write_c0_memorymapid(mmid);
+		write_c0_memorymapid(mmid & mmid_mask);
 		goto out;
 	}
 
@@ -222,11 +226,21 @@ static int __init mmid_disable(char *s)
 
 __setup("nommid", mmid_disable);
 
+static unsigned int mmid_max_bits;
+
+static int __init setup_mmid_max_bits(char *s)
+{
+	int err = kstrtouint(s, 0, &mmid_max_bits);
+
+	return err ?: 1;
+}
+__setup("mmid_max_bits=", setup_mmid_max_bits);
+
 void setup_mmid(void)
 {
-	unsigned int config5;
+	unsigned int orig, config5;
 
-	config5 = read_c0_config5();
+	orig = config5 = read_c0_config5();
 
 	if (IS_ENABLED(CONFIG_MIPS_MMID_SUPPORT) && !mips_mmid_disabled)
 		config5 |= MIPS_CONF5_MI;
@@ -251,6 +265,9 @@ void setup_mmid(void)
 		WARN(cpu_has_mmid, "CPUs have differing MMID support");
 	}
 
+	/* TLB state is unpredictable after changing Config5.MI */
+	if ((orig ^ config5) & MIPS_CONF5_MI)
+		local_flush_tlb_all();
 }
 
 int __init mmid_init(void)
@@ -263,6 +280,9 @@ int __init mmid_init(void)
 	write_c0_memorymapid(~0);
 	back_to_back_c0_hazard();
 	mmid_mask = read_c0_memorymapid();
+
+	if (mmid_max_bits && (mmid_mask >= BIT(mmid_max_bits)))
+		mmid_mask = GENMASK(mmid_max_bits - 1, 0);
 
 	mmid_bits = min(get_bitmask_order(mmid_mask), MAX_MMID_BITS);
 
