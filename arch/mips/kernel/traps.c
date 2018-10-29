@@ -433,6 +433,8 @@ static const struct exception_table_entry *search_dbe_tables(unsigned long addr)
 			   __stop___dbe_table - __start___dbe_table, addr);
 	if (!e)
 		e = search_module_dbetables(addr);
+	if (!e)
+		e = search_exception_tables(addr);
 	return e;
 }
 
@@ -445,17 +447,15 @@ asmlinkage void do_be(struct pt_regs *regs)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
-	/* XXX For now.	 Fixme, this searches the wrong table ...  */
 	if (data && !user_mode(regs))
 		fixup = search_dbe_tables(exception_epc(regs));
 
-	if (fixup)
-		action = MIPS_BE_FIXUP;
-
 	if (board_be_handler)
 		action = board_be_handler(regs, fixup != NULL);
+	else if (fixup)
+		action = MIPS_BE_FIXUP;
 	else
-		mips_cm_error_report();
+		action = mips_cm_be_handler(regs);
 
 	switch (action) {
 	case MIPS_BE_DISCARD:
@@ -466,6 +466,9 @@ asmlinkage void do_be(struct pt_regs *regs)
 			goto out;
 		}
 		break;
+	case MIPS_BE_FATAL_QUIET:
+		if (user_mode(regs))
+			goto out_sigbus;
 	default:
 		break;
 	}
@@ -481,8 +484,8 @@ asmlinkage void do_be(struct pt_regs *regs)
 		goto out;
 
 	die_if_kernel("Oops", regs);
+out_sigbus:
 	force_sig(SIGBUS, current);
-
 out:
 	exception_exit(prev_state);
 }

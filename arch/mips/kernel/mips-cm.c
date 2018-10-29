@@ -14,6 +14,8 @@
 
 #include <asm/mips-cm.h>
 #include <asm/mipsregs.h>
+#include <asm/ptrace.h>
+#include <asm/traps.h>
 
 void __iomem *mips_cm_base;
 void __iomem *mips_cm_l2sync_base;
@@ -321,7 +323,7 @@ void mips_cm_unlock_other(void)
 	preempt_enable();
 }
 
-void mips_cm_error_report(void)
+int mips_cm_be_handler(struct pt_regs *regs)
 {
 	u64 cm_error, cm_addr, cm_other;
 	unsigned long revision;
@@ -329,7 +331,7 @@ void mips_cm_error_report(void)
 	char buf[256];
 
 	if (!mips_cm_present())
-		return;
+		return MIPS_BE_FATAL;
 
 	revision = mips_cm_revision();
 
@@ -341,7 +343,7 @@ void mips_cm_error_report(void)
 		ocause = cm_other >> CM_GCR_ERROR_MULT_ERR2ND_SHF;
 
 		if (!cause)
-			return;
+			return MIPS_BE_FATAL;
 
 		if (cause < 16) {
 			unsigned long cca_bits = (cm_error >> 15) & 7;
@@ -387,7 +389,7 @@ void mips_cm_error_report(void)
 		ocause = cm_other >> CM_GCR_ERROR_MULT_ERR2ND_SHF;
 
 		if (!cause)
-			return;
+			return MIPS_BE_FATAL;
 
 		/* Used by cause == {1,2,3} */
 		core_id_bits = (cm_error >> 22) & 0xf;
@@ -426,6 +428,11 @@ void mips_cm_error_report(void)
 			unsigned long data_decode_group = (cm_error >> 34) & 0x7;
 			unsigned long data_decode_destination_id = (cm_error >> 28) & 0x3f;
 
+			if (user_mode(regs) &&
+			    (cm_error & BIT_ULL(42)) && /* gic_hit */
+			    (cm_error & BIT_ULL(51))) /* err_size */
+				return MIPS_BE_FATAL_QUIET;
+
 			snprintf(buf, sizeof(buf),
 				 "Decode Request Error: Type=%lu, Command=%lu"
 				 "Command Group=%lu Destination ID=%lu"
@@ -451,4 +458,6 @@ void mips_cm_error_report(void)
 
 	/* reprime cause register */
 	write_gcr_error_cause(0);
+
+	return MIPS_BE_FATAL;
 }
