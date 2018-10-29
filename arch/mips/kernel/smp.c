@@ -354,7 +354,14 @@ early_initcall(mips_smp_ipi_init);
  */
 asmlinkage void start_secondary(void)
 {
-	unsigned int cpu;
+	unsigned int cpu = current->cpu;
+
+	/* Stash this CPUs ID in CP0 for smp_processor_id() */
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+	write_c0_xcontext((unsigned long)cpu << SMP_CPUID_REGSHIFT);
+#else
+	write_c0_context(cpu << SMP_CPUID_REGSHIFT);
+#endif
 
 	cpu_probe();
 	setup_mmid();
@@ -431,7 +438,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	init_new_context(current, &init_mm);
-	current_thread_info()->cpu = 0;
 	mp_ops->prepare_cpus(max_cpus);
 	set_cpu_sibling_map(0);
 	set_cpu_core_map(0);
@@ -453,6 +459,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int err;
 
+	thread_info_ptr[cpu] = (unsigned long)task_thread_info(tidle);
 	err = mp_ops->boot_secondary(cpu, tidle);
 	if (err)
 		return err;

@@ -1416,6 +1416,11 @@ do {									\
 	(unsigned long) __read_32bit_c0_register(reg, sel) :		\
 	(unsigned long) __read_64bit_c0_register(reg, sel))
 
+#define __read_const_ulong_c0_register(reg, sel)			\
+	((sizeof(unsigned long) == 4) ?					\
+	(unsigned long) __read_const_32bit_c0_register(reg, sel) :	\
+	(unsigned long) __read_const_64bit_c0_register(reg, sel))
+
 #define __write_ulong_c0_register(reg, sel, val)			\
 do {									\
 	if (sizeof(unsigned long) == 4)					\
@@ -1569,6 +1574,7 @@ do {									\
 #define read_c0_globalnumber()	__read_32bit_c0_register($3, 1)
 
 #define read_c0_context()	__read_ulong_c0_register($4, 0)
+#define read_const_c0_context()	__read_const_ulong_c0_register($4, 0)
 #define write_c0_context(val)	__write_ulong_c0_register($4, 0, val)
 
 #define read_c0_contextconfig()		__read_32bit_c0_register($4, 1)
@@ -1725,6 +1731,7 @@ do {									\
 #define write_c0_watchhi7(val)	__write_32bit_c0_register($19, 7, val)
 
 #define read_c0_xcontext()	__read_ulong_c0_register($20, 0)
+#define read_const_c0_xcontext()	__read_const_ulong_c0_register($20, 0)
 #define write_c0_xcontext(val)	__write_ulong_c0_register($20, 0, val)
 
 #define read_c0_intcontrol()	__read_32bit_c0_ctrl_register($20)
