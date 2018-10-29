@@ -34,6 +34,14 @@ extern void mips_cps_boot_vpes(struct core_boot_config *cfg, unsigned vpe);
 extern void mips_cps_pm_save(void);
 extern void mips_cps_pm_restore(void);
 
+#ifdef CONFIG_MIPS_CPU_STEAL
+
+extern int mips_cps_steal_cpu_and_execute(unsigned int cpu, void *entry_fn,
+					  struct task_struct *tsk);
+extern int mips_cps_halt_and_return_cpu(unsigned int cpu);
+
+#endif /* CONFIG_MIPS_CPU_STEAL */
+
 #ifdef CONFIG_MIPS_CPS
 
 extern bool mips_cps_smp_in_use(void);
