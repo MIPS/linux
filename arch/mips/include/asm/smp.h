@@ -81,6 +81,28 @@ static inline void __cpu_die(unsigned int cpu)
 extern void play_dead(void);
 #endif
 
+/**
+ * smp_get_online_sibling() - Get the CPU number of an online sibling CPU
+ * @cpu: the CPU to which a sibling is sought
+ *
+ * Return: The CPU of an online sibling to @cpu, or -1 if there is none
+ */
+static inline int smp_get_online_sibling(int cpu)
+{
+	int sibling_cpu;
+
+	/* Look for another online VP(E) within the core */
+	for_each_online_cpu(sibling_cpu) {
+		if (sibling_cpu == cpu)
+			continue;
+		if (cpus_are_siblings(cpu, sibling_cpu))
+			return sibling_cpu;
+	}
+
+	/* No online sibling */
+	return -1;
+}
+
 /*
  * This function will set up the necessary IPIs for Linux to communicate
  * with the CPUs in mask.
