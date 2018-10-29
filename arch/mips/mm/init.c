@@ -347,7 +347,7 @@ void maar_init(void)
 		upper = ((upper & MIPS_MAAR_ADDR) << 4) | 0xffff;
 
 		pr_info("  [%d]: ", i / 2);
-		if (!(attr & MIPS_MAAR_V)) {
+		if (!(attr & MIPS_MAAR_VL)) {
 			pr_cont("disabled\n");
 			continue;
 		}
@@ -538,5 +538,6 @@ unsigned long pgd_current[NR_CPUS];
 pgd_t swapper_pg_dir[_PTRS_PER_PGD] __section(.bss..swapper_pg_dir);
 #ifndef __PAGETABLE_PMD_FOLDED
 pmd_t invalid_pmd_table[PTRS_PER_PMD] __page_aligned_bss;
+EXPORT_SYMBOL_GPL(invalid_pmd_table);
 #endif
 pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned_bss;
