@@ -16,6 +16,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -60,6 +61,7 @@
 #define XILINX_PCIE_INTR_MST_SLVERR	BIT(27)
 #define XILINX_PCIE_INTR_MST_ERRP	BIT(28)
 #define XILINX_PCIE_IMR_ALL_MASK	0x1FF30FED
+#define XILINX_PCIE_IMR_ENABLE_MASK	0x1FF30F0D
 #define XILINX_PCIE_IDR_ALL_MASK	0xFFFFFFFF
 
 /* Root Port Error FIFO Read Register definitions */
@@ -380,11 +382,14 @@ static const struct irq_domain_ops intx_domain_ops = {
  *
  * Return: IRQ_HANDLED on success and IRQ_NONE on failure
  */
-static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
+static void xilinx_pcie_intr_handler(struct irq_desc *desc)
 {
-	struct xilinx_pcie_port *port = (struct xilinx_pcie_port *)data;
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct xilinx_pcie_port *port = irq_desc_get_handler_data(desc);
 	struct device *dev = port->dev;
-	u32 val, mask, status, msi_data;
+	u32 val, mask, status;
+
+	chained_irq_enter(chip, desc);
 
 	/* Read interrupt decode and mask registers */
 	val = pcie_read(port, XILINX_PCIE_REG_IDR);
@@ -392,7 +397,7 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 
 	status = val & mask;
 	if (!status)
-		return IRQ_NONE;
+		goto out;
 
 	if (status & XILINX_PCIE_INTR_LINK_DOWN)
 		dev_warn(dev, "Link Down\n");
@@ -424,8 +429,7 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 		xilinx_pcie_clear_err_interrupts(port);
 	}
 
-	if (status & XILINX_PCIE_INTR_INTX) {
-		/* INTx interrupt received */
+	if (status & (XILINX_PCIE_INTR_INTX | XILINX_PCIE_INTR_MSI)) {
 		val = pcie_read(port, XILINX_PCIE_REG_RPIFR1);
 
 		/* Check whether interrupt valid */
@@ -434,41 +438,24 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 			goto error;
 		}
 
-		if (!(val & XILINX_PCIE_RPIFR1_MSI_INTR)) {
-			/* Clear interrupt FIFO register 1 */
-			pcie_write(port, XILINX_PCIE_RPIFR1_ALL_MASK,
-				   XILINX_PCIE_REG_RPIFR1);
-
-			/* Handle INTx Interrupt */
-			val = ((val & XILINX_PCIE_RPIFR1_INTR_MASK) >>
-				XILINX_PCIE_RPIFR1_INTR_SHIFT) + 1;
-			generic_handle_irq(irq_find_mapping(port->leg_domain,
-							    val));
-		}
-	}
-
-	if (status & XILINX_PCIE_INTR_MSI) {
-		/* MSI Interrupt */
-		val = pcie_read(port, XILINX_PCIE_REG_RPIFR1);
-
-		if (!(val & XILINX_PCIE_RPIFR1_INTR_VALID)) {
-			dev_warn(dev, "RP Intr FIFO1 read error\n");
-			goto error;
-		}
-
+		/* Decode the IRQ number */
 		if (val & XILINX_PCIE_RPIFR1_MSI_INTR) {
-			msi_data = pcie_read(port, XILINX_PCIE_REG_RPIFR2) &
-				   XILINX_PCIE_RPIFR2_MSG_DATA;
-
-			/* Clear interrupt FIFO register 1 */
-			pcie_write(port, XILINX_PCIE_RPIFR1_ALL_MASK,
-				   XILINX_PCIE_REG_RPIFR1);
-
-			if (IS_ENABLED(CONFIG_PCI_MSI)) {
-				/* Handle MSI Interrupt */
-				generic_handle_irq(msi_data);
-			}
+			val = pcie_read(port, XILINX_PCIE_REG_RPIFR2) &
+				XILINX_PCIE_RPIFR2_MSG_DATA;
+		} else {
+			val = (val & XILINX_PCIE_RPIFR1_INTR_MASK) >>
+				XILINX_PCIE_RPIFR1_INTR_SHIFT;
+			val = irq_find_mapping(port->leg_domain, val);
 		}
+
+		/* Clear interrupt FIFO register 1 */
+		pcie_write(port, XILINX_PCIE_RPIFR1_ALL_MASK,
+			   XILINX_PCIE_REG_RPIFR1);
+
+		/* Handle the interrupt */
+		if (IS_ENABLED(CONFIG_PCI_MSI) ||
+		    !(val & XILINX_PCIE_RPIFR1_MSI_INTR))
+			generic_handle_irq(val);
 	}
 
 	if (status & XILINX_PCIE_INTR_SLV_UNSUPP)
@@ -501,8 +488,8 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 error:
 	/* Clear the Interrupt Decode register */
 	pcie_write(port, status, XILINX_PCIE_REG_IDR);
-
-	return IRQ_HANDLED;
+out:
+	chained_irq_exit(chip, desc);
 }
 
 /**
@@ -571,8 +558,8 @@ static void xilinx_pcie_init_port(struct xilinx_pcie_port *port)
 			 XILINX_PCIE_IMR_ALL_MASK,
 		   XILINX_PCIE_REG_IDR);
 
-	/* Enable all interrupts */
-	pcie_write(port, XILINX_PCIE_IMR_ALL_MASK, XILINX_PCIE_REG_IMR);
+	/* Enable all interrupts we handle */
+	pcie_write(port, XILINX_PCIE_IMR_ENABLE_MASK, XILINX_PCIE_REG_IMR);
 
 	/* Enable the Bridge enable bit */
 	pcie_write(port, pcie_read(port, XILINX_PCIE_REG_RPSC) |
@@ -611,14 +598,10 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 		return PTR_ERR(port->reg_base);
 
 	port->irq = irq_of_parse_and_map(node, 0);
-	err = devm_request_irq(dev, port->irq, xilinx_pcie_intr_handler,
-			       IRQF_SHARED | IRQF_NO_THREAD,
-			       "xilinx-pcie", port);
-	if (err) {
-		dev_err(dev, "unable to request irq %d\n", port->irq);
-		return err;
-	}
 
+	irq_set_chained_handler_and_data(port->irq,
+					 xilinx_pcie_intr_handler,
+					 port);
 	return 0;
 }
 
