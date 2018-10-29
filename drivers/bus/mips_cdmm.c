@@ -13,6 +13,8 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -340,6 +342,17 @@ static phys_addr_t mips_cdmm_cur_base(void)
  */
 phys_addr_t __weak mips_cdmm_phys_base(void)
 {
+	struct device_node *cdmm_node;
+	struct resource res;
+	int err;
+
+	cdmm_node = of_find_compatible_node(of_root, NULL, "mti,mips-cdmm");
+	if (cdmm_node) {
+		err = of_address_to_resource(cdmm_node, 0, &res);
+		if (!err)
+			return res.start;
+	}
+
 	return 0;
 }
 

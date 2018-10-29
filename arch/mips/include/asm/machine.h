@@ -18,6 +18,7 @@ struct mips_machine {
 	const struct of_device_id *matches;
 	const void *fdt;
 	bool (*detect)(void);
+	void (*prom_init)(void);
 	const void *(*fixup_fdt)(const void *fdt, const void *match_data);
 	unsigned int (*measure_hpt_freq)(void);
 };
@@ -59,5 +60,36 @@ mips_machine_is_compatible(const struct mips_machine *mach, const void *fdt)
 
 	return NULL;
 }
+
+/**
+ * struct mips_fdt_fixup - Describe a fixup to apply to an FDT
+ * @apply: applies the fixup to @fdt, returns zero on success else -errno
+ * @description: a short description of the fixup
+ *
+ * Describes a fixup applied to an FDT blob by the @apply function. The
+ * @description field provides a short description of the fixup intended for
+ * use in error messages if the @apply function returns non-zero.
+ */
+struct mips_fdt_fixup {
+	int (*apply)(void *fdt);
+	const char *description;
+};
+
+/**
+ * apply_mips_fdt_fixups() - apply fixups to an FDT blob
+ * @fdt_out: buffer in which to place the fixed-up FDT
+ * @fdt_out_size: the size of the @fdt_out buffer
+ * @fdt_in: the FDT blob
+ * @fixups: pointer to an array of fixups to be applied
+ *
+ * Loop through the array of fixups pointed to by @fixups, calling the apply
+ * function on each until either one returns an error or we reach the end of
+ * the list as indicated by an entry with a NULL apply field.
+ *
+ * Return: zero on success, else -errno
+ */
+extern int __init apply_mips_fdt_fixups(void *fdt_out, size_t fdt_out_size,
+					const void *fdt_in,
+					const struct mips_fdt_fixup *fixups);
 
 #endif /* __MIPS_ASM_MACHINE_H__ */
