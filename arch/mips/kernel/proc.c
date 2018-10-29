@@ -10,6 +10,7 @@
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/elf.h>
 #include <asm/idle.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
@@ -31,6 +32,13 @@ int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v)
 {
 	return raw_notifier_call_chain(&proc_cpuinfo_chain, val, v);
 }
+
+static const char *const hwcap_str[] = {
+	"r6",
+	"msa",
+	"crc32",
+	NULL
+};
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
@@ -122,7 +130,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has_eva)	seq_printf(m, "%s", " eva");
 	if (cpu_has_htw)	seq_printf(m, "%s", " htw");
 	if (cpu_has_xpa)	seq_printf(m, "%s", " xpa");
-	seq_printf(m, "\n");
+
+	seq_puts(m, "\nfeatures\t\t: ");
+	for (i = 0; hwcap_str[i]; i++)
+		if (elf_hwcap & (1 << i))
+			seq_printf(m, "%s ", hwcap_str[i]);
+	seq_puts(m, "\n");
 
 	if (cpu_has_mmips) {
 		seq_printf(m, "micromips kernel\t: %s\n",
