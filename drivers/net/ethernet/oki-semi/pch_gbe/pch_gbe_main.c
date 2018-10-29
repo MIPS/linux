@@ -1540,7 +1540,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	struct sk_buff *skb;
 	unsigned int i;
 	unsigned int cleaned_count = 0;
-	bool cleaned = false;
+	bool cleaned = true;
 	int unused, thresh;
 
 	netdev_dbg(adapter->netdev, "next_to_clean : %d\n",
@@ -1585,7 +1585,13 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 			   tx_desc->gbec_status);
 		buffer_info = &tx_ring->buffer_info[i];
 		skb = buffer_info->skb;
-		cleaned = true;
+
+		/* weight of a sort for tx, to avoid endless transmit cleanup */
+		if (cleaned_count == PCH_GBE_TX_WEIGHT) {
+			cleaned = false;
+			break;
+		}
+		++cleaned_count;
 
 		if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_ABT)) {
 			adapter->stats.tx_aborted_errors++;
@@ -1628,12 +1634,6 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		if (unlikely(++i == tx_ring->count))
 			i = 0;
 		tx_desc = PCH_GBE_TX_DESC(*tx_ring, i);
-
-		/* weight of a sort for tx, to avoid endless transmit cleanup */
-		if (cleaned_count++ == PCH_GBE_TX_WEIGHT) {
-			cleaned = false;
-			break;
-		}
 	}
 	netdev_dbg(adapter->netdev,
 		   "called pch_gbe_unmap_and_free_tx_resource() %d count\n",
@@ -2365,7 +2365,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 	pch_gbe_clean_rx(adapter, adapter->rx_ring, &work_done, budget);
 	cleaned = pch_gbe_clean_tx(adapter, adapter->tx_ring);
 
-	if (cleaned)
+	if (!cleaned)
 		work_done = budget;
 	/* If no Tx and not enough Rx work done,
 	 * exit the polling mode
