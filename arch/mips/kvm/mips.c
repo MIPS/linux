@@ -58,6 +58,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "msa_fpe",	  VCPU_STAT(msa_fpe_exits),	 KVM_STAT_VCPU },
 	{ "fpe",	  VCPU_STAT(fpe_exits),		 KVM_STAT_VCPU },
 	{ "msa_disabled", VCPU_STAT(msa_disabled_exits), KVM_STAT_VCPU },
+	{ "watch",	  VCPU_STAT(watch_exits),	 KVM_STAT_VCPU },
 	{ "flush_dcache", VCPU_STAT(flush_dcache_exits), KVM_STAT_VCPU },
 #ifdef CONFIG_KVM_MIPS_VZ
 	{ "vz_gpsi",	  VCPU_STAT(vz_gpsi_exits),	 KVM_STAT_VCPU },
@@ -448,7 +449,9 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *dbg)
 {
-	return -ENOIOCTLCMD;
+	printk("%s()\n", __func__);
+	return 0;
+	//return -ENOIOCTLCMD;
 }
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
@@ -462,6 +465,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			kvm_mips_complete_mmio_load(vcpu, run);
 		vcpu->mmio_needed = 0;
 	}
+
+	if (vcpu->arch.hypercall_needed)
+		kvm_mips_complete_hypercall(vcpu, run);
 
 	if (run->immediate_exit)
 		goto out;
@@ -1077,6 +1083,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_ENABLE_CAP:
 	case KVM_CAP_READONLY_MEM:
+	case KVM_CAP_SET_GUEST_DEBUG:
 	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_IMMEDIATE_EXIT:
 		r = 1;
@@ -1381,6 +1388,11 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		ret = kvm_mips_callbacks->handle_msa_disabled(vcpu);
 		break;
 
+	case EXCCODE_WATCH:
+		++vcpu->stat.watch_exits;
+		ret = kvm_mips_callbacks->handle_watch(vcpu);
+		break;
+
 	case EXCCODE_GE:
 		/* defer exit accounting to handler */
 		ret = kvm_mips_callbacks->handle_guest_exit(vcpu);
@@ -1418,6 +1430,12 @@ skip_emul:
 			++vcpu->stat.signal_exits;
 			trace_kvm_exit(vcpu, KVM_TRACE_EXIT_SIGNAL);
 		}
+	}
+
+	/* FIXME hack */
+	if (ret == RESUME_HOST && run->exit_reason == KVM_EXIT_INTERNAL_ERROR) {
+		run->internal.suberror = 0;
+		run->internal.ndata = 0;
 	}
 
 	if (ret == RESUME_GUEST) {
@@ -1678,9 +1696,24 @@ static struct notifier_block kvm_mips_csr_die_notifier = {
 	.notifier_call = kvm_mips_csr_die_notify,
 };
 
+static int __init kvm_mips_check_mmid(void)
+{
+	if (cpu_has_mmid) {
+		pr_err("MMID is not supported by KVM, use 'nommid' arg to disable it\n");
+		pr_err("KVM Disabled\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static int __init kvm_mips_init(void)
 {
 	int ret;
+
+	ret = kvm_mips_check_mmid();
+	if(ret)
+		return ret;
 
 	ret = kvm_mips_entry_setup();
 	if (ret)

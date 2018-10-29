@@ -121,6 +121,10 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 	int index = -1;
 	struct kvm_mips_tlb *tlb = vcpu->arch.guest_tlb;
 
+#ifdef CONFIG_KVM_MIPS_VZ
+	BUG_ON(cpu_has_vz);
+#endif
+
 	for (i = 0; i < KVM_MIPS_GUEST_TLB_SIZE; i++) {
 		if (TLB_HI_VPN2_HIT(tlb[i], entryhi) &&
 		    TLB_HI_ASID_HIT(tlb[i], entryhi)) {
@@ -339,7 +343,7 @@ int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
 	/* Match! read the TLB entry */
 	o_entrylo[0] = read_gc0_entrylo0();
 	o_entrylo[1] = read_gc0_entrylo1();
-	o_pagemask = read_gc0_pagemask();
+	o_pagemask = kvm_vz_read_gc0_pagemask();
 
 	mtc0_tlbr_hazard();
 	guest_tlb_read();
@@ -347,13 +351,13 @@ int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
 
 	entrylo[0] = read_gc0_entrylo0();
 	entrylo[1] = read_gc0_entrylo1();
-	pagemask = ~read_gc0_pagemask() & ~0x1fffl;
+	pagemask = ~kvm_vz_read_gc0_pagemask() & ~0x1fffl;
 
 	write_gc0_entryhi(o_entryhi);
 	write_gc0_index(o_index);
 	write_gc0_entrylo0(o_entrylo[0]);
 	write_gc0_entrylo1(o_entrylo[1]);
-	write_gc0_pagemask(o_pagemask);
+	kvm_vz_write_gc0_pagemask(o_pagemask);
 
 	clear_root_gid();
 	htw_start();
@@ -460,7 +464,7 @@ void kvm_vz_local_flush_guesttlb_all(void)
 	old_entryhi = read_gc0_entryhi();
 	old_entrylo[0] = read_gc0_entrylo0();
 	old_entrylo[1] = read_gc0_entrylo1();
-	old_pagemask = read_gc0_pagemask();
+	old_pagemask = kvm_vz_read_gc0_pagemask();
 
 	switch (current_cpu_type()) {
 	case CPU_CAVIUM_OCTEON3:
@@ -492,7 +496,7 @@ void kvm_vz_local_flush_guesttlb_all(void)
 	write_gc0_entryhi(old_entryhi);
 	write_gc0_entrylo0(old_entrylo[0]);
 	write_gc0_entrylo1(old_entrylo[1]);
-	write_gc0_pagemask(old_pagemask);
+	kvm_vz_write_gc0_pagemask(old_pagemask);
 	tlbw_use_hazard();
 
 	local_irq_restore(flags);
@@ -521,7 +525,7 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 	old_entryhi = read_gc0_entryhi();
 	old_entrylo0 = read_gc0_entrylo0();
 	old_entrylo1 = read_gc0_entrylo1();
-	old_pagemask = read_gc0_pagemask();
+	old_pagemask = kvm_vz_read_gc0_pagemask();
 
 	/* Set root GuestID for root probe */
 	htw_stop();
@@ -549,7 +553,7 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 			buf->tlb_hi = read_gc0_entryhi();
 			buf->tlb_lo[0] = read_gc0_entrylo0();
 			buf->tlb_lo[1] = read_gc0_entrylo1();
-			buf->tlb_mask = read_gc0_pagemask();
+			buf->tlb_mask = kvm_vz_read_gc0_pagemask();
 		}
 	}
 
@@ -562,7 +566,7 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 	write_gc0_entryhi(old_entryhi);
 	write_gc0_entrylo0(old_entrylo0);
 	write_gc0_entrylo1(old_entrylo1);
-	write_gc0_pagemask(old_pagemask);
+	kvm_vz_write_gc0_pagemask(old_pagemask);
 
 	tlbw_use_hazard();
 }
@@ -589,7 +593,7 @@ void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
 	old_entryhi = read_gc0_entryhi();
 	old_entrylo0 = read_gc0_entrylo0();
 	old_entrylo1 = read_gc0_entrylo1();
-	old_pagemask = read_gc0_pagemask();
+	old_pagemask = kvm_vz_read_gc0_pagemask();
 
 	/* Set root GuestID for root probe */
 	htw_stop();
@@ -601,7 +605,7 @@ void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
 		write_gc0_entryhi(buf->tlb_hi);
 		write_gc0_entrylo0(buf->tlb_lo[0]);
 		write_gc0_entrylo1(buf->tlb_lo[1]);
-		write_gc0_pagemask(buf->tlb_mask);
+		kvm_vz_write_gc0_pagemask(buf->tlb_mask);
 
 		mtc0_tlbw_hazard();
 		guest_tlb_write_indexed();
@@ -616,11 +620,155 @@ void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
 	write_gc0_entryhi(old_entryhi);
 	write_gc0_entrylo0(old_entrylo0);
 	write_gc0_entrylo1(old_entrylo1);
-	write_gc0_pagemask(old_pagemask);
+	kvm_vz_write_gc0_pagemask(old_pagemask);
 
 	tlbw_use_hazard();
 }
 EXPORT_SYMBOL_GPL(kvm_vz_load_guesttlb);
+
+/**
+ * kvm_vz_save_cur_tlb() - Save current guest TLB if necessary.
+ * @vcpu:	VCPU
+ *
+ * Saves the current guest TLB pointed to by Guest.EntryHi under certain
+ * conditions where the guest may be likely to assume that it persists, namely
+ * during TLB load miss exception.
+ *
+ * If we didn't save the TLB entry it could get invalidated by another guest (or
+ * by root code if the root and guest TLBs share physical entries) and the guest
+ * could assume TLBP finds an entry and do a TLBR, which could clobber important
+ * TLB registers like PageMask.
+ *
+ * Other places where the guest would normally be able to assume the entry
+ * persists are in tlb modify, store miss, read inhibit, execute inhibit
+ * exceptions, as well as the one pointed to by Index anywhere interrupts are
+ * disabled.
+ *
+ * If we didn't save the TLB entry it could get invalidated by another guest (or
+ * by root code if the root and guest TLBs share physical entries) and the guest
+ * could assume TLBP finds an entry (or be interrupted after the check of
+ * Index).
+ *
+ * IRQs must be disabled.
+ */
+void kvm_vz_save_cur_tlb(struct kvm_vcpu *vcpu)
+{
+	u32 status, cause;
+	/* FIXME should save entryhi in case it becomes invalid */
+	unsigned long old_entrylo0, old_entrylo1, old_pagemask;
+	int old_index;
+
+	/* Invalidate saved cur_tlb */
+	vcpu->arch.cur_tlb_index = -1;
+
+	/* FIXME safe? what if registers are loaded? */
+	/* Only necessary if guest at exception level */
+	status = vcpu->arch.cop0->reg[MIPS_CP0_STATUS][0];
+	if (!(status & ST0_EXL))
+		return;
+
+	/* Only certain exception codes */
+	cause = vcpu->arch.cop0->reg[MIPS_CP0_CAUSE][0];
+	switch ((cause & CAUSEF_EXCCODE) >> CAUSEB_EXCCODE) {
+	/*case EXCCODE_MOD:*/
+	case EXCCODE_TLBL:
+	/*case EXCCODE_TLBS:
+	case EXCCODE_TLBRI:
+	case EXCCODE_TLBXI:*/
+		break;
+	default:
+		return;
+	};
+
+	/*
+	 * save registers we're about to clobber
+	 */
+	old_index = read_gc0_index();
+	old_entrylo0 = read_gc0_entrylo0();
+	old_entrylo1 = read_gc0_entrylo1();
+	old_pagemask = kvm_vz_read_gc0_pagemask();
+
+	/* Set Guest ID for root probe */
+	set_root_gid_to_guest_gid();
+	guest_tlb_probe();
+	tlb_probe_hazard();
+	vcpu->arch.cur_tlb_index = read_gc0_index();
+	if (vcpu->arch.cur_tlb_index >= 0) {
+		guest_tlb_read();
+		tlbw_use_hazard();
+		vcpu->arch.cur_tlb.tlb_hi = read_gc0_entryhi();
+		vcpu->arch.cur_tlb.tlb_lo[0] = read_gc0_entrylo0();
+		vcpu->arch.cur_tlb.tlb_lo[1] = read_gc0_entrylo1();
+		vcpu->arch.cur_tlb.tlb_mask = kvm_vz_read_gc0_pagemask();
+	}
+	/* clear GuestRID after tlb_read in case it was changed */
+	clear_root_gid();
+
+	/* restore clobbered registers */
+	write_gc0_index(old_index);
+	write_gc0_entrylo0(old_entrylo0);
+	write_gc0_entrylo1(old_entrylo1);
+	kvm_vz_write_gc0_pagemask(old_pagemask);
+};
+EXPORT_SYMBOL_GPL(kvm_vz_save_cur_tlb);
+
+/* IRQs must be disabled */
+int kvm_vz_load_cur_tlb(struct kvm_vcpu *vcpu)
+{
+	unsigned long old_entryhi, old_entrylo0, old_entrylo1, old_pagemask;
+	int old_index;
+	int index;
+
+	/* Only if it's been saved */
+	if (vcpu->arch.cur_tlb_index < 0)
+		return 0;
+
+	/*
+	 * save registers we're about to clobber
+	 */
+	old_entryhi = read_gc0_entryhi();
+	old_index = read_gc0_index();
+	old_entrylo0 = read_gc0_entrylo0();
+	old_entrylo1 = read_gc0_entrylo1();
+	old_pagemask = kvm_vz_read_gc0_pagemask();
+
+	/* see if matching entry is already in guest TLB */
+	write_gc0_entryhi(vcpu->arch.cur_tlb.tlb_hi);
+	/* Set Guest ID for root probe */
+	set_root_gid_to_guest_gid();
+	/* FIXME duplicate hazard if guest id supported */
+	mtc0_tlbw_hazard();
+	guest_tlb_probe();
+	tlb_probe_hazard();
+	index = read_gc0_index();
+	if (index < 0)
+		/* not there? get index from storage */
+		write_gc0_index(vcpu->arch.cur_tlb_index);
+	else
+		/* already there, it had better be at the same index! */
+		WARN(index != vcpu->arch.cur_tlb_index,
+		     "Current TLB entry moved from %d to %d\n",
+		     vcpu->arch.cur_tlb_index, index);
+	/* write the saved guest TLB entry at this index */
+	write_gc0_entrylo0(vcpu->arch.cur_tlb.tlb_lo[0]);
+	write_gc0_entrylo1(vcpu->arch.cur_tlb.tlb_lo[1]);
+	kvm_vz_write_gc0_pagemask(vcpu->arch.cur_tlb.tlb_mask);
+	mtc0_tlbw_hazard();
+	guest_tlb_write_indexed();
+	tlbw_use_hazard();
+	/* clear GuestRID again */
+	clear_root_gid();
+
+	/* restore clobbered registers */
+	write_gc0_entryhi(old_entryhi);
+	write_gc0_index(old_index);
+	write_gc0_entrylo0(old_entrylo0);
+	write_gc0_entrylo1(old_entrylo1);
+	kvm_vz_write_gc0_pagemask(old_pagemask);
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(kvm_vz_load_cur_tlb);
 
 #endif
 
