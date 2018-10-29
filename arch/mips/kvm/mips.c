@@ -294,6 +294,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
 	int err, size;
 	void *gebase, *p, *handler, *refill_start, *refill_end;
+	unsigned long addr;
 	int i;
 
 	struct kvm_vcpu *vcpu = kzalloc(sizeof(struct kvm_vcpu), GFP_KERNEL);
@@ -368,7 +369,15 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	p = kvm_mips_build_exit(p);
 
 	/* Guest entry routine */
-	vcpu->arch.vcpu_run = p;
+	addr = (unsigned long)p;
+#ifdef CONFIG_CPU_MICROMIPS
+	/*
+	 * The whole kernel is microMIPS, including uasm generated code, so set
+	 * the 16-bit ISA bit.
+	 */
+	addr |= 1;
+#endif
+	vcpu->arch.vcpu_run = (void *)addr;
 	p = kvm_mips_build_vcpu_run(p);
 
 	/* Dump the generated code */
