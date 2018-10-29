@@ -213,6 +213,7 @@ static int __init mips_sc_probe_cm3(void)
 
 	if (c->scache.linesz) {
 		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
+		c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 		return 1;
 	}
 
@@ -272,7 +273,12 @@ int mips_sc_init(void)
 	int found = mips_sc_probe();
 	if (found) {
 		mips_sc_enable();
-		mips_sc_prefetch_enable();
+		if (strstr(boot_command_line, "nol2prefetch")) {
+			mips_sc_prefetch_disable();
+			pr_info("L2 prefetch disabled\n");
+		} else {
+			mips_sc_prefetch_enable();
+		}
 		bcops = &mips_sc_ops;
 	}
 	return found;

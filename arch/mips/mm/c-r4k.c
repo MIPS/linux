@@ -117,6 +117,11 @@ static unsigned long scache_size __read_mostly;
  */
 static void cache_noop(void) {}
 
+static __maybe_unused void cache_noop_sync(void)
+{
+	__sync();
+}
+
 static struct bcache_ops no_sc_ops = {
 	.bc_enable = (void *)cache_noop,
 	.bc_disable = (void *)cache_noop,
@@ -1489,6 +1494,8 @@ static void probe_pcache(void)
 	switch (current_cpu_type()) {
 	case CPU_20KC:
 	case CPU_25KF:
+	case CPU_I6400:
+	case CPU_I6500:
 	case CPU_SB1:
 	case CPU_SB1A:
 	case CPU_XLR:
@@ -1515,7 +1522,6 @@ static void probe_pcache(void)
 	case CPU_PROAPTIV:
 	case CPU_M5150:
 	case CPU_QEMU_GENERIC:
-	case CPU_I6400:
 	case CPU_P6600:
 	case CPU_M6250:
 		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
@@ -1534,6 +1540,17 @@ static void probe_pcache(void)
 			c->dcache.flags |= MIPS_CACHE_ALIASES;
 	}
 
+	/* Physically indexed caches don't suffer from virtual aliasing */
+	if (c->dcache.flags & MIPS_CACHE_PINDEX)
+		c->dcache.flags &= ~MIPS_CACHE_ALIASES;
+
+	/*
+	 * In systems with CM the icache fills from L2, and thus sees remote
+	 * stores without needing to write them back any further than that
+	 */
+	if (mips_cm_present())
+		c->icache.flags |= MIPS_IC_SNOOPS_REMOTE;
+
 	switch (current_cpu_type()) {
 	case CPU_20KC:
 		/*
@@ -1545,6 +1562,7 @@ static void probe_pcache(void)
 
 	case CPU_ALCHEMY:
 	case CPU_I6400:
+	case CPU_I6500:
 		c->icache.flags |= MIPS_CACHE_IC_F_DC;
 		break;
 
@@ -1980,9 +1998,9 @@ void r4k_cache_init(void)
 	if ((coherentio == IO_COHERENCE_ENABLED) ||
 	    ((coherentio == IO_COHERENCE_DEFAULT) && hw_coherentio)) {
 # endif
-		_dma_cache_wback_inv	= (void *)cache_noop;
-		_dma_cache_wback	= (void *)cache_noop;
-		_dma_cache_inv		= (void *)cache_noop;
+		_dma_cache_wback_inv	= (void *)cache_noop_sync;
+		_dma_cache_wback	= (void *)cache_noop_sync;
+		_dma_cache_inv		= (void *)cache_noop_sync;
 	} else {
 		_dma_cache_wback_inv	= r4k_dma_cache_wback_inv;
 		_dma_cache_wback	= r4k_dma_cache_wback_inv;

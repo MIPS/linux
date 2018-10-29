@@ -46,7 +46,11 @@ extern phys_addr_t __mips_cm_phys_base(void);
  *
  * It's set to 0 for 32-bit accesses and 1 for 64-bit accesses.
  */
+#ifdef CONFIG_64BIT
 extern int mips_cm_is64;
+#else
+# define mips_cm_is64 0
+#endif
 
 /**
  * mips_cm_error_report - Report CM cache errors
@@ -241,8 +245,8 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_BASE_GCRBASE_MSK			(_ULCAST_(0x1ffff) << 15)
 #define CM_GCR_BASE_CMDEFTGT_SHF		0
 #define CM_GCR_BASE_CMDEFTGT_MSK		(_ULCAST_(0x3) << 0)
-#define  CM_GCR_BASE_CMDEFTGT_DISABLED		0
-#define  CM_GCR_BASE_CMDEFTGT_MEM		1
+#define  CM_GCR_BASE_CMDEFTGT_MEM		0
+#define  CM_GCR_BASE_CMDEFTGT_RESERVED		1
 #define  CM_GCR_BASE_CMDEFTGT_IOCU0		2
 #define  CM_GCR_BASE_CMDEFTGT_IOCU1		3
 

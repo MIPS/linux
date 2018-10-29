@@ -14,6 +14,37 @@
 
 static inline int __pure __get_cpu_type(const int cpu_type)
 {
+#ifdef CONFIG_CPU_MIPSR6
+	/*
+	 * MIPSr6 systems aren't backwards compatible with kernels built
+	 * for previous releases of the MIPS architecture. There's
+	 * therefore no point in including code for pre-r6 CPUs in r6
+	 * kernels, since it won't run for long enough to do anything
+	 * useful anyway.
+	 */
+	switch (cpu_type) {
+#ifdef CONFIG_SYS_HAS_CPU_MIPS32_R6
+	case CPU_M6250:
+#endif
+
+#if defined(CONFIG_SYS_HAS_CPU_MIPS32_R6) || \
+    defined(CONFIG_SYS_HAS_CPU_MIPS64_R6)
+	case CPU_QEMU_GENERIC:
+#endif
+
+#ifdef CONFIG_SYS_HAS_CPU_MIPS64_R6
+	case CPU_I6400:
+	case CPU_I6500:
+	case CPU_P6600:
+#endif
+		break;
+	default:
+		unreachable();
+	}
+
+	return cpu_type;
+#endif
+
 	switch (cpu_type) {
 #if defined(CONFIG_SYS_HAS_CPU_LOONGSON2E) || \
     defined(CONFIG_SYS_HAS_CPU_LOONGSON2F)
@@ -76,15 +107,6 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	 * All MIPS64 R2 processors have their own special symbols.  That is,
 	 * there currently is no pure R2 core
 	 */
-#endif
-
-#ifdef CONFIG_SYS_HAS_CPU_MIPS32_R6
-	case CPU_M6250:
-#endif
-
-#ifdef CONFIG_SYS_HAS_CPU_MIPS64_R6
-	case CPU_I6400:
-	case CPU_P6600:
 #endif
 
 #ifdef CONFIG_SYS_HAS_CPU_R3000

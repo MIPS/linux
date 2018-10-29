@@ -124,6 +124,7 @@
 #define PRID_IMP_P5600		0xa800
 #define PRID_IMP_I6400		0xa900
 #define PRID_IMP_M6250		0xab00
+#define PRID_IMP_I6500		0xb000
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
@@ -315,7 +316,7 @@ enum cpu_type_enum {
 	CPU_ALCHEMY, CPU_PR4450, CPU_BMIPS32, CPU_BMIPS3300, CPU_BMIPS4350,
 	CPU_BMIPS4380, CPU_BMIPS5000, CPU_JZRISC, CPU_LOONGSON1, CPU_M14KC,
 	CPU_M14KEC, CPU_INTERAPTIV, CPU_P5600, CPU_PROAPTIV, CPU_1074K,
-	CPU_M5150, CPU_I6400, CPU_P6600, CPU_M6250,
+	CPU_M5150,
 
 	/*
 	 * MIPS64 class processors
@@ -323,6 +324,16 @@ enum cpu_type_enum {
 	CPU_5KC, CPU_5KE, CPU_20KC, CPU_25KF, CPU_SB1, CPU_SB1A, CPU_LOONGSON2,
 	CPU_LOONGSON3, CPU_CAVIUM_OCTEON, CPU_CAVIUM_OCTEON_PLUS,
 	CPU_CAVIUM_OCTEON2, CPU_CAVIUM_OCTEON3, CPU_XLR, CPU_XLP,
+
+	/*
+	 * MIPS32r6 class processors
+	 */
+	CPU_M6250,
+
+	/*
+	 * MIPS64r6 class processors
+	 */
+	CPU_I6400, CPU_I6500, CPU_P6600,
 
 	CPU_QEMU_GENERIC,
 
@@ -417,6 +428,10 @@ enum cpu_type_enum {
 #define MIPS_CPU_DRG		MBIT_ULL(52)	/* CPU has VZ Direct Root to Guest (DRG) */
 #define MIPS_CPU_UFR		MBIT_ULL(53)	/* CPU supports User mode FR switching */
 #define MIPS_CPU_MMID		MBIT_ULL(54)	/* CPU supports MemoryMapID */
+#define MIPS_CPU_SHARED_FTLB_RAM \
+				MBIT_ULL(55)	/* CPU shares FTLB RAM with another */
+#define MIPS_CPU_SHARED_FTLB_ENTRIES \
+				MBIT_ULL(56)	/* CPU shares FTLB entries with another */
 #define MIPS_CPU_GINVI		MBIT_ULL(57)	/* CPU supports Global Instruction Cache Invalidation */
 
 /*

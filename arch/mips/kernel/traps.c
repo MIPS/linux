@@ -2176,7 +2176,11 @@ void per_cpu_trap_init(bool is_boot_cpu)
 
 		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
 		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
+
 		cp0_perfcount_irq = (read_c0_intctl() >> INTCTLB_IPPCI) & 7;
+		if (cp0_perfcount_irq == cp0_compare_irq)
+			cp0_perfcount_irq = -1;
+
 		cp0_fdc_irq = (read_c0_intctl() >> INTCTLB_IPFDC) & 7;
 		if (!cp0_fdc_irq)
 			cp0_fdc_irq = -1;
@@ -2286,6 +2290,8 @@ void __init trap_init(void)
 				ebase += (read_c0_ebase() & 0x3ffff000);
 			}
 		}
+
+		reserve_bootmem(__pa(ebase), 0x1000, BOOTMEM_DEFAULT);
 	}
 
 	if (cpu_has_mmips) {
