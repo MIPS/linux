@@ -37,6 +37,7 @@ static const char *const hwcap_str[] = {
 	"r6",
 	"msa",
 	"crc32",
+	"itu",
 	NULL
 };
 
