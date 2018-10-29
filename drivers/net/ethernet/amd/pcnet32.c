@@ -662,6 +662,7 @@ static void pcnet32_purge_rx_ring(struct net_device *dev)
 						   lp->rx_dma_addr[i]))
 				pci_unmap_single(lp->pci_dev,
 						 lp->rx_dma_addr[i],
+						 skb_headroom(lp->rx_skbuff[i]) +
 						 PKT_BUF_SIZE,
 						 PCI_DMA_FROMDEVICE);
 			dev_kfree_skb_any(lp->rx_skbuff[i]);
@@ -1184,6 +1185,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	int rx_in_place = 0;
 	struct sk_buff *skb;
 	short pkt_len;
+	unsigned int headroom;
 
 	if (status != 0x03) {	/* There was an error. */
 		/*
@@ -1231,9 +1233,10 @@ static void pcnet32_rx_entry(struct net_device *dev,
 		 */
 		if (newskb) {
 			skb_reserve(newskb, NET_IP_ALIGN);
+			headroom = skb_headroom(newskb);
 			new_dma_addr = pci_map_single(lp->pci_dev,
-						      newskb->data,
-						      PKT_BUF_SIZE,
+						      newskb->head,
+						      headroom + PKT_BUF_SIZE,
 						      PCI_DMA_FROMDEVICE);
 			if (pci_dma_mapping_error(lp->pci_dev, new_dma_addr)) {
 				netif_err(lp, rx_err, dev,
@@ -1244,12 +1247,12 @@ static void pcnet32_rx_entry(struct net_device *dev,
 				skb = lp->rx_skbuff[entry];
 				pci_unmap_single(lp->pci_dev,
 						 lp->rx_dma_addr[entry],
-						 PKT_BUF_SIZE,
+						 headroom + PKT_BUF_SIZE,
 						 PCI_DMA_FROMDEVICE);
 				skb_put(skb, pkt_len);
 				lp->rx_skbuff[entry] = newskb;
 				lp->rx_dma_addr[entry] = new_dma_addr;
-				rxp->base = cpu_to_le32(new_dma_addr);
+				rxp->base = cpu_to_le32(new_dma_addr + headroom);
 				rx_in_place = 1;
 			}
 		} else
@@ -1264,16 +1267,17 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	if (!rx_in_place) {
 		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, pkt_len);	/* Make room */
+		headroom = skb_headroom(skb);
 		pci_dma_sync_single_for_cpu(lp->pci_dev,
 					    lp->rx_dma_addr[entry],
-					    pkt_len,
+					    headroom + pkt_len,
 					    PCI_DMA_FROMDEVICE);
 		skb_copy_to_linear_data(skb,
 				 (unsigned char *)(lp->rx_skbuff[entry]->data),
 				 pkt_len);
 		pci_dma_sync_single_for_device(lp->pci_dev,
 					       lp->rx_dma_addr[entry],
-					       pkt_len,
+					       headroom + pkt_len,
 					       PCI_DMA_FROMDEVICE);
 	}
 	dev->stats.rx_bytes += skb->len;
@@ -2362,6 +2366,7 @@ static void pcnet32_purge_tx_ring(struct net_device *dev)
 static int pcnet32_init_ring(struct net_device *dev)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
+	unsigned int headroom;
 	int i;
 
 	lp->tx_full = 0;
@@ -2381,12 +2386,13 @@ static int pcnet32_init_ring(struct net_device *dev)
 			}
 			skb_reserve(rx_skbuff, NET_IP_ALIGN);
 		}
+		headroom = skb_headroom(rx_skbuff);
 
 		rmb();
 		if (lp->rx_dma_addr[i] == 0) {
 			lp->rx_dma_addr[i] =
-			    pci_map_single(lp->pci_dev, rx_skbuff->data,
-					   PKT_BUF_SIZE, PCI_DMA_FROMDEVICE);
+			    pci_map_single(lp->pci_dev, rx_skbuff->head,
+					   headroom + PKT_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			if (pci_dma_mapping_error(lp->pci_dev,
 						  lp->rx_dma_addr[i])) {
 				/* there is not much we can do at this point */
@@ -2396,7 +2402,7 @@ static int pcnet32_init_ring(struct net_device *dev)
 				return -1;
 			}
 		}
-		lp->rx_ring[i].base = cpu_to_le32(lp->rx_dma_addr[i]);
+		lp->rx_ring[i].base = cpu_to_le32(lp->rx_dma_addr[i] + headroom);
 		lp->rx_ring[i].buf_length = cpu_to_le16(NEG_BUF_SIZE);
 		wmb();		/* Make sure owner changes after all others are visible */
 		lp->rx_ring[i].status = cpu_to_le16(0x8000);
