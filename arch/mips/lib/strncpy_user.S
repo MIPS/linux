@@ -9,6 +9,7 @@
 #include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/export.h>
 #include <asm/regdef.h>
 
 #define EX(insn,reg,addr,handler)			\
@@ -82,3 +83,8 @@ __BUILD_STRNCPY_ASM kernel
 __BUILD_STRNCPY_ASM user
 	.set pop
 #endif
+
+EXPORT_SYMBOL(__strncpy_from_kernel_asm)
+EXPORT_SYMBOL(__strncpy_from_kernel_nocheck_asm)
+EXPORT_SYMBOL(__strncpy_from_user_asm)
+EXPORT_SYMBOL(__strncpy_from_user_nocheck_asm)

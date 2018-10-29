@@ -8,6 +8,7 @@
  */
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/export.h>
 #include <asm/regdef.h>
 
 #define EX(insn,reg,addr,handler)			\
@@ -81,3 +82,8 @@ __BUILD_STRNLEN_ASM kernel
 __BUILD_STRNLEN_ASM user
 	.set pop
 #endif
+
+EXPORT_SYMBOL(__strnlen_kernel_asm)
+EXPORT_SYMBOL(__strnlen_kernel_nocheck_asm)
+EXPORT_SYMBOL(__strnlen_user_asm)
+EXPORT_SYMBOL(__strnlen_user_nocheck_asm)
