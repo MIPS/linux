@@ -118,10 +118,14 @@ static inline int is_fpu_owner(void)
 	return cpu_has_fpu && __is_fpu_owner();
 }
 
-static inline int __own_fpu(void)
+static inline int __own_fpu(bool opportunistic)
 {
 	enum fpu_mode mode;
 	int ret;
+
+	if (!opportunistic)
+		WARN(atomic_read(&current->mm->context.fp_mode_switching),
+		     "Attempt to enable FPU during FP mode switch");
 
 	if (test_thread_flag(TIF_HYBRID_FPREGS))
 		mode = FPU_HYBRID;
@@ -147,7 +151,7 @@ static inline int own_fpu_inatomic(int restore)
 	int ret = 0;
 
 	if (cpu_has_fpu && !__is_fpu_owner()) {
-		ret = __own_fpu();
+		ret = __own_fpu(false);
 		if (restore && !ret)
 			_restore_fp(current);
 	}
@@ -162,6 +166,52 @@ static inline int own_fpu(int restore)
 	ret = own_fpu_inatomic(restore);
 	preempt_enable();
 	return ret;
+}
+
+/**
+ * own_fpu_opportunistic() - Enable FPU for the current task when possible
+ *
+ * Opportunistically enable the FPU & restore its FP context for the current
+ * task in order to speed things up by avoiding an FPU disabled exception when
+ * we return to userland. The FPU is not guaranteed to be enabled when this
+ * function returns. Notably, if the current task is currently undergoing an FP
+ * mode switch then the FPU will be left disabled.
+ *
+ * This should be called when we do not strictly require the FPU to be enabled,
+ * but would prefer that it is because we suspect that user code may soon
+ * execute an FP instruction.
+ */
+static inline void own_fpu_opportunistic(void)
+{
+	int err;
+
+	if (__is_fpu_owner())
+		return;
+
+	preempt_disable();
+
+	if (!cpu_has_fpu)
+		goto out;
+
+	if (atomic_read(&current->mm->context.fp_mode_switching))
+		goto out;
+
+	err = __own_fpu(true);
+	if (!err)
+		_restore_fp(current);
+
+	if (!atomic_read(&current->mm->context.fp_mode_switching))
+		goto out;
+
+	/*
+	 * A mode switch started during the time that we were enabling the FPU
+	 * & restoring context. Disable the FPU again so that we don't leave it
+	 * enabled in the wrong mode.
+	 */
+	__disable_fpu();
+	clear_fpu_owner();
+out:
+	preempt_enable();
 }
 
 static inline void lose_fpu_inatomic(int save, struct task_struct *tsk)
@@ -203,7 +253,7 @@ static inline int init_fpu(void)
 	if (cpu_has_fpu) {
 		unsigned int config5;
 
-		ret = __own_fpu();
+		ret = __own_fpu(false);
 		if (ret)
 			return ret;
 

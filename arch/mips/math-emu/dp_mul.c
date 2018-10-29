@@ -26,14 +26,8 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	int re;
 	int rs;
 	u64 rm;
-	unsigned lxm;
-	unsigned hxm;
-	unsigned lym;
-	unsigned hym;
 	u64 lrm;
 	u64 hrm;
-	u64 t;
-	u64 at;
 
 	COMPXDP;
 	COMPYDP;
@@ -124,37 +118,10 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	xm <<= 64 - (DP_FBITS + 1);
 	ym <<= 64 - (DP_FBITS + 1);
 
-	/*
-	 * Multiply 64 bits xm, ym to give high 64 bits rm with stickness.
-	 */
+	/* multiply 64b xm * 64b ym to give 128b result */
+	mul_u64_u64(xm, ym, &lrm, &hrm);
 
-	/* 32 * 32 => 64 */
-#define DPXMULT(x, y)	((u64)(x) * (u64)y)
-
-	lxm = xm;
-	hxm = xm >> 32;
-	lym = ym;
-	hym = ym >> 32;
-
-	lrm = DPXMULT(lxm, lym);
-	hrm = DPXMULT(hxm, hym);
-
-	t = DPXMULT(lxm, hym);
-
-	at = lrm + (t << 32);
-	hrm += at < lrm;
-	lrm = at;
-
-	hrm = hrm + (t >> 32);
-
-	t = DPXMULT(hxm, lym);
-
-	at = lrm + (t << 32);
-	hrm += at < lrm;
-	lrm = at;
-
-	hrm = hrm + (t >> 32);
-
+	/* truncate result to the high 64b, with stickiness */
 	rm = hrm | (lrm != 0);
 
 	/*

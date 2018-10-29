@@ -24,7 +24,7 @@
 
 #include "ieee754int.h"
 
-#define assert(expr) ((void)0)
+#define assert(expr)	WARN_ON(!(expr))
 
 #define SP_EBIAS	127
 #define SP_EMIN		(-126)

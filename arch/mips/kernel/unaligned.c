@@ -1198,7 +1198,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		lose_fpu(1);	/* Save FPU state for the emulator. */
 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
-		own_fpu(1);	/* Restore FPU state. */
+		own_fpu_opportunistic();	/* Restore FPU state. */
 
 		/* Signal if something went wrong. */
 		process_fpemu_return(res, fault_addr, 0);
@@ -1711,7 +1711,7 @@ fpu_emul:
 		lose_fpu(1);	/* save the FPU state for the emulator */
 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
-		own_fpu(1);	/* restore FPU state */
+		own_fpu_opportunistic();	/* restore FPU state */
 
 		/* If something went wrong, signal */
 		process_fpemu_return(res, fault_addr, 0);

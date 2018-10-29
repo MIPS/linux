@@ -1188,7 +1188,7 @@ fpu_emul:
 		 * more often than LL-FPU-SC and I prefer loop here until
 		 * next scheduler cycle cancels FPU ownership
 		 */
-		own_fpu(1);	/* Restore FPU state. */
+		own_fpu_opportunistic();	/* Restore FPU state. */
 
 		if (err)
 			current->thread.cp0_baduaddr = (unsigned long)fault_addr;

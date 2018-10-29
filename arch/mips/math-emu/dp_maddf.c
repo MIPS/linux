@@ -4,8 +4,7 @@
  * MADDF.fmt: FPR[fd] = FPR[fd] + (FPR[fs] x FPR[ft])
  *
  * MIPS floating point support
- * Copyright (C) 2015 Imagination Technologies, Ltd.
- * Author: Markos Chandras <markos.chandras@imgtec.com>
+ * Copyright (C) 2015-2016 Imagination Technologies, Ltd.
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -13,6 +12,7 @@
  */
 
 #include "ieee754dp.h"
+#include "int128.h"
 
 enum maddf_flags {
 	maddf_negate_product	= 1 << 0,
@@ -23,16 +23,7 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 {
 	int re;
 	int rs;
-	u64 rm;
-	unsigned lxm;
-	unsigned hxm;
-	unsigned lym;
-	unsigned hym;
-	u64 lrm;
-	u64 hrm;
-	u64 t;
-	u64 at;
-	int s;
+	u128 rm, am;
 
 	COMPXDP;
 	COMPYDP;
@@ -113,6 +104,11 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_ZERO):
 		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
+		if (zc == IEEE754_CLASS_ZERO) {
+			if ((xs ^ ys) == zs)
+				return z;
+			return ieee754dp_zero(ieee754_csr.rm == FPU_CSR_RD);
+		}
 		/* Multiplication is 0 so just return z */
 		return z;
 
@@ -155,118 +151,100 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	assert(xm & DP_HIDDEN_BIT);
 	assert(ym & DP_HIDDEN_BIT);
 
-	re = xe + ye;
+	re = xe + ye + DP_EBIAS + 1;
 	rs = xs ^ ys;
 	if (flags & maddf_negate_product)
 		rs ^= 1;
 
 	/* shunt to top of word */
-	xm <<= 64 - (DP_FBITS + 1);
+	xm <<= 64 - (DP_FBITS + 2);
 	ym <<= 64 - (DP_FBITS + 1);
 
-	/*
-	 * Multiply 64 bits xm, ym to give high 64 bits rm with stickness.
-	 */
+	/* multiply 64b xm * 64b ym to give 128b result */
+	mul_u64_u64(xm, ym, &rm.l, &rm.h);
 
-	/* 32 * 32 => 64 */
-#define DPXMULT(x, y)	((u64)(x) * (u64)y)
-
-	lxm = xm;
-	hxm = xm >> 32;
-	lym = ym;
-	hym = ym >> 32;
-
-	lrm = DPXMULT(lxm, lym);
-	hrm = DPXMULT(hxm, hym);
-
-	t = DPXMULT(lxm, hym);
-
-	at = lrm + (t << 32);
-	hrm += at < lrm;
-	lrm = at;
-
-	hrm = hrm + (t >> 32);
-
-	t = DPXMULT(hxm, lym);
-
-	at = lrm + (t << 32);
-	hrm += at < lrm;
-	lrm = at;
-
-	hrm = hrm + (t >> 32);
-
-	rm = hrm | (lrm != 0);
-
-	/*
-	 * Sticky shift down to normal rounding precision.
-	 */
-	if ((s64) rm < 0) {
-		rm = (rm >> (64 - (DP_FBITS + 1 + 3))) |
-		     ((rm << (DP_FBITS + 1 + 3)) != 0);
-		re++;
-	} else {
-		rm = (rm >> (64 - (DP_FBITS + 1 + 3 + 1))) |
-		     ((rm << (DP_FBITS + 1 + 3 + 1)) != 0);
+	if (!(rm.h & BIT_ULL(62))) {
+		rm = sll128(rm, 1);
+		re--;
 	}
-	assert(rm & (DP_HIDDEN_BIT << 3));
+
+	if (zc == IEEE754_CLASS_ZERO) {
+		rm = srl128_sticky(rm, 71);
+		return ieee754dp_format(rs, re - DP_EBIAS, rm.l);
+	}
 
 	/* And now the addition */
 	assert(zm & DP_HIDDEN_BIT);
 
-	/*
-	 * Provide guard,round and stick bit space.
-	 */
-	zm <<= 3;
+	am.h = zm << (126 - 64 - 52);
+	am.l = 0;
 
-	if (ze > re) {
-		/*
-		 * Have to shift y fraction right to align.
-		 */
-		s = ze - re;
-		rm = XDPSRS(rm, s);
-		re += s;
-	} else if (re > ze) {
-		/*
-		 * Have to shift x fraction right to align.
-		 */
-		s = re - ze;
-		zm = XDPSRS(zm, s);
-		ze += s;
-	}
-	assert(ze == re);
-	assert(ze <= DP_EMAX);
+	ze += DP_EBIAS;
 
 	if (zs == rs) {
-		/*
-		 * Generate 28 bit result of adding two 27 bit numbers
-		 * leaving result in xm, xs and xe.
-		 */
-		zm = zm + rm;
-
-		if (zm >> (DP_FBITS + 1 + 3)) { /* carry out */
-			zm = XDPSRS1(zm);
-			ze++;
+		if (re > ze) {
+			am = srl128_sticky(am, re - ze);
+		} else if (ze > re) {
+			rm = srl128_sticky(rm, ze - re);
+			re = ze;
 		}
+
+		rm = add128(rm, am);
+
+		if (rm.h & BIT_ULL(63))
+			rm = srl128_sticky(rm, 1);
+		else
+			re--;
+
+		rm = srl128_sticky(rm, 71);
 	} else {
-		if (zm >= rm) {
-			zm = zm - rm;
+		if (re > ze) {
+			am = srl128_sticky(am, re - ze);
+			rm = sub128(rm, am);
+		} else if (ze > re) {
+			rm = srl128_sticky(rm, ze - re);
+			rm = sub128(am, rm);
+			re = ze;
+			rs ^= 1;
 		} else {
-			zm = rm - zm;
-			zs = rs;
+			if (lt128(am, rm)) {
+				rm = sub128(rm, am);
+			} else if (lt128(rm, am)) {
+				rm = sub128(am, rm);
+				rs ^= 1;
+			} else {
+				return ieee754dp_zero(ieee754_csr.rm == FPU_CSR_RD);
+			}
 		}
-		if (zm == 0)
-			return ieee754dp_zero(ieee754_csr.rm == FPU_CSR_RD);
 
-		/*
-		 * Normalize to rounding precision.
-		 */
-		while ((zm >> (DP_FBITS + 3)) == 0) {
-			zm <<= 1;
-			ze--;
+		re--;
+
+		if (rm.h) {
+			unsigned s;
+			s = (rm.h ? __builtin_clzll(rm.h) : 64) - 1;
+			rm = sll128(rm, s);
+			if (rm.l)
+				rm.h |= 0x1;
+			re -= s;
+		} else {
+			unsigned s;
+
+			s = rm.l ? __builtin_clzll(rm.l) : 64;
+
+			if (s == 0) {
+				rm.h = (rm.l >> 1) | (rm.l & 0x1);
+				re -= 63;
+			} else {
+				s--;
+				rm.h = rm.l << s;
+				re -= s + 64;
+			}
 		}
+
+		rm = srl128_sticky(rm, 71);
 	}
 
-	return ieee754dp_format(zs, ze, zm);
+	return ieee754dp_format(rs, re - DP_EBIAS + 1, rm.l);
 }
 
 union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
