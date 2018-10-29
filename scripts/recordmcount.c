@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
 /*
  * glibc synced up and added the metag number but didn't add the relocations.
@@ -408,9 +409,31 @@ static uint32_t (*w)(uint32_t);
 static uint32_t (*w2)(uint16_t);
 
 /* Names of the sections that could contain calls to mcount. */
+#ifdef MCOUNT_INCLUDE_FUNCTION_SECTIONS
+static int
+is_mcounted_function_section_name(char const *const txtname)
+{
+	const size_t len = strlen(".text.");
+
+	return	strncmp(".text.", txtname, len) == 0 &&
+		strlen(txtname) > len &&
+		(isalnum(txtname[len]) || txtname[len] == '_');
+}
+#else
+static int
+is_mcounted_function_section_name(char const *const txtname)
+{
+	return 0;
+}
+#endif
+
+
 static int
 is_mcounted_section_name(char const *const txtname)
 {
+	int ffunc_section =
+		is_mcounted_function_section_name(txtname);
+
 	return strcmp(".text",           txtname) == 0 ||
 		strcmp(".ref.text",      txtname) == 0 ||
 		strcmp(".sched.text",    txtname) == 0 ||
@@ -419,7 +442,8 @@ is_mcounted_section_name(char const *const txtname)
 		strcmp(".softirqentry.text", txtname) == 0 ||
 		strcmp(".kprobes.text", txtname) == 0 ||
 		strcmp(".cpuidle.text", txtname) == 0 ||
-		strcmp(".text.unlikely", txtname) == 0;
+		strcmp(".text.unlikely", txtname) == 0 ||
+		ffunc_section;
 }
 
 /* 32 bit and 64 bit are very similar */
