@@ -278,6 +278,9 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	if (pte_present(*ptep) && (pte_pfn(*ptep) == pte_pfn(pteval)))
 		goto cache_sync_done;
 
+	if (!cpu_has_dc_aliases && pte_no_exec(pteval))
+		goto cache_sync_done;
+
 	__update_cache(addr, pteval);
 cache_sync_done:
 	set_pte(ptep, pteval);
