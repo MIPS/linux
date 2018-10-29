@@ -30,6 +30,7 @@
 #include <linux/random.h>
 #include <linux/prctl.h>
 #include <linux/cpu.h>
+#include <linux/nmi.h>
 
 #include <asm/asm.h>
 #include <asm/bootinfo.h>
@@ -657,28 +658,21 @@ unsigned long arch_align_stack(unsigned long sp)
 	return sp & ALMASK;
 }
 
-static void arch_dump_stack(void *info)
+static void raise_backtrace_nmi(cpumask_t *mask)
 {
-	struct pt_regs *regs;
+#ifdef CONFIG_SMP
+	if (SMP_BACKTRACE != 0) {
+		mips_smp_send_ipi_mask(mask, SMP_BACKTRACE);
+		return;
+	}
 
-	regs = get_irq_regs();
-
-	if (regs)
-		show_regs(regs);
-
-	dump_stack();
+	WARN_ONCE(1, "arch_trigger_cpumask_backtrace is unsupported on this system\n");
+#endif /* CONFIG_SMP */
 }
 
 void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)
 {
-	long this_cpu = get_cpu();
-
-	if (cpumask_test_cpu(this_cpu, mask) && !exclude_self)
-		dump_stack();
-
-	smp_call_function_many(mask, arch_dump_stack, NULL, 1);
-
-	put_cpu();
+	nmi_trigger_cpumask_backtrace(mask, exclude_self, raise_backtrace_nmi);
 }
 
 int mips_get_process_fp_mode(struct task_struct *task)

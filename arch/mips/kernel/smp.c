@@ -34,6 +34,7 @@
 #include <linux/err.h>
 #include <linux/ftrace.h>
 #include <linux/irqdomain.h>
+#include <linux/nmi.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 
@@ -169,6 +170,9 @@ static irqreturn_t handle_IPI(int irq, void *dev_id)
 
 		if (actions & SMP_RESCHEDULE_YOURSELF)
 			scheduler_ipi();
+
+		if (actions & SMP_BACKTRACE)
+			nmi_cpu_backtrace(get_irq_regs());
 	}
 
 	return IRQ_HANDLED;
