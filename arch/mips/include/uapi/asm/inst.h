@@ -323,7 +323,7 @@ enum mm_major_op {
 	mm_pool32b_op, mm_pool16b_op, mm_lhu16_op, mm_andi16_op,
 	mm_addiu32_op, mm_lhu32_op, mm_sh32_op, mm_lh32_op,
 	mm_pool32i_op, mm_pool16c_op, mm_lwsp16_op, mm_pool16d_op,
-	mm_ori32_op, mm_pool32f_op, mm_pool32s_op, mm_reserved2_op,
+	mm_ori32_op, mm_pool32f_op, mm_pool32s_op, mm_daddiu32_op,
 	mm_pool32c_op, mm_lwgp16_op, mm_lw16_op, mm_pool16e_op,
 	mm_xori32_op, mm_jals32_op, mm_addiupc_op, mm_reserved3_op,
 	mm_reserved4_op, mm_pool16f_op, mm_sb16_op, mm_beqz16_op,
