@@ -51,6 +51,8 @@
 #include <asm/cacheflush.h>
 #include "audit.h"	/* audit_signal_info() */
 
+#include <asm/bug.h>	/* for mips_hwtrigger() */
+
 /*
  * SLAB caches for signal bits.
  */
@@ -1198,8 +1200,36 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 	 * Don't clear SIGNAL_UNKILLABLE for traced tasks, users won't expect
 	 * debugging to leave init killable.
 	 */
-	if (action->sa.sa_handler == SIG_DFL && !t->ptrace)
+	if (action->sa.sa_handler == SIG_DFL && !t->ptrace) {
+		if ((sig == SIGTRAP) && (current->ptrace & PT_PTRACED)) {
+			/*
+			 * Don't trigger for SIGTRAP sent to a process being
+			 * ptraced - this is normal.
+			 */
+		} else if (!strcmp(current->comm, "crashme")) {
+			/*
+			 * Ignore crashme - it does register signal handlers
+			 * but can wind up in states where delivery of a signal
+			 * isn't possible, for example if it does something
+			 * which corrupts the stack pointer. If it does this &
+			 * then triggers a SIGSEGV then the kernel will reset
+			 * the SIGSEGV handler to SIG_DFL in order to force the
+			 * process to die. Usually this would be bad, but with
+			 * crashme it can be considered expected.
+			 */
+		} else {
+			/*
+			 * We're about to deliver a signal to a process which
+			 * has not registered a handler for it (ie. the handler
+			 * is SIG_DFL). This is generally a sign of a process
+			 * about to die, so we trigger here.
+			 */
+			mips_hwtrigger(current_pt_regs(), sig,
+				       "unhandled signal");
+		}
+
 		t->signal->flags &= ~SIGNAL_UNKILLABLE;
+	}
 	ret = specific_send_sig_info(sig, info, t);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 
