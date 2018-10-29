@@ -23,6 +23,9 @@
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/iopoll.h>
+#include <linux/of_gpio.h>
 
 #define DRV_VERSION     "1.01"
 const char pch_driver_version[] = DRV_VERSION;
@@ -316,13 +319,11 @@ s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
  */
 static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
 {
+	int err;
 	u32 tmp;
 
-	/* wait busy */
-	tmp = 1000;
-	while ((ioread32(reg) & bit) && --tmp)
-		cpu_relax();
-	if (!tmp)
+	err = readl_poll_timeout_atomic(reg, tmp, !(tmp & bit), 10, 25000);
+	if (err)
 		pr_err("Error: busy bit is not cleared\n");
 }
 
@@ -360,6 +361,16 @@ static void pch_gbe_mac_mar_set(struct pch_gbe_hw *hw, u8 * addr, u32 index)
 	pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
 }
 
+static void pch_gbe_phy_set_reset(struct pch_gbe_hw *hw, int value)
+{
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
+
+	if (!adapter->pdata || !adapter->pdata->phy_reset_gpio)
+		return;
+
+	gpiod_set_value(adapter->pdata->phy_reset_gpio, value);
+}
+
 /**
  * pch_gbe_mac_reset_hw - Reset hardware
  * @hw:	Pointer to the HW structure
@@ -368,10 +379,13 @@ static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 {
 	/* Read the MAC address. and store to the private data */
 	pch_gbe_mac_read_mac_addr(hw);
+	pch_gbe_phy_set_reset(hw, 1);
 	iowrite32(PCH_GBE_ALL_RST, &hw->reg->RESET);
 #ifdef PCH_GBE_MAC_IFOP_RGMII
 	iowrite32(PCH_GBE_MODE_GMII_ETHER, &hw->reg->MODE);
 #endif
+	pch_gbe_phy_set_reset(hw, 0);
+	usleep_range(1250, 1500);
 	pch_gbe_wait_clr_bit(&hw->reg->RESET, PCH_GBE_ALL_RST);
 	/* Setup the receive addresses */
 	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
@@ -1235,11 +1249,11 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 
 	/*-- Set Tx descriptor --*/
 	tx_desc = PCH_GBE_TX_DESC(*tx_ring, ring_num);
-	tx_desc->buffer_addr = (buffer_info->dma);
-	tx_desc->length = (tmp_skb->len);
-	tx_desc->tx_words_eob = ((tmp_skb->len + 3));
-	tx_desc->tx_frame_ctrl = (frame_ctrl);
-	tx_desc->gbec_status = (DSC_INIT16);
+	tx_desc->buffer_addr = cpu_to_le32(buffer_info->dma);
+	tx_desc->length = cpu_to_le16(tmp_skb->len);
+	tx_desc->tx_words_eob = cpu_to_le16(tmp_skb->len + 3);
+	tx_desc->tx_frame_ctrl = cpu_to_le16(frame_ctrl);
+	tx_desc->gbec_status = cpu_to_le16(DSC_INIT16);
 
 	if (unlikely(++ring_num == tx_ring->count))
 		ring_num = 0;
@@ -1445,8 +1459,8 @@ pch_gbe_alloc_rx_buffers(struct pch_gbe_adapter *adapter,
 		}
 		buffer_info->mapped = true;
 		rx_desc = PCH_GBE_RX_DESC(*rx_ring, i);
-		rx_desc->buffer_addr = (buffer_info->dma);
-		rx_desc->gbec_status = DSC_INIT16;
+		rx_desc->buffer_addr = cpu_to_le32(buffer_info->dma);
+		rx_desc->gbec_status = cpu_to_le16(DSC_INIT16);
 
 		netdev_dbg(netdev,
 			   "i = %d  buffer_info->dma = 0x08%llx  buffer_info->length = 0x%x\n",
@@ -1518,7 +1532,7 @@ static void pch_gbe_alloc_tx_buffers(struct pch_gbe_adapter *adapter,
 		skb_reserve(skb, PCH_GBE_DMA_ALIGN);
 		buffer_info->skb = skb;
 		tx_desc = PCH_GBE_TX_DESC(*tx_ring, i);
-		tx_desc->gbec_status = (DSC_INIT16);
+		tx_desc->gbec_status = cpu_to_le16(DSC_INIT16);
 	}
 	return;
 }
@@ -1549,11 +1563,12 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	i = tx_ring->next_to_clean;
 	tx_desc = PCH_GBE_TX_DESC(*tx_ring, i);
 	netdev_dbg(adapter->netdev, "gbec_status:0x%04x  dma_status:0x%04x\n",
-		   tx_desc->gbec_status, tx_desc->dma_status);
+		   le16_to_cpu(tx_desc->gbec_status), tx_desc->dma_status);
 
 	unused = PCH_GBE_DESC_UNUSED(tx_ring);
 	thresh = tx_ring->count - PCH_GBE_TX_WEIGHT;
-	if ((tx_desc->gbec_status == DSC_INIT16) && (unused < thresh))
+	if ((le16_to_cpu(tx_desc->gbec_status) == DSC_INIT16) &&
+	    (unused < thresh))
 	{  /* current marked clean, tx queue filling up, do extra clean */
 		int j, k;
 		if (unused < 8) {  /* tx queue nearly full */
@@ -1568,47 +1583,49 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		for (j = 0; j < PCH_GBE_TX_WEIGHT; j++)
 		{
 			tx_desc = PCH_GBE_TX_DESC(*tx_ring, k);
-			if (tx_desc->gbec_status != DSC_INIT16) break; /*found*/
+			if (le16_to_cpu(tx_desc->gbec_status) != DSC_INIT16)
+				break; /*found*/
 			if (++k >= tx_ring->count) k = 0;  /*increment, wrap*/
 		}
 		if (j < PCH_GBE_TX_WEIGHT) {
 			netdev_dbg(adapter->netdev,
 				   "clean_tx: unused=%d loops=%d found tx_desc[%x,%x:%x].gbec_status=%04x\n",
 				   unused, j, i, k, tx_ring->next_to_use,
-				   tx_desc->gbec_status);
+				   le16_to_cpu(tx_desc->gbec_status));
 			i = k;  /*found one to clean, usu gbec_status==2000.*/
 		}
 	}
 
-	while ((tx_desc->gbec_status & DSC_INIT16) == 0x0000) {
+	while ((cpu_to_le16(tx_desc->gbec_status) & DSC_INIT16) == 0x0000) {
 		netdev_dbg(adapter->netdev, "gbec_status:0x%04x\n",
-			   tx_desc->gbec_status);
+			   le16_to_cpu(tx_desc->gbec_status));
 		buffer_info = &tx_ring->buffer_info[i];
 		skb = buffer_info->skb;
 		cleaned = true;
 
-		if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_ABT)) {
+		if ((le16_to_cpu(tx_desc->gbec_status) &
+			PCH_GBE_TXD_GMAC_STAT_ABT)) {
 			adapter->stats.tx_aborted_errors++;
 			netdev_err(adapter->netdev, "Transfer Abort Error\n");
-		} else if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_CRSER)
-			  ) {
+		} else if ((le16_to_cpu(tx_desc->gbec_status) &
+				PCH_GBE_TXD_GMAC_STAT_CRSER)) {
 			adapter->stats.tx_carrier_errors++;
 			netdev_err(adapter->netdev,
 				   "Transfer Carrier Sense Error\n");
-		} else if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_EXCOL)
-			  ) {
+		} else if ((le16_to_cpu(tx_desc->gbec_status) &
+					PCH_GBE_TXD_GMAC_STAT_EXCOL)) {
 			adapter->stats.tx_aborted_errors++;
 			netdev_err(adapter->netdev,
 				   "Transfer Collision Abort Error\n");
-		} else if ((tx_desc->gbec_status &
+		} else if ((le16_to_cpu(tx_desc->gbec_status) &
 			    (PCH_GBE_TXD_GMAC_STAT_SNGCOL |
 			     PCH_GBE_TXD_GMAC_STAT_MLTCOL))) {
 			adapter->stats.collisions++;
 			adapter->stats.tx_packets++;
 			adapter->stats.tx_bytes += skb->len;
 			netdev_dbg(adapter->netdev, "Transfer Collision\n");
-		} else if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_CMPLT)
-			  ) {
+		} else if ((le16_to_cpu(tx_desc->gbec_status) &
+				PCH_GBE_TXD_GMAC_STAT_CMPLT)) {
 			adapter->stats.tx_packets++;
 			adapter->stats.tx_bytes += skb->len;
 		}
@@ -1624,7 +1641,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 				   "trim buffer_info->skb : %d\n", i);
 			skb_trim(buffer_info->skb, 0);
 		}
-		tx_desc->gbec_status = DSC_INIT16;
+		tx_desc->gbec_status = cpu_to_le16(DSC_INIT16);
 		if (unlikely(++i == tx_ring->count))
 			i = 0;
 		tx_desc = PCH_GBE_TX_DESC(*tx_ring, i);
@@ -1690,15 +1707,15 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 	while (*work_done < work_to_do) {
 		/* Check Rx descriptor status */
 		rx_desc = PCH_GBE_RX_DESC(*rx_ring, i);
-		if (rx_desc->gbec_status == DSC_INIT16)
+		if (le16_to_cpu(rx_desc->gbec_status) == DSC_INIT16)
 			break;
 		cleaned = true;
 		cleaned_count++;
 
 		dma_status = rx_desc->dma_status;
-		gbec_status = rx_desc->gbec_status;
-		tcp_ip_status = rx_desc->tcp_ip_status;
-		rx_desc->gbec_status = DSC_INIT16;
+		gbec_status = le16_to_cpu(rx_desc->gbec_status);
+		tcp_ip_status = le32_to_cpu(rx_desc->tcp_ip_status);
+		rx_desc->gbec_status = cpu_to_le16(DSC_INIT16);
 		buffer_info = &rx_ring->buffer_info[i];
 		skb = buffer_info->skb;
 		buffer_info->skb = NULL;
@@ -1727,8 +1744,9 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 		} else {
 			/* get receive length */
 			/* length convert[-3], length includes FCS length */
-			length = (rx_desc->rx_words_eob) - 3 - ETH_FCS_LEN;
-			if (rx_desc->rx_words_eob & 0x02)
+			length = le16_to_cpu(rx_desc->rx_words_eob) - 3 -
+					ETH_FCS_LEN;
+			if (le16_to_cpu(rx_desc->rx_words_eob) & 0x02)
 				length = length - 4;
 			/*
 			 * buffer_info->rx_buffer: [Header:14][payload]
@@ -1808,7 +1826,7 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 
 	for (desNo = 0; desNo < tx_ring->count; desNo++) {
 		tx_desc = PCH_GBE_TX_DESC(*tx_ring, desNo);
-		tx_desc->gbec_status = DSC_INIT16;
+		tx_desc->gbec_status = cpu_to_le16(DSC_INIT16);
 	}
 	netdev_dbg(adapter->netdev,
 		   "tx_ring->desc = 0x%p  tx_ring->dma = 0x%08llx next_to_clean = 0x%08x  next_to_use = 0x%08x\n",
@@ -1849,7 +1867,7 @@ int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
 	rx_ring->next_to_use = 0;
 	for (desNo = 0; desNo < rx_ring->count; desNo++) {
 		rx_desc = PCH_GBE_RX_DESC(*rx_ring, desNo);
-		rx_desc->gbec_status = DSC_INIT16;
+		rx_desc->gbec_status = cpu_to_le16(DSC_INIT16);
 	}
 	netdev_dbg(adapter->netdev,
 		   "rx_ring->desc = 0x%p  rx_ring->dma = 0x%08llx next_to_clean = 0x%08x  next_to_use = 0x%08x\n",
@@ -2555,12 +2573,39 @@ static void pch_gbe_remove(struct pci_dev *pdev)
 	free_netdev(netdev);
 }
 
+static struct pch_gbe_privdata *
+pch_gbe_get_priv(struct pci_dev *pdev, const struct pci_device_id *pci_id)
+{
+	struct pch_gbe_privdata *pdata;
+	struct gpio_desc *gpio;
+
+	if (!IS_ENABLED(CONFIG_OF))
+		return (struct pch_gbe_privdata *)pci_id->driver_data;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	gpio = devm_gpiod_get(&pdev->dev, "phy-reset", GPIOD_ASIS);
+	if (!IS_ERR(gpio))
+		pdata->phy_reset_gpio = gpio;
+	else if (PTR_ERR(gpio) != -ENOENT)
+		return ERR_CAST(gpio);
+
+	return pdata;
+}
+
 static int pch_gbe_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *pci_id)
 {
 	struct net_device *netdev;
 	struct pch_gbe_adapter *adapter;
+	struct pch_gbe_privdata *pdata;
 	int ret;
+
+	pdata = pch_gbe_get_priv(pdev, pci_id);
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
@@ -2599,9 +2644,16 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
 	adapter->hw.reg = pcim_iomap_table(pdev)[PCH_GBE_PCI_BAR];
-	adapter->pdata = (struct pch_gbe_privdata *)pci_id->driver_data;
+	adapter->pdata = pdata;
 	if (adapter->pdata && adapter->pdata->platform_init)
-		adapter->pdata->platform_init(pdev);
+		adapter->pdata->platform_init(pdev, adapter->pdata);
+
+	if (adapter->pdata && adapter->pdata->phy_reset_gpio) {
+		pch_gbe_phy_set_reset(&adapter->hw, 1);
+		usleep_range(1250, 1500);
+		pch_gbe_phy_set_reset(&adapter->hw, 0);
+		usleep_range(1250, 1500);
+	}
 
 	adapter->ptp_pdev = pci_get_bus_and_slot(adapter->pdev->bus->number,
 					       PCI_DEVFN(12, 4));
@@ -2694,24 +2746,21 @@ err_free_netdev:
 /* The AR803X PHY on the MinnowBoard requires a physical pin to be toggled to
  * ensure it is awake for probe and init. Request the line and reset the PHY.
  */
-static int pch_gbe_minnow_platform_init(struct pci_dev *pdev)
+static int pch_gbe_minnow_platform_init(struct pci_dev *pdev,
+					struct pch_gbe_privdata *pdata)
 {
-	unsigned long flags = GPIOF_DIR_OUT | GPIOF_INIT_HIGH | GPIOF_EXPORT;
+	unsigned long flags = GPIOF_DIR_OUT | GPIOF_INIT_LOW |
+		GPIOF_EXPORT | GPIOF_ACTIVE_LOW;
 	unsigned gpio = MINNOW_PHY_RESET_GPIO;
 	int ret;
 
 	ret = devm_gpio_request_one(&pdev->dev, gpio, flags,
 				    "minnow_phy_reset");
-	if (ret) {
+	if (!ret)
+		pdata->phy_reset_gpio = gpio_to_desc(gpio);
+	else
 		dev_err(&pdev->dev,
 			"ERR: Can't request PHY reset GPIO line '%d'\n", gpio);
-		return ret;
-	}
-
-	gpio_set_value(gpio, 0);
-	usleep_range(1250, 1500);
-	gpio_set_value(gpio, 1);
-	usleep_range(1250, 1500);
 
 	return ret;
 }
