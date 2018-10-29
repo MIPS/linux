@@ -506,6 +506,14 @@ config PCI_ENDPOINT_TEST
            Enable this configuration option to enable the host side test driver
            for PCI Endpoint.
 
+config MIPS_SAAR
+	bool "MIPS SAAR passthrough driver"
+	depends on MIPS
+	default y
+	help
+	  Enable this to expose devices that are mapped using the SAAR(I)
+	  implementation-specific coprocessor 0 registers to userland via sysfs.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
