@@ -1529,7 +1529,7 @@ work anyway.
 4.60 KVM_DIRTY_TLB
 
 Capability: KVM_CAP_SW_TLB
-Architectures: ppc
+Architectures: ppc, mips
 Type: vcpu ioctl
 Parameters: struct kvm_dirty_tlb (in)
 Returns: 0 on success, -1 on error
@@ -1864,11 +1864,13 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_INDEX        | 32
   MIPS  | KVM_REG_MIPS_CP0_ENTRYLO0     | 64
   MIPS  | KVM_REG_MIPS_CP0_ENTRYLO1     | 64
+  MIPS  | KVM_REG_MIPS_CP0_GLOBALNUMBER | 32
   MIPS  | KVM_REG_MIPS_CP0_CONTEXT      | 64
   MIPS  | KVM_REG_MIPS_CP0_CONTEXTCONFIG| 32
   MIPS  | KVM_REG_MIPS_CP0_USERLOCAL    | 64
   MIPS  | KVM_REG_MIPS_CP0_XCONTEXTCONFIG| 64
   MIPS  | KVM_REG_MIPS_CP0_PAGEMASK     | 32
+  MIPS  | KVM_REG_MIPS_CP0_PAGEMASK_64  | 64
   MIPS  | KVM_REG_MIPS_CP0_PAGEGRAIN    | 32
   MIPS  | KVM_REG_MIPS_CP0_SEGCTL0      | 64
   MIPS  | KVM_REG_MIPS_CP0_SEGCTL1      | 64
@@ -1898,7 +1900,19 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_CONFIG4      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG5      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG7      | 32
+  MIPS  | KVM_REG_MIPS_CP0_WATCHLO0     | 64
+          ...
+  MIPS  | KVM_REG_MIPS_CP0_WATCHLO7     | 64
+  MIPS  | KVM_REG_MIPS_CP0_WATCHHI0     | 32
+          ...
+  MIPS  | KVM_REG_MIPS_CP0_WATCHHI7     | 32
   MIPS  | KVM_REG_MIPS_CP0_XCONTEXT     | 64
+  MIPS  | KVM_REG_MIPS_CP0_PERFCTRL0    | 32
+          ...
+  MIPS  | KVM_REG_MIPS_CP0_PERFCTRL3    | 32
+  MIPS  | KVM_REG_MIPS_CP0_PERFCNTR0    | 64
+          ...
+  MIPS  | KVM_REG_MIPS_CP0_PERFCNTR3    | 64
   MIPS  | KVM_REG_MIPS_CP0_ERROREPC     | 64
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH1    | 64
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH2    | 64
@@ -3823,7 +3837,7 @@ When this capability is enabled, KVM_EXIT_PAPR_HCALL can occur.
 
 6.3 KVM_CAP_SW_TLB
 
-Architectures: ppc
+Architectures: ppc, mips
 Target: vcpu
 Parameters: args[0] is the address of a struct kvm_config_tlb
 Returns: 0 on success; -1 on error
@@ -4218,8 +4232,7 @@ utilises it.
 
 If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
 available, it means that the VM is using full hardware assisted virtualization
-capabilities of the hardware. This is useful to check after creating a VM with
-KVM_VM_MIPS_DEFAULT.
+capabilities of the hardware.
 
 The value returned by KVM_CHECK_EXTENSION should be compared against known
 values (see below). All other values are reserved. This is to allow for the

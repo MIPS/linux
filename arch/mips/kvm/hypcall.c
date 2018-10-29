@@ -32,9 +32,44 @@ enum emulation_result kvm_mips_emul_hypcall(struct kvm_vcpu *vcpu,
 static int kvm_mips_hypercall(struct kvm_vcpu *vcpu, unsigned long num,
 			      const unsigned long *args, unsigned long *hret)
 {
-	/* Report unimplemented hypercall to guest */
-	*hret = -KVM_ENOSYS;
-	return RESUME_GUEST;
+	int ret = RESUME_GUEST;
+	int i;
+
+	switch (num) {
+	case KVM_HC_MIPS_GET_CLOCK_FREQ:
+		/* Return frequency of count/compare timer */
+		*hret = (s32)vcpu->arch.count_hz;
+		break;
+
+	case KVM_HC_MIPS_EXIT_VM:
+		/* Pass shutdown system event to userland */
+		memset(&vcpu->run->system_event, 0,
+		       sizeof(vcpu->run->system_event));
+		vcpu->run->system_event.type = KVM_SYSTEM_EVENT_SHUTDOWN;
+		vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
+		ret = RESUME_HOST;
+		break;
+
+	/* Hypercalls passed to userland to handle */
+	case KVM_HC_MIPS_CONSOLE_OUTPUT:
+		/* Pass to userland via KVM_EXIT_HYPERCALL */
+		memset(&vcpu->run->hypercall, 0, sizeof(vcpu->run->hypercall));
+		vcpu->run->hypercall.nr = num;
+		for (i = 0; i < MAX_HYPCALL_ARGS; ++i)
+			vcpu->run->hypercall.args[i] = (long)args[i];
+		vcpu->run->hypercall.ret = -KVM_ENOSYS; /* default */
+		vcpu->run->exit_reason = KVM_EXIT_HYPERCALL;
+		vcpu->arch.hypercall_needed = 1;
+		ret = RESUME_HOST;
+		break;
+
+	default:
+		/* Report unimplemented hypercall to guest */
+		*hret = -KVM_ENOSYS;
+		break;
+	};
+
+	return ret;
 }
 
 int kvm_mips_handle_hypcall(struct kvm_vcpu *vcpu)
@@ -50,4 +85,10 @@ int kvm_mips_handle_hypcall(struct kvm_vcpu *vcpu)
 
 	return kvm_mips_hypercall(vcpu, num,
 				  args, &vcpu->arch.gprs[2] /* v0 */);
+}
+
+void kvm_mips_complete_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	vcpu->arch.gprs[2] = run->hypercall.ret;	/* v0 */
+	vcpu->arch.hypercall_needed = 0;
 }

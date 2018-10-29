@@ -466,6 +466,14 @@
 # define cpu_has_small_pages	(cpu_data[0].options & MIPS_CPU_SP)
 #endif
 
+#ifndef cpu_has_big_pages
+# ifdef CONFIG_64BIT
+#  define cpu_has_big_pages	(cpu_data[0].options & MIPS_CPU_BPG)
+# else
+#  define cpu_has_big_pages	0
+# endif
+#endif
+
 #ifndef cpu_has_nan_legacy
 #define cpu_has_nan_legacy	(cpu_data[0].options & MIPS_CPU_NAN_LEGACY)
 #endif
@@ -534,6 +542,22 @@
 # define cpu_has_shared_ftlb_entries 0
 #endif
 
+#ifndef cpu_has_mmid
+# ifdef CONFIG_MIPS_MMID_SUPPORT
+#  define cpu_has_mmid		(cpu_data[0].options & MIPS_CPU_MMID)
+# else
+#  define cpu_has_mmid		0
+# endif
+#endif
+
+#ifndef cpu_has_ginvi
+# ifdef CONFIG_MIPS_GINVI_SUPPORT
+#  define cpu_has_ginvi		(cpu_data[0].options & MIPS_CPU_GINVI)
+# else
+#  define cpu_has_ginvi		0
+# endif
+#endif
+
 /*
  * Guest capabilities
  */
@@ -599,6 +623,19 @@
 #endif
 #ifndef cpu_guest_has_userlocal
 #define cpu_guest_has_userlocal	(cpu_data[0].guest.options & MIPS_CPU_ULRI)
+#endif
+#ifndef cpu_guest_has_big_pages
+# ifdef CONFIG_64BIT
+#  define cpu_guest_has_big_pages (cpu_data[0].guest.options & MIPS_CPU_BPG)
+# else
+#  define cpu_guest_has_big_pages 0
+# endif
+#endif
+#ifndef cpu_guest_has_vp
+#define cpu_guest_has_vp	(cpu_data[0].guest.options & MIPS_CPU_VP)
+#endif
+#ifndef cpu_guest_has_ginvi
+#define cpu_guest_has_ginvi	(cpu_data[0].guest.options & MIPS_CPU_GINVI)
 #endif
 
 /*
