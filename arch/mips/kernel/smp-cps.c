@@ -251,6 +251,10 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 			stat = read_cpc_co_stat_conf();
 			seq_state = stat & CPC_Cx_STAT_CONF_SEQSTATE_MSK;
 
+			/* U5 == non-coherent execution, ie. the core is up */
+			if (seq_state == CPC_Cx_STAT_CONF_SEQSTATE_U5)
+				break;
+
 			/* U6 == coherent execution, ie. the core is up */
 			if (seq_state == CPC_Cx_STAT_CONF_SEQSTATE_U6)
 				break;
