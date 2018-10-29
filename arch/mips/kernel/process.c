@@ -627,7 +627,7 @@ unsigned long get_wchan(struct task_struct *task)
 
 	if (!task || task == current || task->state == TASK_RUNNING)
 		goto out;
-	if (!task_stack_page(task))
+	if (!try_get_task_stack(task))
 		goto out;
 
 	pc = thread_saved_pc(task);
@@ -639,6 +639,7 @@ unsigned long get_wchan(struct task_struct *task)
 		pc = unwind_stack(task, &sp, pc, &ra);
 #endif
 
+	put_task_stack(task);
 out:
 	return pc;
 }

@@ -21,8 +21,7 @@
 #include <asm/asmmacro.h>
 
 /*
- * task_struct *resume(task_struct *prev, task_struct *next,
- *		       struct thread_info *next_ti)
+ * task_struct *resume(task_struct *prev, task_struct *next)
  */
 	.align	5
 	LEAF(resume)
@@ -39,13 +38,12 @@
 
 	/*
 	 * The order of restoring the registers takes care of the race
-	 * updating $28, $29 and kernelsp without disabling ints.
+	 * updating $28, $29 and saved_ti without disabling ints.
 	 */
-	move	$28, a2
+	move	$28, a1
 	cpu_restore_nonscratch a1
+	set_saved_ti	$28, t0
 
-	PTR_ADDU	t0, $28, _THREAD_SIZE - 32
-	set_saved_sp	t0, t1, t2
 	mfc0	t1, CP0_STATUS		/* Do we really need this? */
 	li	a3, 0xff01
 	and	t1, a3

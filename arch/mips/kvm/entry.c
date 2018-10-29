@@ -382,9 +382,9 @@ static void *kvm_mips_build_enter_guest(void *addr)
 
 	/* t1: contains the base of the ASID array, need to get the cpu id  */
 	/* smp_processor_id */
-	uasm_i_lw(&p, T2, offsetof(struct thread_info, cpu), GP);
+	UASM_i_MFC0(&p, T2, SMP_CPUID_REG);
+	UASM_i_SRL(&p, T2, T2, SMP_CPUID_PTRSHIFT);
 	/* index the ASID array */
-	uasm_i_sll(&p, T2, T2, ilog2(sizeof(long)));
 	UASM_i_ADDU(&p, T3, T1, T2);
 	UASM_i_LW(&p, K0, 0, T3);
 #ifdef CONFIG_MIPS_ASID_BITS_VARIABLE

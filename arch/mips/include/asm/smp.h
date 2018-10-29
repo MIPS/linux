@@ -19,13 +19,26 @@
 
 #include <linux/atomic.h>
 #include <asm/smp-ops.h>
+#include <asm/thread_info.h>
 
 extern int smp_num_siblings;
 extern cpumask_t cpu_sibling_map[];
 extern cpumask_t cpu_core_map[];
 extern cpumask_t cpu_foreign_map[];
 
-#define raw_smp_processor_id() (current_thread_info()->cpu)
+static inline int raw_smp_processor_id(void)
+{
+#if defined(__VDSO__)
+	extern int vdso_smp_processor_id(void)
+		__compiletime_error("VDSO should not call smp_processor_id()");
+	return vdso_smp_processor_id();
+#elif defined(CONFIG_MIPS_PGD_C0_CONTEXT)
+	return read_const_c0_xcontext() >> SMP_CPUID_REGSHIFT;
+#else
+	return read_const_c0_context() >> SMP_CPUID_REGSHIFT;
+#endif
+}
+#define raw_smp_processor_id raw_smp_processor_id
 
 /* Map from cpu id to sequential logical cpu number.  This will only
    not be idempotent when cpus failed to come on-line.	*/
