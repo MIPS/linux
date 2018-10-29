@@ -326,51 +326,21 @@ struct pch_gbe_regs {
 #define PCH_GBE_FC_FULL			3
 #define PCH_GBE_FC_DEFAULT		PCH_GBE_FC_FULL
 
-
-struct pch_gbe_hw;
-/**
- * struct  pch_gbe_functions - HAL APi function pointer
- * @get_bus_info:	for pch_gbe_hal_get_bus_info
- * @init_hw:		for pch_gbe_hal_init_hw
- * @read_phy_reg:	for pch_gbe_hal_read_phy_reg
- * @write_phy_reg:	for pch_gbe_hal_write_phy_reg
- * @reset_phy:		for pch_gbe_hal_phy_hw_reset
- * @sw_reset_phy:	for pch_gbe_hal_phy_sw_reset
- * @power_up_phy:	for pch_gbe_hal_power_up_phy
- * @power_down_phy:	for pch_gbe_hal_power_down_phy
- * @read_mac_addr:	for pch_gbe_hal_read_mac_addr
- */
-struct pch_gbe_functions {
-	void (*get_bus_info) (struct pch_gbe_hw *);
-	s32 (*init_hw) (struct pch_gbe_hw *);
-	s32 (*read_phy_reg) (struct pch_gbe_hw *, u32, u16 *);
-	s32 (*write_phy_reg) (struct pch_gbe_hw *, u32, u16);
-	void (*reset_phy) (struct pch_gbe_hw *);
-	void (*sw_reset_phy) (struct pch_gbe_hw *);
-	void (*power_up_phy) (struct pch_gbe_hw *hw);
-	void (*power_down_phy) (struct pch_gbe_hw *hw);
-	s32 (*read_mac_addr) (struct pch_gbe_hw *);
-};
-
 /**
  * struct pch_gbe_mac_info - MAC information
- * @addr[6]:		Store the MAC address
  * @fc:			Mode of flow control
  * @fc_autoneg:		Auto negotiation enable for flow control setting
  * @tx_fc_enable:	Enable flag of Transmit flow control
  * @max_frame_size:	Max transmit frame size
- * @min_frame_size:	Min transmit frame size
  * @autoneg:		Auto negotiation enable
  * @link_speed:		Link speed
  * @link_duplex:	Link duplex
  */
 struct pch_gbe_mac_info {
-	u8 addr[6];
 	u8 fc;
 	u8 fc_autoneg;
 	u8 tx_fc_enable;
 	u32 max_frame_size;
-	u32 min_frame_size;
 	u8 autoneg;
 	u16 link_speed;
 	u16 link_duplex;
@@ -394,17 +364,6 @@ struct pch_gbe_phy_info {
 
 /*!
  * @ingroup Gigabit Ether driver Layer
- * @struct  pch_gbe_bus_info
- * @brief   Bus information
- */
-struct pch_gbe_bus_info {
-	u8 type;
-	u8 speed;
-	u8 width;
-};
-
-/*!
- * @ingroup Gigabit Ether driver Layer
  * @struct  pch_gbe_hw
  * @brief   Hardware information
  */
@@ -414,10 +373,8 @@ struct pch_gbe_hw {
 	struct pch_gbe_regs  __iomem *reg;
 	spinlock_t miim_lock;
 
-	const struct pch_gbe_functions *func;
 	struct pch_gbe_mac_info mac;
 	struct pch_gbe_phy_info phy;
-	struct pch_gbe_bus_info bus;
 };
 
 /**
@@ -431,13 +388,13 @@ struct pch_gbe_hw {
  * @reserved2:		Reserved
  */
 struct pch_gbe_rx_desc {
-	u32 buffer_addr;
-	u32 tcp_ip_status;
-	u16 rx_words_eob;
-	u16 gbec_status;
+	__le32 buffer_addr;
+	__le32 tcp_ip_status;
+	__le16 rx_words_eob;
+	__le16 gbec_status;
 	u8 dma_status;
 	u8 reserved1;
-	u16 reserved2;
+	__le16 reserved2;
 };
 
 /**
@@ -452,14 +409,14 @@ struct pch_gbe_rx_desc {
  * @gbec_status:	GMAC Status
  */
 struct pch_gbe_tx_desc {
-	u32 buffer_addr;
-	u16 length;
-	u16 reserved1;
-	u16 tx_words_eob;
-	u16 tx_frame_ctrl;
+	__le32 buffer_addr;
+	__le16 length;
+	__le16 reserved1;
+	__le16 tx_words_eob;
+	__le16 tx_frame_ctrl;
 	u8 dma_status;
 	u8 reserved2;
-	u16 gbec_status;
+	__le16 gbec_status;
 };
 
 
@@ -580,15 +537,17 @@ struct pch_gbe_hw_stats {
 
 /**
  * struct pch_gbe_privdata - PCI Device ID driver data
+ * @phy_reset_gpio:		PHY reset GPIO descriptor.
  * @phy_tx_clk_delay:		Bool, configure the PHY TX delay in software
  * @phy_disable_hibernate:	Bool, disable PHY hibernation
  * @platform_init:		Platform initialization callback, called from
  *				probe, prior to PHY initialization.
  */
 struct pch_gbe_privdata {
+	struct gpio_desc *phy_reset_gpio;
 	bool phy_tx_clk_delay;
 	bool phy_disable_hibernate;
-	int (*platform_init)(struct pci_dev *pdev);
+	int (*platform_init)(struct pci_dev *, struct pch_gbe_privdata *);
 };
 
 /**
@@ -681,7 +640,6 @@ void pch_gbe_set_ethtool_ops(struct net_device *netdev);
 
 /* pch_gbe_mac.c */
 s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw);
-s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw);
 u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 			  u16 data);
 #endif /* _PCH_GBE_H_ */
