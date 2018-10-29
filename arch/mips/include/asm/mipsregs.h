@@ -668,6 +668,7 @@
 #define MIPS_CONF5_GI_IC	(_ULCAST_(2) << 15)
 #define MIPS_CONF5_GI_IC_TLB	(_ULCAST_(3) << 15)
 #define MIPS_CONF5_MI		(_ULCAST_(1) << 17)
+#define MIPS_CONF5_CRCP		(_ULCAST_(1) << 18)
 #define MIPS_CONF5_MSAEN	(_ULCAST_(1) << 27)
 #define MIPS_CONF5_EVA		(_ULCAST_(1) << 28)
 #define MIPS_CONF5_CV		(_ULCAST_(1) << 29)

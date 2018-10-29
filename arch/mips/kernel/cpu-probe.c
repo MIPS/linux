@@ -854,6 +854,9 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 	if (config5 & MIPS_CONF5_CA2)
 		c->ases |= MIPS_ASE_MIPS16E2;
 
+	if (config5 & MIPS_CONF5_CRCP)
+		elf_hwcap |= HWCAP_MIPS_CRC32;
+
 	switch (config5 & MIPS_CONF5_GI) {
 	case MIPS_CONF5_GI_IC:
 	case MIPS_CONF5_GI_IC_TLB:
