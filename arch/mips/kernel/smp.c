@@ -459,7 +459,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	/* Wait for CPU to start and be ready to sync counters */
 	if (!wait_for_completion_timeout(&cpu_starting,
-					 msecs_to_jiffies(1000))) {
+					 msecs_to_jiffies(2000))) {
 		pr_crit("CPU%u: failed to start\n", cpu);
 		return -EIO;
 	}
