@@ -33,6 +33,7 @@
 #define KVM_REG_MIPS_CP0_INDEX		MIPS_CP0_32(0, 0)
 #define KVM_REG_MIPS_CP0_ENTRYLO0	MIPS_CP0_64(2, 0)
 #define KVM_REG_MIPS_CP0_ENTRYLO1	MIPS_CP0_64(3, 0)
+#define KVM_REG_MIPS_CP0_GLOBALNUMBER	MIPS_CP0_32(3, 1)
 #define KVM_REG_MIPS_CP0_CONTEXT	MIPS_CP0_64(4, 0)
 #define KVM_REG_MIPS_CP0_CONTEXTCONFIG	MIPS_CP0_32(4, 1)
 #define KVM_REG_MIPS_CP0_USERLOCAL	MIPS_CP0_64(4, 2)
@@ -68,7 +69,31 @@
 #define KVM_REG_MIPS_CP0_CONFIG5	MIPS_CP0_32(16, 5)
 #define KVM_REG_MIPS_CP0_CONFIG7	MIPS_CP0_32(16, 7)
 #define KVM_REG_MIPS_CP0_MAARI		MIPS_CP0_64(17, 2)
+#define KVM_REG_MIPS_CP0_WATCHLO0	MIPS_CP0_64(18, 0)
+#define KVM_REG_MIPS_CP0_WATCHLO1	MIPS_CP0_64(18, 1)
+#define KVM_REG_MIPS_CP0_WATCHLO2	MIPS_CP0_64(18, 2)
+#define KVM_REG_MIPS_CP0_WATCHLO3	MIPS_CP0_64(18, 3)
+#define KVM_REG_MIPS_CP0_WATCHLO4	MIPS_CP0_64(18, 4)
+#define KVM_REG_MIPS_CP0_WATCHLO5	MIPS_CP0_64(18, 5)
+#define KVM_REG_MIPS_CP0_WATCHLO6	MIPS_CP0_64(18, 6)
+#define KVM_REG_MIPS_CP0_WATCHLO7	MIPS_CP0_64(18, 7)
+#define KVM_REG_MIPS_CP0_WATCHHI0	MIPS_CP0_32(19, 0)
+#define KVM_REG_MIPS_CP0_WATCHHI1	MIPS_CP0_32(19, 1)
+#define KVM_REG_MIPS_CP0_WATCHHI2	MIPS_CP0_32(19, 2)
+#define KVM_REG_MIPS_CP0_WATCHHI3	MIPS_CP0_32(19, 3)
+#define KVM_REG_MIPS_CP0_WATCHHI4	MIPS_CP0_32(19, 4)
+#define KVM_REG_MIPS_CP0_WATCHHI5	MIPS_CP0_32(19, 5)
+#define KVM_REG_MIPS_CP0_WATCHHI6	MIPS_CP0_32(19, 6)
+#define KVM_REG_MIPS_CP0_WATCHHI7	MIPS_CP0_32(19, 7)
 #define KVM_REG_MIPS_CP0_XCONTEXT	MIPS_CP0_64(20, 0)
+#define KVM_REG_MIPS_CP0_PERFCTRL0	MIPS_CP0_32(25, 0)
+#define KVM_REG_MIPS_CP0_PERFCNTR0	MIPS_CP0_64(25, 1)
+#define KVM_REG_MIPS_CP0_PERFCTRL1	MIPS_CP0_32(25, 2)
+#define KVM_REG_MIPS_CP0_PERFCNTR1	MIPS_CP0_64(25, 3)
+#define KVM_REG_MIPS_CP0_PERFCTRL2	MIPS_CP0_32(25, 4)
+#define KVM_REG_MIPS_CP0_PERFCNTR2	MIPS_CP0_64(25, 5)
+#define KVM_REG_MIPS_CP0_PERFCTRL3	MIPS_CP0_32(25, 6)
+#define KVM_REG_MIPS_CP0_PERFCNTR3	MIPS_CP0_64(25, 7)
 #define KVM_REG_MIPS_CP0_ERROREPC	MIPS_CP0_64(30, 0)
 #define KVM_REG_MIPS_CP0_KSCRATCH1	MIPS_CP0_64(31, 2)
 #define KVM_REG_MIPS_CP0_KSCRATCH2	MIPS_CP0_64(31, 3)
@@ -161,6 +186,7 @@ struct kvm_vcpu_stat {
 	u64 msa_fpe_exits;
 	u64 fpe_exits;
 	u64 msa_disabled_exits;
+	u64 watch_exits;
 	u64 flush_dcache_exits;
 #ifdef CONFIG_KVM_MIPS_VZ
 	u64 vz_gpsi_exits;
@@ -306,6 +332,8 @@ struct kvm_mmu_memory_cache {
 
 #define KVM_MIPS_AUX_FPU	0x1
 #define KVM_MIPS_AUX_MSA	0x2
+#define KVM_MIPS_AUX_WATCH	0x4
+#define KVM_MIPS_AUX_PERF	0x8
 
 #define KVM_MIPS_GUEST_TLB_SIZE	64
 struct kvm_vcpu_arch {
@@ -336,6 +364,11 @@ struct kvm_vcpu_arch {
 	struct mips_fpu_struct fpu;
 	/* Which auxiliary state is loaded (KVM_MIPS_AUX_*) */
 	unsigned int aux_inuse;
+	/*
+	 * Which auxiliary state is background active, e.g. active watchpoints &
+	 * perf counters work in the background as normal code executes.
+	 */
+	unsigned int aux_active;
 
 	/* COP0 State */
 	struct mips_coproc *cop0;
@@ -347,6 +380,9 @@ struct kvm_vcpu_arch {
 	unsigned long io_pc;
 	/* GPR used as IO source/target */
 	u32 io_gpr;
+
+	/* Whether a hypercall needs completing */
+	int hypercall_needed;
 
 	struct hrtimer comparecount_timer;
 	/* Count timer control KVM register */
@@ -388,6 +424,10 @@ struct kvm_vcpu_arch {
 	struct kvm_mips_tlb *wired_tlb;
 	unsigned int wired_tlb_limit;
 	unsigned int wired_tlb_used;
+
+	/* saved important tlb entry */
+	struct kvm_mips_tlb cur_tlb;
+	int cur_tlb_index;
 
 	/* emulated guest MAAR registers */
 	unsigned long maar[6];
@@ -676,6 +716,7 @@ static inline void kvm_change_##name1(struct mips_coproc *cop0,		\
 __BUILD_KVM_RW_HW(index,          32, MIPS_CP0_TLB_INDEX,    0)
 __BUILD_KVM_RW_HW(entrylo0,       l,  MIPS_CP0_TLB_LO0,      0)
 __BUILD_KVM_RW_HW(entrylo1,       l,  MIPS_CP0_TLB_LO1,      0)
+__BUILD_KVM_RW_SW(globalnumber,   32, MIPS_CP0_TLB_LO1,      1)
 __BUILD_KVM_RW_HW(context,        l,  MIPS_CP0_TLB_CONTEXT,  0)
 __BUILD_KVM_RW_HW(contextconfig,  32, MIPS_CP0_TLB_CONTEXT,  1)
 __BUILD_KVM_RW_HW(userlocal,      l,  MIPS_CP0_TLB_CONTEXT,  2)
@@ -775,6 +816,7 @@ struct kvm_mips_callbacks {
 	int (*handle_msa_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_msa_disabled)(struct kvm_vcpu *vcpu);
+	int (*handle_watch)(struct kvm_vcpu *vcpu);
 	int (*handle_guest_exit)(struct kvm_vcpu *vcpu);
 	int (*hardware_enable)(void);
 	void (*hardware_disable)(void);
@@ -887,6 +929,8 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 			  unsigned int count);
 void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
 			  unsigned int count);
+void kvm_vz_save_cur_tlb(struct kvm_vcpu *vcpu);
+int kvm_vz_load_cur_tlb(struct kvm_vcpu *vcpu);
 #endif
 
 void kvm_mips_suspend_mm(int cpu);
@@ -1118,6 +1162,7 @@ unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu);
 enum emulation_result kvm_mips_emul_hypcall(struct kvm_vcpu *vcpu,
 					    union mips_instruction inst);
 int kvm_mips_handle_hypcall(struct kvm_vcpu *vcpu);
+void kvm_mips_complete_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run);
 
 /* Dynamic binary translation */
 extern int kvm_mips_trans_cache_index(union mips_instruction inst,

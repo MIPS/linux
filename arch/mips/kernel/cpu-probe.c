@@ -667,7 +667,8 @@ static inline unsigned int decode_config1(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_32FPR;
 	}
 	if (cpu_has_tlb) {
-		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >> 25) + 1;
+		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >>
+			      MIPS_CONF1_TLBS_SHIFT) + 1;
 		c->tlbsizevtlb = c->tlbsize;
 		c->tlbsizeftlbsets = 0;
 	}
@@ -1070,6 +1071,15 @@ static inline unsigned int decode_guest_config5(struct cpuinfo_mips *c)
 
 	if (config5 & MIPS_CONF5_MVH)
 		c->guest.options |= MIPS_CPU_MVH;
+
+	switch (config5 & MIPS_CONF5_GI) {
+	case MIPS_CONF5_GI_IC:
+	case MIPS_CONF5_GI_IC_TLB:
+		c->guest.options |= MIPS_CPU_GINVI;
+		break;
+	default:
+		break;
+	}
 
 	if (config5 & MIPS_CONF_M)
 		c->guest.conf |= BIT(6);
