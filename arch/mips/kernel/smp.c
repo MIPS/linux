@@ -49,8 +49,6 @@
 #include <asm/maar.h>
 #include <asm/tlb.h>
 
-cpumask_t cpu_callin_map;		/* Bitmask of started secondaries */
-
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 EXPORT_SYMBOL(__cpu_number_map);
 
@@ -68,6 +66,8 @@ EXPORT_SYMBOL(cpu_sibling_map);
 /* representing the core map of multi-core chips of each logical CPU */
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_core_map);
+
+static DECLARE_COMPLETION(cpu_running);
 
 /*
  * A logcal cpu mask containing only one VPE per core to
@@ -371,7 +371,7 @@ asmlinkage void start_secondary(void)
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
 	notify_cpu_starting(cpu);
 
-	cpumask_set_cpu(cpu, &cpu_callin_map);
+	complete(&cpu_running);
 	synchronise_count_slave(cpu);
 
 	set_cpu_online(cpu, true);
@@ -432,7 +432,6 @@ void smp_prepare_boot_cpu(void)
 {
 	set_cpu_possible(0, true);
 	set_cpu_online(0, true);
-	cpumask_set_cpu(0, &cpu_callin_map);
 }
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
@@ -440,11 +439,13 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	mp_ops->boot_secondary(cpu, tidle);
 
 	/*
-	 * Trust is futile.  We should really have timeouts ...
+	 * We must check for timeout here, as the CPU will not be marked
+	 * online until the counters are synchronised.
 	 */
-	while (!cpumask_test_cpu(cpu, &cpu_callin_map)) {
-		udelay(100);
-		schedule();
+	if (!wait_for_completion_timeout(&cpu_running,
+					 msecs_to_jiffies(2000))) {
+		pr_crit("CPU%u: failed to start\n", cpu);
+		return -EIO;
 	}
 
 	synchronise_count_master(cpu);
