@@ -19,7 +19,10 @@
 
 void __iomem *mips_cm_base;
 void __iomem *mips_cm_l2sync_base;
+
+#ifdef CONFIG_64BIT
 int mips_cm_is64;
+#endif
 
 static char *cm2_tr[8] = {
 	"mem",	"gcr",	"gic",	"mmio",
@@ -240,20 +243,24 @@ int mips_cm_probe(void)
 	write_gcr_base(base_reg);
 
 	/* disable CM regions */
-	write_gcr_reg0_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
-	write_gcr_reg0_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
-	write_gcr_reg1_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
-	write_gcr_reg1_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
-	write_gcr_reg2_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
-	write_gcr_reg2_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
-	write_gcr_reg3_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
-	write_gcr_reg3_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
+	if (mips_cm_revision() < CM_REV_CM3) {
+		write_gcr_reg0_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
+		write_gcr_reg0_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
+		write_gcr_reg1_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
+		write_gcr_reg1_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
+		write_gcr_reg2_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
+		write_gcr_reg2_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
+		write_gcr_reg3_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
+		write_gcr_reg3_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
+	}
 
 	/* probe for an L2-only sync region */
 	mips_cm_probe_l2sync();
 
 	/* determine register width for this CM */
-	mips_cm_is64 = IS_ENABLED(CONFIG_64BIT) && (mips_cm_revision() >= CM_REV_CM3);
+#ifdef CONFIG_64BIT
+	mips_cm_is64 = mips_cm_revision() >= CM_REV_CM3;
+#endif
 
 	for_each_possible_cpu(cpu)
 		spin_lock_init(&per_cpu(cm_core_lock, cpu));
