@@ -10,7 +10,7 @@ endif
 
 CC = $(CROSS_COMPILE)gcc
 AR = $(CROSS_COMPILE)ar
-LD = $(CROSS_COMPILE)ld
+LD ?= $(CROSS_COMPILE)ld
 
 MAKEFLAGS += --no-print-directory
 
