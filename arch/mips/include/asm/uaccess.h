@@ -28,7 +28,7 @@
 #ifdef CONFIG_32BIT
 
 #ifdef CONFIG_KVM_GUEST
-#define __UA_LIMIT 0x40000000UL
+#define __UA_LIMIT 0xC0000000UL
 #else
 #define __UA_LIMIT 0x80000000UL
 #endif
@@ -63,13 +63,8 @@ extern u64 __ua_limit;
  * address in this range it's the process's problem, not ours :-)
  */
 
-#ifdef CONFIG_KVM_GUEST
-#define KERNEL_DS	((mm_segment_t) { 0x80000000UL })
-#define USER_DS		((mm_segment_t) { 0xC0000000UL })
-#else
 #define KERNEL_DS	((mm_segment_t) { 0UL })
 #define USER_DS		((mm_segment_t) { __UA_LIMIT })
-#endif
 
 #define VERIFY_READ    0
 #define VERIFY_WRITE   1
@@ -108,9 +103,19 @@ static inline bool eva_kernel_access(void)
  *
  * __ua_size() is a trick to avoid runtime checking of positive constant
  * sizes; for those we already know at compile time that the size is ok.
+ *
+ * __ua_kvm_comm() is to prevent accesses below 32KiB in KVM guest kernels,
+ * where there is a risk KVM may have mapped the comm page within easy reach of
+ * the zero register.
  */
 #define __ua_size(size)							\
 	((__builtin_constant_p(size) && (signed long) (size) > 0) ? 0 : (size))
+
+#ifdef CONFIG_KVM_GUEST
+#define __ua_kvm_comm(addr)	((addr) - 0x8000)
+#else
+#define __ua_kvm_comm(addr)	0
+#endif
 
 /*
  * access_ok: - Checks if a user space pointer is valid
@@ -144,7 +149,7 @@ static inline bool eva_kernel_access(void)
 									\
 	__chk_user_ptr(addr);						\
 	__ok = (signed long)(__mask & (__addr | (__addr + __size) |	\
-		__ua_size(__size)));					\
+		__ua_size(__size) | __ua_kvm_comm(__addr)));		\
 	__ok == 0;							\
 })
 
