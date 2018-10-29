@@ -69,6 +69,9 @@ static DEFINE_PER_CPU_ALIGNED(atomic_t, pm_barrier);
 /* Saved CPU state across the CPS_PM_POWER_GATED state */
 DEFINE_PER_CPU_ALIGNED(struct mips_static_suspend_state, cps_cpu_state);
 
+/* A per-core index into the above per-CPU variables */
+static DEFINE_PER_CPU_READ_MOSTLY(unsigned int, cpu_core_id);
+
 /* A somewhat arbitrary number of labels & relocs for uasm */
 static struct uasm_label labels[32];
 static struct uasm_reloc relocs[32];
@@ -114,17 +117,20 @@ static void coupled_barrier(atomic_t *a, unsigned online)
 int cps_pm_enter_state(enum cps_pm_state state)
 {
 	unsigned cpu = smp_processor_id();
-	unsigned core = current_cpu_data.core;
+	unsigned cluster = cpu_cluster(&current_cpu_data);
+	unsigned core = cpu_core(&current_cpu_data);
+	unsigned int core_id = per_cpu(cpu_core_id, cpu);
 	unsigned online, left;
 	cpumask_t *coupled_mask = this_cpu_ptr(&online_coupled);
 	u32 *core_ready_count, *nc_core_ready_count;
 	void *nc_addr;
 	cps_nc_entry_fn entry;
+	struct cluster_boot_config *cluster_cfg;
 	struct core_boot_config *core_cfg;
 	struct vpe_boot_config *vpe_cfg;
 
 	/* Check that there is an entry function for this state */
-	entry = per_cpu(nc_asm_enter, core)[state];
+	entry = per_cpu(nc_asm_enter, core_id)[state];
 	if (!entry)
 		return -EINVAL;
 
@@ -148,7 +154,8 @@ int cps_pm_enter_state(enum cps_pm_state state)
 		if (!mips_cps_smp_in_use())
 			return -EINVAL;
 
-		core_cfg = &mips_cps_core_bootcfg[core];
+		cluster_cfg = &mips_cps_cluster_bootcfg[cluster];
+		core_cfg = &cluster_cfg->core_config[core];
 		vpe_cfg = &core_cfg->vpe_config[cpu_vpe_id(&current_cpu_data)];
 		vpe_cfg->pc = (unsigned long)mips_cps_pm_restore;
 		vpe_cfg->gp = (unsigned long)current_thread_info();
@@ -160,7 +167,7 @@ int cps_pm_enter_state(enum cps_pm_state state)
 	smp_mb__after_atomic();
 
 	/* Create a non-coherent mapping of the core ready_count */
-	core_ready_count = per_cpu(ready_count, core);
+	core_ready_count = per_cpu(ready_count, core_id);
 	nc_addr = kmap_noncoherent(virt_to_page(core_ready_count),
 				   (unsigned long)core_ready_count);
 	nc_addr += ((unsigned long)core_ready_count & ~PAGE_MASK);
@@ -168,7 +175,7 @@ int cps_pm_enter_state(enum cps_pm_state state)
 
 	/* Ensure ready_count is zero-initialised before the assembly runs */
 	ACCESS_ONCE(*nc_core_ready_count) = 0;
-	coupled_barrier(&per_cpu(pm_barrier, core), online);
+	coupled_barrier(&per_cpu(pm_barrier, core_id), online);
 
 	/* Run the generated entry code */
 	left = entry(online, nc_core_ready_count);
@@ -360,8 +367,10 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		lbl_secondary_hang,
 		lbl_disable_coherence,
 		lbl_flush_fsb,
+		lbl_flushscache,
 		lbl_invicache,
 		lbl_flushdcache,
+		lbl_caches_clean,
 		lbl_hang,
 		lbl_set_cont,
 		lbl_secondary_cont,
@@ -468,15 +477,41 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	 */
 	uasm_build_label(&l, p, lbl_disable_coherence);
 
-	/* Invalidate the L1 icache */
-	cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].icache,
-			      Index_Invalidate_I, lbl_invicache);
+	if (state == CPS_PM_POWER_GATED &&
+	    cpu_cluster(&cpu_data[cpu]) != cpu_cluster(&boot_cpu_data)) {
+		/*
+		 * TODO: Ideally we'd only flush the L2 if we know that this
+		 * is the last core in the cluster to power down. It should
+		 * be OK to do if only know that there's a chance of that
+		 * being true, since worst case we'd add some overhead to
+		 * another core that's just powering up, and the race ought
+		 * to be pretty unlikely.
+		 */
+
+		/* Invalidate the cluster's L2 cache */
+		cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].scache,
+				      Index_Writeback_Inv_SD, lbl_flushscache);
+
+		/*
+		 * Don't bother flushing the L1 dcache, since the L2 is
+		 * inclusive of it.
+		 */
+		uasm_il_b(&p, &r, lbl_caches_clean);
+		uasm_i_nop(&p);
+	}
+
+	if (state != CPS_PM_POWER_GATED) {
+		/* Invalidate the L1 icache */
+		cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].icache,
+				      Index_Invalidate_I, lbl_invicache);
+	}
 
 	/* Writeback & invalidate the L1 dcache */
 	cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].dcache,
 			      Index_Writeback_Inv_D, lbl_flushdcache);
 
 	/* Barrier ensuring previous cache invalidates are complete */
+	uasm_build_label(&l, p, lbl_caches_clean);
 	uasm_i_sync(&p, STYPE_SYNC);
 	uasm_i_ehb(&p);
 
@@ -486,7 +521,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		* defined by the interAptiv & proAptiv SUMs as ensuring that the
 		*  operation resulting from the preceding store is complete.
 		*/
-		uasm_i_addiu(&p, t0, zero, 1 << cpu_data[cpu].core);
+		uasm_i_addiu(&p, t0, zero, 1 << cpu_core(&cpu_data[cpu]));
 		uasm_i_sw(&p, t0, 0, r_pcohctl);
 		uasm_i_lw(&p, t0, 0, r_pcohctl);
 
@@ -640,35 +675,49 @@ out_err:
 static int cps_pm_online_cpu(unsigned int cpu)
 {
 	enum cps_pm_state state;
-	unsigned core = cpu_data[cpu].core;
+	unsigned core_id = per_cpu(cpu_core_id, cpu);
 	void *entry_fn, *core_rc;
 
 	for (state = CPS_PM_NC_WAIT; state < CPS_PM_STATE_COUNT; state++) {
-		if (per_cpu(nc_asm_enter, core)[state])
+		if (per_cpu(nc_asm_enter, core_id)[state])
 			continue;
 		if (!test_bit(state, state_support))
 			continue;
 
 		entry_fn = cps_gen_entry_code(cpu, state);
 		if (!entry_fn) {
-			pr_err("Failed to generate core %u state %u entry\n",
-			       core, state);
+			pr_err("Failed to generate cpu %u state %u entry\n",
+			       cpu, state);
 			clear_bit(state, state_support);
 		}
 
-		per_cpu(nc_asm_enter, core)[state] = entry_fn;
+		per_cpu(nc_asm_enter, core_id)[state] = entry_fn;
 	}
 
-	if (!per_cpu(ready_count, core)) {
+	if (!per_cpu(ready_count, core_id)) {
 		core_rc = kmalloc(sizeof(u32), GFP_KERNEL);
 		if (!core_rc) {
-			pr_err("Failed allocate core %u ready_count\n", core);
+			pr_err("Failed allocate cpu %u ready_count\n", cpu);
 			return -ENOMEM;
 		}
-		per_cpu(ready_count, core) = core_rc;
+		per_cpu(ready_count, core_id) = core_rc;
 	}
 
 	return 0;
+}
+
+static void calculate_core_ids(void)
+{
+	unsigned int cpu, prev = 0;
+	int id = 0;
+
+	for_each_possible_cpu(cpu) {
+		if ((cpu != prev) && !cpus_are_siblings(cpu, prev))
+			id++;
+
+		per_cpu(cpu_core_id, cpu) = id;
+		prev = cpu;
+	}
 }
 
 static int __init cps_pm_init(void)
@@ -678,6 +727,8 @@ static int __init cps_pm_init(void)
 		pr_warn("pm-cps: no CM, non-coherent states unavailable\n");
 		return 0;
 	}
+
+	calculate_core_ids();
 
 	/*
 	 * If interrupts were enabled whilst running a wait instruction on a

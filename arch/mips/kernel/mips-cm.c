@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/mips-cm.h>
+#include <asm/mips-cpc.h>
 #include <asm/mipsregs.h>
 #include <asm/ptrace.h>
 #include <asm/traps.h>
@@ -268,16 +269,30 @@ int mips_cm_probe(void)
 	return 0;
 }
 
-void mips_cm_lock_other(unsigned int core, unsigned int vp)
+void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+			unsigned int vp, enum gcr_redir_block block)
 {
-	unsigned curr_core;
+	unsigned int curr_core, cm_rev;
 	u32 val;
+
+	cm_rev = mips_cm_revision();
 
 	preempt_disable();
 
-	if (mips_cm_revision() >= CM_REV_CM3) {
+	if (cm_rev >= CM_REV_CM3) {
 		val = core << CM3_GCR_Cx_OTHER_CORE_SHF;
 		val |= vp << CM3_GCR_Cx_OTHER_VP_SHF;
+
+		if (cm_rev >= CM_REV_CM3_5) {
+			val |= cluster << CM3_GCR_Cx_REDIRECT_CLUSTER_SHF;
+			if (cluster != cpu_cluster(&current_cpu_data))
+				val |= CM3_GCR_Cx_REDIRECT_CLUSTER_REDIREN_MSK;
+			val |= (unsigned int)block << CM3_GCR_Cx_REDIRECT_BLOCK_SHF;
+			val |= CM3_GCR_Cx_REDIRECT_GIC_REDIREN_MSK;
+		} else {
+			WARN_ON(cluster != 0);
+			WARN_ON(block != BLOCK_GCR_CORE_LOCAL);
+		}
 
 		/*
 		 * We need to disable interrupts in SMP systems in order to
@@ -291,14 +306,16 @@ void mips_cm_lock_other(unsigned int core, unsigned int vp)
 		spin_lock_irqsave(this_cpu_ptr(&cm_core_lock),
 				  *this_cpu_ptr(&cm_core_lock_flags));
 	} else {
+		WARN_ON(cluster != 0);
 		WARN_ON(vp != 0);
+		WARN_ON(block != BLOCK_GCR_CORE_LOCAL);
 
 		/*
 		 * We only have a GCR_CL_OTHER per core in systems with
 		 * CM 2.5 & older, so have to ensure other VP(E)s don't
 		 * race with us.
 		 */
-		curr_core = current_cpu_data.core;
+		curr_core = cpu_core(&current_cpu_data);
 		spin_lock_irqsave(&per_cpu(cm_core_lock, curr_core),
 				  per_cpu(cm_core_lock_flags, curr_core));
 
@@ -319,7 +336,7 @@ void mips_cm_unlock_other(void)
 	unsigned int curr_core;
 
 	if (mips_cm_revision() < CM_REV_CM3) {
-		curr_core = current_cpu_data.core;
+		curr_core = cpu_core(&current_cpu_data);
 		spin_unlock_irqrestore(&per_cpu(cm_core_lock, curr_core),
 				       per_cpu(cm_core_lock_flags, curr_core));
 	} else {
@@ -328,6 +345,31 @@ void mips_cm_unlock_other(void)
 	}
 
 	preempt_enable();
+}
+
+unsigned int mips_cm_cluster_cfg(unsigned int cluster)
+{
+	unsigned int cfg;
+
+	/* Prior to CM 3.5 we only have one truly global GCR_CONFIG */
+	if (mips_cm_revision() < CM_REV_CM3_5)
+		return read_gcr_config();
+
+	/*
+	 * If we can access the CPC_CONFIG alias then do so, since it's
+	 * accessible when the cluster's CM is powered down.
+	 */
+	if (mips_cpc_present()) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_CPC_GLOBAL);
+		cfg = read_redir_cpc_config();
+		mips_cm_unlock_other();
+		return cfg;
+	}
+
+	WARN(1, "CPC must be present for multi-cluster SMP\n");
+
+	/* Return a dummy value. PCORES=0xff indicates no cores */
+	return CM_GCR_CONFIG_PCORES_MSK;
 }
 
 int mips_cm_be_handler(struct pt_regs *regs)
