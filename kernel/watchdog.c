@@ -82,7 +82,7 @@ int __read_mostly soft_watchdog_enabled;
 #endif
 
 int __read_mostly watchdog_user_enabled;
-int __read_mostly watchdog_thresh = 10;
+int __read_mostly watchdog_thresh = CONFIG_LOCKUP_DETECTOR_THRESHOLD;
 
 #ifdef CONFIG_SMP
 int __read_mostly sysctl_softlockup_all_cpu_backtrace;
