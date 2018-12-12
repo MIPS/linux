@@ -14,6 +14,8 @@
  *
  */
 
+#include <linux/clk-provider.h>
+#include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
@@ -100,4 +102,10 @@ const char *get_system_type(void)
 void __init arch_init_irq(void)
 {
 	irqchip_init();
+}
+
+void __init plat_time_init(void)
+{
+	of_clk_init(NULL);
+	timer_probe();
 }
