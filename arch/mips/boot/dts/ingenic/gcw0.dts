@@ -61,6 +61,12 @@
 	status = "okay";
 };
 
+&tcu {
+	/* 750 kHz for the system timer and clocksource */
+	assigned-clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER2>;
+	assigned-clock-rates = <750000>, <750000>;
+};
+
 &pwm {
 	/* Channels 1 and 3-7 are for PWM use */
 	reg = <0x50 0x10>, <0x70 0x50>;
