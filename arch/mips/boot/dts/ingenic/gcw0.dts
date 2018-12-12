@@ -60,3 +60,14 @@
 	/* The WiFi module is connected to the UHC. */
 	status = "okay";
 };
+
+&pwm {
+	/* Channels 1 and 3-7 are for PWM use */
+	reg = <0x50 0x10>, <0x70 0x50>;
+};
+
+&clocksource {
+	/* Use channel 2 for the clocksource */
+	reg = <0x60 0x10>;
+	clocks = <&tcu TCU_CLK_TIMER2>;
+};
