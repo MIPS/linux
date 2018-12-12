@@ -28,11 +28,37 @@ struct jz4740_pwm_chip {
 	struct pwm_chip chip;
 	struct clk *clks[NUM_PWM];
 	struct regmap *map;
+	struct resource *parent_res;
 };
 
 static inline struct jz4740_pwm_chip *to_jz4740(struct pwm_chip *chip)
 {
 	return container_of(chip, struct jz4740_pwm_chip, chip);
+}
+
+static bool jz4740_pwm_can_use_chn(struct jz4740_pwm_chip *jz, unsigned int chn)
+{
+	struct platform_device *pdev = to_platform_device(jz->chip.dev);
+	struct resource chn_res, *res;
+	unsigned int i;
+
+	chn_res.start = jz->parent_res->start + TCU_REG_TDFRc(chn);
+	chn_res.end = chn_res.start + TCU_CHANNEL_STRIDE - 1;
+	chn_res.flags = IORESOURCE_MEM;
+
+	/*
+	 * Walk the list of resources, find if there's one that contains the
+	 * registers for the requested TCU channel
+	 */
+	for (i = 0; ; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res)
+			break;
+		if (resource_contains(res, &chn_res))
+			return true;
+	}
+
+	return false;
 }
 
 static int jz4740_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -42,11 +68,7 @@ static int jz4740_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	char clk_name[16];
 	int ret;
 
-	/*
-	 * Timers 0 and 1 are used for system tasks, so they are unavailable
-	 * for use as PWMs.
-	 */
-	if (pwm->hwpwm < 2)
+	if (!jz4740_pwm_can_use_chn(jz, pwm->hwpwm))
 		return -EBUSY;
 
 	snprintf(clk_name, sizeof(clk_name), "timer%u", pwm->hwpwm);
@@ -207,6 +229,12 @@ static int jz4740_pwm_probe(struct platform_device *pdev)
 		dev_err(dev, "regmap not found\n");
 		return -EINVAL;
 	}
+
+	jz4740->parent_res = platform_get_resource(
+				to_platform_device(dev->parent),
+				IORESOURCE_MEM, 0);
+	if (!jz4740->parent_res)
+		return -EINVAL;
 
 	jz4740->chip.dev = dev;
 	jz4740->chip.ops = &jz4740_pwm_ops;
