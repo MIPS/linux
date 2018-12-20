@@ -104,23 +104,6 @@ void local_flush_tlb_all(void)
 }
 EXPORT_SYMBOL(local_flush_tlb_all);
 
-/* All entries common to a mm share an asid.  To effectively flush
-   these entries, we just bump the asid. */
-void local_flush_tlb_mm(struct mm_struct *mm)
-{
-	int cpu;
-
-	preempt_disable();
-
-	cpu = smp_processor_id();
-
-	if (cpu_context(cpu, mm) != 0) {
-		drop_mmu_context(mm, cpu);
-	}
-
-	preempt_enable();
-}
-
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	unsigned long end)
 {
@@ -163,7 +146,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			write_c0_entryhi(oldpid);
 			htw_start();
 		} else {
-			drop_mmu_context(mm, cpu);
+			drop_mmu_context(mm);
 		}
 		flush_micro_tlb();
 		local_irq_restore(flags);

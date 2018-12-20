@@ -100,9 +100,13 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 
 /* Normal, classic MIPS get_new_mmu_context */
 static inline void
-get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
+get_new_mmu_context(struct mm_struct *mm)
 {
-	u64 asid = asid_cache(cpu);
+	unsigned int cpu;
+	u64 asid;
+
+	cpu = smp_processor_id();
+	asid = asid_cache(cpu);
 
 	if (!((asid += cpu_asid_inc()) & cpu_asid_mask(&cpu_data[cpu]))) {
 		if (cpu_has_vtag_icache)
@@ -142,7 +146,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	htw_stop();
 	/* Check if our ASID is of an older version and thus invalid */
 	if ((cpu_context(cpu, next) ^ asid_cache(cpu)) & asid_version_mask(cpu))
-		get_new_mmu_context(next, cpu);
+		get_new_mmu_context(next);
 	write_c0_entryhi(cpu_asid(cpu, next));
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
 
@@ -166,55 +170,34 @@ static inline void destroy_context(struct mm_struct *mm)
 	dsemul_mm_cleanup(mm);
 }
 
+#define activate_mm(prev, next)	switch_mm(prev, next, current)
 #define deactivate_mm(tsk, mm)	do { } while (0)
 
-/*
- * After we have set current->mm to a new value, this activates
- * the context for the new mm so we see the new mappings.
- */
 static inline void
-activate_mm(struct mm_struct *prev, struct mm_struct *next)
+drop_mmu_context(struct mm_struct *mm)
 {
 	unsigned long flags;
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu;
 
 	local_irq_save(flags);
 
-	htw_stop();
-	/* Unconditionally get a new ASID.  */
-	get_new_mmu_context(next, cpu);
-
-	write_c0_entryhi(cpu_asid(cpu, next));
-	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
-
-	/* mark mmu ownership change */
-	cpumask_clear_cpu(cpu, mm_cpumask(prev));
-	cpumask_set_cpu(cpu, mm_cpumask(next));
-	htw_start();
-
-	local_irq_restore(flags);
-}
-
-/*
- * If mm is currently active_mm, we can't really drop it.  Instead,
- * we will get a new one for it.
- */
-static inline void
-drop_mmu_context(struct mm_struct *mm, unsigned cpu)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	htw_stop();
-
-	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))  {
-		get_new_mmu_context(mm, cpu);
+	cpu = smp_processor_id();
+	if (!cpu_context(cpu, mm)) {
+		/* no-op */
+	} else if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {
+		/*
+		 * mm is currently active, so we can't really drop it.
+		 * Instead we bump the ASID.
+		 */
+		htw_stop();
+		get_new_mmu_context(mm);
 		write_c0_entryhi(cpu_asid(cpu, mm));
+		htw_start();
 	} else {
 		/* will get a new context next time */
 		cpu_context(cpu, mm) = 0;
 	}
-	htw_start();
+
 	local_irq_restore(flags);
 }
 
