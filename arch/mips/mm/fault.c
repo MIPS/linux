@@ -206,6 +206,8 @@ bad_area_nosemaphore:
 	if (user_mode(regs)) {
 		tsk->thread.cp0_badvaddr = address;
 		tsk->thread.error_code = write;
+		if (unhandled_signal(tsk, SIGSEGV))
+			mips_hwtrigger_write(0);
 		if (show_unhandled_signals &&
 		    unhandled_signal(tsk, SIGSEGV) &&
 		    __ratelimit(&ratelimit_state)) {
@@ -238,6 +240,8 @@ no_context:
 	 * Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice.
 	 */
+	mips_hwtrigger_write(0);
+
 	bust_spinlocks(1);
 
 	printk(KERN_ALERT "CPU %d Unable to handle kernel paging request at "
