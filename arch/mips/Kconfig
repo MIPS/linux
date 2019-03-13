@@ -112,6 +112,7 @@ config MIPS_GENERIC
 	select PINCTRL
 	select SMP_UP if SMP
 	select SWAP_IO_SPACE
+	select SWIOTLB if ARCH_DMA_ADDR_T_64BIT && PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_CPU_MIPS32_R6
@@ -137,6 +138,7 @@ config MIPS_GENERIC
 	select USB_UHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USE_OF
 	select UHI_BOOT
+	select ZONE_DMA32 if ARCH_DMA_ADDR_T_64BIT
 	help
 	  Select this to build a kernel which aims to support multiple boards,
 	  generally using a flattened device tree passed from the bootloader
