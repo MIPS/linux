@@ -1011,6 +1011,9 @@
 #define CVMVMCONF_RMMUSIZEM1_S	0
 #define CVMVMCONF_RMMUSIZEM1	(_U64CAST_(0xff) << CVMVMCONF_RMMUSIZEM1_S)
 
+/* I6x00 Config7 register field definitions */
+#define I6x00_CONF7_DSLD	BIT(11)
+
 /*
  * Coprocessor 1 (FPU) register names
  */
@@ -2802,6 +2805,7 @@ __BUILD_SET_C0(status)
 __BUILD_SET_C0(cause)
 __BUILD_SET_C0(config)
 __BUILD_SET_C0(config5)
+__BUILD_SET_C0(config7)
 __BUILD_SET_C0(intcontrol)
 __BUILD_SET_C0(intctl)
 __BUILD_SET_C0(srsmap)
