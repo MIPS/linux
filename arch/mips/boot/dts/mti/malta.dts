@@ -13,11 +13,59 @@
 	#size-cells = <1>;
 	compatible = "mti,malta";
 
+	chosen {
+		stdout-path = "serial0:115200";
+	};
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "img,mips";
+			reg = <0>;
+
+			/* this will be overwritten during boot */
+			clock-frequency = <20000000>;
+		};
+	};
+
 	cpu_intc: interrupt-controller {
 		compatible = "mti,cpu-interrupt-controller";
 
 		interrupt-controller;
 		#interrupt-cells = <1>;
+	};
+
+	msc01 {
+		status = "disabled";
+		compatible = "mti,msc01", "syscon", "simple-mfd";
+		reg = <0x1bd00000 0x4000>;
+		native-endian;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <>;
+
+		pci {
+			compatible = "mti,msc01-pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			#interrupt-cells = <1>;
+			interrupt-parent = <&i8259>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &i8259 10>,
+			                <0 0 0 2 &i8259 10>,
+			                <0 0 0 3 &i8259 11>,
+			                <0 0 0 4 &i8259 11>;
+		};
 	};
 
 	gic: interrupt-controller@1bdc0000 {
@@ -49,6 +97,35 @@
 
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	cpc@1bde0000 {
+		compatible = "mti,mips-cpc";
+		reg = <0x1bde0000 0x8000>;
+	};
+
+	gt64120 {
+		status = "disabled";
+		compatible = "galileo,gt-64120", "syscon", "simple-mfd";
+		reg = <0x1be00000 0x2000>;
+		native-endian;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <>;
+
+		pci {
+			compatible = "galileo,gt-64120-pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			#interrupt-cells = <1>;
+			interrupt-parent = <&i8259>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &i8259 10>,
+			                <0 0 0 2 &i8259 10>,
+			                <0 0 0 3 &i8259 11>,
+			                <0 0 0 4 &i8259 11>;
+		};
 	};
 
 	flash@1e000000 {
@@ -100,6 +177,24 @@
 		};
 	};
 
+	uart2: uart@1f000900 {
+		compatible = "ns16550a";
+
+		reg = <0x1f000900 0x40>;
+		reg-io-width = <4>;
+		reg-shift = <3>;
+
+		clock-frequency = <3686400>;
+
+		interrupt-parent = <&cpu_intc>;
+		interrupts = <4>;
+	};
+
+	cdmm@1fc10000 {
+		compatible = "mti,mips-cdmm";
+		reg = <0x1fc10000 0x8000>;
+	};
+
 	isa {
 		compatible = "isa";
 		#address-cells = <2>;
@@ -112,6 +207,30 @@
 
 			interrupt-parent = <&i8259>;
 			interrupts = <8>;
+		};
+
+		uart0: uart@3f8 {
+			compatible = "ns16550a";
+			reg = <1 0x3f8 0x8>;
+
+			clock-frequency = <1843200>;
+
+			interrupt-parent = <&i8259>;
+			interrupts = <4>;
+
+			no-loopback-test;
+		};
+
+		uart1: uart@2f8 {
+			compatible = "ns16550a";
+			reg = <1 0x2f8 0x8>;
+
+			clock-frequency = <1843200>;
+
+			interrupt-parent = <&i8259>;
+			interrupts = <3>;
+
+			no-loopback-test;
 		};
 	};
 };

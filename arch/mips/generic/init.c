@@ -33,6 +33,9 @@ void __init prom_init(void)
 {
 	plat_get_fdt();
 	BUG_ON(!fdt);
+
+	if (mach && mach->prom_init)
+		mach->prom_init();
 }
 
 void __init *plat_get_fdt(void)
@@ -158,6 +161,8 @@ void __init plat_time_init(void)
 {
 	struct device_node *np;
 	struct clk *clk;
+	uint32_t cpu_freq;
+	int err;
 
 	of_clk_init(NULL);
 
@@ -174,12 +179,17 @@ void __init plat_time_init(void)
 
 		clk = of_clk_get(np, 0);
 		if (IS_ERR(clk)) {
-			pr_err("Failed to get CPU clock: %ld\n", PTR_ERR(clk));
-			return;
-		}
+			err = of_property_read_u32(np, "clock-frequency", &cpu_freq);
+			if (err) {
+				pr_err("Failed to get CPU clock or frequency\n");
+				return;
+			}
 
-		mips_hpt_frequency = clk_get_rate(clk);
-		clk_put(clk);
+			mips_hpt_frequency = cpu_freq;
+		} else {
+			mips_hpt_frequency = clk_get_rate(clk);
+			clk_put(clk);
+		}
 
 		switch (boot_cpu_type()) {
 		case CPU_20KC:
