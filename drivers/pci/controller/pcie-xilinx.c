@@ -598,6 +598,12 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 	return 0;
 }
 
+static int xilinx_pcie_configure_dma(struct pci_dev *pdev, void *data)
+{
+	pdev->dev.bus_dma_mask = DMA_BIT_MASK(32);
+	return 0;
+}
+
 /**
  * xilinx_pcie_probe - Probe function
  * @pdev: Platform device pointer
@@ -668,6 +674,8 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 		goto error;
 
 	bus = bridge->bus;
+
+	pci_walk_bus(bus, xilinx_pcie_configure_dma, NULL);
 
 	pci_assign_unassigned_bus_resources(bus);
 	list_for_each_entry(child, &bus->children, node)
