@@ -159,6 +159,31 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	port->irq = irq;
 
+	port->iotype = UPIO_MEM;
+	if (resource.flags & IORESOURCE_IO) {
+		port->iotype = UPIO_PORT;
+		port->iobase = port->mapbase;
+		port->mapbase = 0;
+	} else if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
+		switch (prop) {
+		case 1:
+			port->iotype = UPIO_MEM;
+			break;
+		case 2:
+			port->iotype = UPIO_MEM16;
+			break;
+		case 4:
+			port->iotype = of_device_is_big_endian(np) ?
+				       UPIO_MEM32BE : UPIO_MEM32;
+			break;
+		default:
+			dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
+				 prop);
+			ret = -EINVAL;
+			goto err_unprepare;
+		}
+	}
+
 	info->rst = devm_reset_control_get_optional_shared(&ofdev->dev, NULL);
 	if (IS_ERR(info->rst)) {
 		ret = PTR_ERR(info->rst);
