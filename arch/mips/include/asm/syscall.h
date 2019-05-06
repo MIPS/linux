@@ -41,17 +41,22 @@ static inline long syscall_get_nr(struct task_struct *task,
 	return current_thread_info()->syscall;
 }
 
-static inline void mips_syscall_update_nr(struct task_struct *task,
+static inline long mips_syscall_update_nr(struct task_struct *task,
 					  struct pt_regs *regs)
 {
+	long syscall;
+
 	/*
 	 * v0 is the system call number, except for O32 ABI syscall(), where it
 	 * ends up in a0.
 	 */
 	if (mips_syscall_is_indirect(task, regs))
-		task_thread_info(task)->syscall = regs->regs[4];
+		syscall = regs->regs[4];
 	else
-		task_thread_info(task)->syscall = regs->regs[2];
+		syscall = regs->regs[2];
+
+	task_thread_info(task)->syscall = syscall;
+	return syscall;
 }
 
 static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
