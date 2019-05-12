@@ -5,10 +5,28 @@
 
 extra-y		:= head.o vmlinux.lds
 
-obj-y		+= cmpxchg.o cpu-probe.o branch.o elf.o entry.o genex.o idle.o irq.o \
-		   process.o prom.o ptrace.o reset.o setup.o signal.o \
-		   syscall.o time.o topology.o traps.o unaligned.o watch.o \
-		   vdso.o cacheinfo.o
+obj-y		+= branch.o
+obj-y		+= cacheinfo.o
+obj-y		+= cmpxchg.o
+obj-y		+= cpu-probe.o
+obj-y		+= elf.o
+obj-y		+= entry.o
+obj-y		+= genex.o
+obj-y		+= idle.o
+obj-y		+= irq.o
+obj-y		+= process.o
+obj-y		+= prom.o
+obj-y		+= ptrace.o
+obj-y		+= reset.o
+obj-y		+= setup.o
+obj-y		+= signal.o
+obj-y		+= syscall.o
+obj-y		+= time.o
+obj-y		+= topology.o
+obj-y		+= traps.o
+obj-y		+= unaligned.o
+obj-y		+= vdso.o
+obj-y		+= watch.o
 
 ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_ftrace.o = -pg
