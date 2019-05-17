@@ -8,6 +8,7 @@ extra-y		:= head.o vmlinux.lds
 obj-y		+= branch.o
 obj-y		+= cacheinfo.o
 obj-y		+= cmpxchg.o
+obj-y		+= cpu-features.o
 obj-y		+= cpu-probe.o
 obj-y		+= elf.o
 obj-y		+= entry.o

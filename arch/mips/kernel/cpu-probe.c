@@ -117,9 +117,9 @@ static void cpu_set_fpu_2008(struct cpuinfo_mips *c)
 			write_32bit_cp1_register(CP1_STATUS, fcsr);
 
 			if (!(fcsr0 & FPU_CSR_NAN2008))
-				c->options |= MIPS_CPU_NAN_LEGACY;
+				mips_set_cpu_has(nan_legacy);
 			if (fcsr1 & FPU_CSR_NAN2008)
-				c->options |= MIPS_CPU_NAN_2008;
+				mips_set_cpu_has(nan_2008);
 
 			if ((fcsr0 ^ fcsr1) & FPU_CSR_ABS2008)
 				c->fpu_msk31 &= ~FPU_CSR_ABS2008;
@@ -131,12 +131,12 @@ static void cpu_set_fpu_2008(struct cpuinfo_mips *c)
 			else
 				c->fpu_csr31 |= fcsr & FPU_CSR_NAN2008;
 		} else {
-			c->options |= MIPS_CPU_NAN_LEGACY;
+			mips_set_cpu_has(nan_legacy);
 		}
 
 		write_c0_status(sr);
 	} else {
-		c->options |= MIPS_CPU_NAN_LEGACY;
+		mips_set_cpu_has(nan_legacy);
 	}
 }
 
@@ -154,7 +154,8 @@ static enum { STRICT, LEGACY, STD2008, RELAXED } ieee754 = STRICT;
  */
 static void cpu_set_nofpu_2008(struct cpuinfo_mips *c)
 {
-	c->options &= ~(MIPS_CPU_NAN_2008 | MIPS_CPU_NAN_LEGACY);
+	mips_clear_cpu_has(nan_2008);
+	mips_clear_cpu_has(nan_legacy);
 	c->fpu_csr31 &= ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
 	c->fpu_msk31 &= ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
 
@@ -163,23 +164,25 @@ static void cpu_set_nofpu_2008(struct cpuinfo_mips *c)
 		if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 				    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
 				    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
-			c->options |= MIPS_CPU_NAN_2008 | MIPS_CPU_NAN_LEGACY;
+			mips_set_cpu_has(nan_2008);
+			mips_set_cpu_has(nan_legacy);
 		} else {
-			c->options |= MIPS_CPU_NAN_LEGACY;
+			mips_set_cpu_has(nan_legacy);
 			c->fpu_msk31 |= FPU_CSR_ABS2008 | FPU_CSR_NAN2008;
 		}
 		break;
 	case LEGACY:
-		c->options |= MIPS_CPU_NAN_LEGACY;
+		mips_set_cpu_has(nan_legacy);
 		c->fpu_msk31 |= FPU_CSR_ABS2008 | FPU_CSR_NAN2008;
 		break;
 	case STD2008:
-		c->options |= MIPS_CPU_NAN_2008;
+		mips_set_cpu_has(nan_2008);
 		c->fpu_csr31 |= FPU_CSR_ABS2008 | FPU_CSR_NAN2008;
 		c->fpu_msk31 |= FPU_CSR_ABS2008 | FPU_CSR_NAN2008;
 		break;
 	case RELAXED:
-		c->options |= MIPS_CPU_NAN_2008 | MIPS_CPU_NAN_LEGACY;
+		mips_set_cpu_has(nan_2008);
+		mips_set_cpu_has(nan_legacy);
 		break;
 	}
 }
@@ -258,7 +261,7 @@ static void cpu_set_nofpu_id(struct cpuinfo_mips *c)
 	if (c->isa_level & (MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
 			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6))
 		value |= MIPS_FPIR_F64 | MIPS_FPIR_L | MIPS_FPIR_W;
-	if (c->options & MIPS_CPU_NAN_2008)
+	if (cpu_has_nan_2008)
 		value |= MIPS_FPIR_HAS2008;
 	c->fpu_id = value;
 }
@@ -280,9 +283,9 @@ static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 		if (c->fpu_id & MIPS_FPIR_3D)
 			c->ases |= MIPS_ASE_MIPS3D;
 		if (c->fpu_id & MIPS_FPIR_UFRP)
-			c->options |= MIPS_CPU_UFR;
+			mips_set_cpu_has(ufr);
 		if (c->fpu_id & MIPS_FPIR_FREP)
-			c->options |= MIPS_CPU_FRE;
+			mips_set_cpu_has(fre);
 	}
 
 	cpu_set_fpu_fcsr_mask(c);
@@ -371,7 +374,7 @@ static int mips_htw_disabled;
 static int __init htw_disable(char *s)
 {
 	mips_htw_disabled = 1;
-	cpu_data[0].options &= ~MIPS_CPU_HTW;
+	mips_clear_cpu_has(htw);
 	write_c0_pwctl(read_c0_pwctl() &
 		       ~(1 << MIPS_PWCTL_PWEN_SHIFT));
 
@@ -448,7 +451,7 @@ __setup("noftlb", ftlb_disable);
 static inline void cpu_set_mt_per_tc_perf(struct cpuinfo_mips *c)
 {
 	if (read_c0_config7() & MTI_CONF7_PTC)
-		c->options |= MIPS_CPU_MT_PER_TC_PERF_COUNTERS;
+		mips_set_cpu_has(mipsmt_pertccounters);
 }
 
 static inline void check_errata(void)
@@ -643,10 +646,12 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 	 * Look for Standard TLB or Dual VTLB and FTLB
 	 */
 	mt = config0 & MIPS_CONF_MT;
-	if (mt == MIPS_CONF_MT_TLB)
-		c->options |= MIPS_CPU_TLB;
-	else if (mt == MIPS_CONF_MT_FTLB)
-		c->options |= MIPS_CPU_TLB | MIPS_CPU_FTLB;
+	if (mt == MIPS_CONF_MT_TLB) {
+		mips_set_cpu_has(tlb);
+	} else if (mt == MIPS_CONF_MT_FTLB) {
+		mips_set_cpu_has(ftlb);
+		mips_set_cpu_has(tlb);
+	}
 
 	isa = (config0 & MIPS_CONF_AT) >> 13;
 	switch (isa) {
@@ -699,16 +704,16 @@ static inline unsigned int decode_config1(struct cpuinfo_mips *c)
 	if (config1 & MIPS_CONF1_MD)
 		c->ases |= MIPS_ASE_MDMX;
 	if (config1 & MIPS_CONF1_PC)
-		c->options |= MIPS_CPU_PERF;
+		mips_set_cpu_has(perf);
 	if (config1 & MIPS_CONF1_WR)
 		c->options |= MIPS_CPU_WATCH;
 	if (config1 & MIPS_CONF1_CA)
 		c->ases |= MIPS_ASE_MIPS16;
 	if (config1 & MIPS_CONF1_EP)
-		c->options |= MIPS_CPU_EJTAG;
+		mips_set_cpu_has(ejtag);
 	if (config1 & MIPS_CONF1_FP) {
 		c->options |= MIPS_CPU_FPU;
-		c->options |= MIPS_CPU_32FPR;
+		mips_set_cpu_has(32fpr);
 	}
 	if (cpu_has_tlb) {
 		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >> 25) + 1;
@@ -739,12 +744,13 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 
 	if (config3 & MIPS_CONF3_SM) {
 		c->ases |= MIPS_ASE_SMARTMIPS;
-		c->options |= MIPS_CPU_RIXI | MIPS_CPU_CTXTC;
+		mips_set_cpu_has(contextconfig);
+		mips_set_cpu_has(rixi);
 	}
 	if (config3 & MIPS_CONF3_RXI)
-		c->options |= MIPS_CPU_RIXI;
+		mips_set_cpu_has(rixi);
 	if (config3 & MIPS_CONF3_CTXTC)
-		c->options |= MIPS_CPU_CTXTC;
+		mips_set_cpu_has(contextconfig);
 	if (config3 & MIPS_CONF3_DSP)
 		c->ases |= MIPS_ASE_DSP;
 	if (config3 & MIPS_CONF3_DSP2P) {
@@ -753,35 +759,35 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 			c->ases |= MIPS_ASE_DSP3;
 	}
 	if (config3 & MIPS_CONF3_VINT)
-		c->options |= MIPS_CPU_VINT;
+		mips_set_cpu_has(vint);
 	if (config3 & MIPS_CONF3_VEIC)
-		c->options |= MIPS_CPU_VEIC;
+		mips_set_cpu_has(veic);
 	if (config3 & MIPS_CONF3_LPA)
-		c->options |= MIPS_CPU_LPA;
+		mips_set_cpu_has(lpa);
 	if (config3 & MIPS_CONF3_MT)
 		c->ases |= MIPS_ASE_MIPSMT;
 	if (config3 & MIPS_CONF3_ULRI)
-		c->options |= MIPS_CPU_ULRI;
+		mips_set_cpu_has(userlocal);
 	if (config3 & MIPS_CONF3_ISA)
-		c->options |= MIPS_CPU_MICROMIPS;
+		mips_set_cpu_has(mmips);
 	if (config3 & MIPS_CONF3_VZ)
 		c->ases |= MIPS_ASE_VZ;
 	if (config3 & MIPS_CONF3_SC)
-		c->options |= MIPS_CPU_SEGMENTS;
+		mips_set_cpu_has(segments);
 	if (config3 & MIPS_CONF3_BI)
-		c->options |= MIPS_CPU_BADINSTR;
+		mips_set_cpu_has(badinstr);
 	if (config3 & MIPS_CONF3_BP)
-		c->options |= MIPS_CPU_BADINSTRP;
+		mips_set_cpu_has(badinstrp);
 	if (config3 & MIPS_CONF3_MSA)
 		c->ases |= MIPS_ASE_MSA;
 	if (config3 & MIPS_CONF3_PW) {
 		c->htw_seq = 0;
-		c->options |= MIPS_CPU_HTW;
+		mips_set_cpu_has(htw);
 	}
 	if (config3 & MIPS_CONF3_CDMM)
-		c->options |= MIPS_CPU_CDMM;
+		mips_set_cpu_has(cdmm);
 	if (config3 & MIPS_CONF3_SP)
-		c->options |= MIPS_CPU_SP;
+		mips_set_cpu_has(small_pages);
 
 	return config3 & MIPS_CONF_M;
 }
@@ -798,7 +804,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 
 	if (cpu_has_tlb) {
 		if (((config4 & MIPS_CONF4_IE) >> 29) == 2)
-			c->options |= MIPS_CPU_TLBINV;
+			mips_set_cpu_has(tlbinv);
 
 		/*
 		 * R6 has dropped the MMUExtDef field from config4.
@@ -888,15 +894,15 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 	write_c0_config5(config5);
 
 	if (config5 & MIPS_CONF5_EVA)
-		c->options |= MIPS_CPU_EVA;
+		mips_set_cpu_has(eva);
 	if (config5 & MIPS_CONF5_MRP)
-		c->options |= MIPS_CPU_MAAR;
+		mips_set_cpu_has(maar);
 	if (config5 & MIPS_CONF5_LLB)
-		c->options |= MIPS_CPU_RW_LLB;
+		mips_set_cpu_has(rw_llb);
 	if (config5 & MIPS_CONF5_MVH)
-		c->options |= MIPS_CPU_MVH;
+		mips_set_cpu_has(mvh);
 	if (cpu_has_mips_r6 && (config5 & MIPS_CONF5_VP))
-		c->options |= MIPS_CPU_VP;
+		mips_set_cpu_has(vp);
 	if (config5 & MIPS_CONF5_CA2)
 		c->ases |= MIPS_ASE_MIPS16E2;
 
@@ -910,7 +916,7 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		/* Check whether we successfully enabled MMID support */
 		config5 = read_c0_config5();
 		if (config5 & MIPS_CONF5_MI)
-			c->options |= MIPS_CPU_MMID;
+			mips_set_cpu_has(mmid);
 
 		/*
 		 * Warn if we've hardcoded cpu_has_mmid to a value unsuitable
@@ -955,8 +961,12 @@ static void decode_configs(struct cpuinfo_mips *c)
 	int ok;
 
 	/* MIPS32 or MIPS64 compliant CPU.  */
-	c->options = MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE | MIPS_CPU_COUNTER |
-		     MIPS_CPU_DIVEC | MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
+	mips_set_cpu_has(4k_cache);
+	mips_set_cpu_has(4kex);
+	mips_set_cpu_has(counter);
+	mips_set_cpu_has(divec);
+	mips_set_cpu_has(llsc);
+	mips_set_cpu_has(mcheck);
 
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
 
@@ -986,7 +996,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 					 : (s32)read_c0_ebase();
 		if (ebase & MIPS_EBASE_WG) {
 			/* WG bit already set, we can avoid the clumsy probe */
-			c->options |= MIPS_CPU_EBASE_WG;
+			mips_set_cpu_has(ebase_wg);
 		} else {
 			/* Its UNDEFINED to change EBase while BEV=0 */
 			status = read_c0_status();
@@ -1005,7 +1015,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 			/* Restore BEV */
 			write_c0_status(status);
 			if (read_c0_ebase() & MIPS_EBASE_WG) {
-				c->options |= MIPS_CPU_EBASE_WG;
+				mips_set_cpu_has(ebase_wg);
 				write_c0_ebase(ebase);
 			}
 		}
@@ -1085,11 +1095,6 @@ static inline unsigned int decode_guest_config1(struct cpuinfo_mips *c)
 	if (config1_dyn & MIPS_CONF1_WR)
 		c->guest.options_dyn |= MIPS_CPU_WATCH;
 
-	if (config1 & MIPS_CONF1_PC)
-		c->guest.options |= MIPS_CPU_PERF;
-	if (config1_dyn & MIPS_CONF1_PC)
-		c->guest.options_dyn |= MIPS_CPU_PERF;
-
 	if (config1 & MIPS_CONF_M)
 		c->guest.conf |= BIT(2);
 	return config1 & MIPS_CONF_M;
@@ -1115,23 +1120,21 @@ static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
 			     MIPS_CONF3_CTXTC);
 
 	if (config3 & MIPS_CONF3_CTXTC)
-		c->guest.options |= MIPS_CPU_CTXTC;
-	if (config3_dyn & MIPS_CONF3_CTXTC)
-		c->guest.options_dyn |= MIPS_CPU_CTXTC;
+		mips_set_cpu_guest_has(contextconfig);
 
 	if (config3 & MIPS_CONF3_PW)
-		c->guest.options |= MIPS_CPU_HTW;
+		mips_set_cpu_guest_has(htw);
 
 	if (config3 & MIPS_CONF3_ULRI)
-		c->guest.options |= MIPS_CPU_ULRI;
+		mips_set_cpu_guest_has(userlocal);
 
 	if (config3 & MIPS_CONF3_SC)
-		c->guest.options |= MIPS_CPU_SEGMENTS;
+		mips_set_cpu_guest_has(segments);
 
 	if (config3 & MIPS_CONF3_BI)
-		c->guest.options |= MIPS_CPU_BADINSTR;
+		mips_set_cpu_guest_has(badinstr);
 	if (config3 & MIPS_CONF3_BP)
-		c->guest.options |= MIPS_CPU_BADINSTRP;
+		mips_set_cpu_guest_has(badinstrp);
 
 	if (config3 & MIPS_CONF3_MSA)
 		c->guest.ases |= MIPS_ASE_MSA;
@@ -1166,15 +1169,15 @@ static inline unsigned int decode_guest_config5(struct cpuinfo_mips *c)
 			 MIPS_CONF_M | MIPS_CONF5_MVH | MIPS_CONF5_MRP);
 
 	if (config5 & MIPS_CONF5_MRP)
-		c->guest.options |= MIPS_CPU_MAAR;
+		mips_set_cpu_guest_has(maar);
 	if (config5_dyn & MIPS_CONF5_MRP)
-		c->guest.options_dyn |= MIPS_CPU_MAAR;
+		mips_set_cpu_guest_has(dyn_maar);
 
 	if (config5 & MIPS_CONF5_LLB)
-		c->guest.options |= MIPS_CPU_RW_LLB;
+		mips_set_cpu_guest_has(rw_llb);
 
 	if (config5 & MIPS_CONF5_MVH)
-		c->guest.options |= MIPS_CPU_MVH;
+		mips_set_cpu_guest_has(mvh);
 
 	if (config5 & MIPS_CONF_M)
 		c->guest.conf |= BIT(6);
@@ -1205,13 +1208,13 @@ static inline void cpu_probe_guestctl0(struct cpuinfo_mips *c)
 	guestctl0 = read_c0_guestctl0();
 
 	if (guestctl0 & MIPS_GCTL0_G0E)
-		c->options |= MIPS_CPU_GUESTCTL0EXT;
+		mips_set_cpu_has(guestctl0ext);
 	if (guestctl0 & MIPS_GCTL0_G1)
-		c->options |= MIPS_CPU_GUESTCTL1;
+		mips_set_cpu_has(guestctl1);
 	if (guestctl0 & MIPS_GCTL0_G2)
-		c->options |= MIPS_CPU_GUESTCTL2;
+		mips_set_cpu_has(guestctl2);
 	if (!(guestctl0 & MIPS_GCTL0_RAD)) {
-		c->options |= MIPS_CPU_GUESTID;
+		mips_set_cpu_has(guestid);
 
 		/*
 		 * Probe for Direct Root to Guest (DRG). Set GuestCtl1.RID = 0
@@ -1227,7 +1230,7 @@ static inline void cpu_probe_guestctl0(struct cpuinfo_mips *c)
 
 		if (temp & MIPS_GCTL0_DRG) {
 			write_c0_guestctl0(guestctl0);
-			c->options |= MIPS_CPU_DRG;
+			mips_set_cpu_has(drg);
 		}
 	}
 }
@@ -1264,8 +1267,13 @@ static inline void cpu_probe_vz(struct cpuinfo_mips *c)
 	decode_guest_configs(c);
 }
 
-#define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE \
-		| MIPS_CPU_COUNTER)
+static void set_r4k_opts(void)
+{
+	mips_set_cpu_has(4k_cache);
+	mips_set_cpu_has(4kex);
+	mips_set_cpu_has(counter);
+	mips_set_cpu_has(tlb);
+}
 
 static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 {
@@ -1274,8 +1282,9 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_R2000;
 		__cpu_name[cpu] = "R2000";
 		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
-			     MIPS_CPU_NOFPUEX;
+		mips_set_cpu_has(3k_cache);
+		mips_set_cpu_has(nofpuex);
+		mips_set_cpu_has(tlb);
 		if (__cpu_has_fpu())
 			c->options |= MIPS_CPU_FPU;
 		c->tlbsize = 64;
@@ -1294,8 +1303,9 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			__cpu_name[cpu] = "R3000";
 		}
 		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
-			     MIPS_CPU_NOFPUEX;
+		mips_set_cpu_has(3k_cache);
+		mips_set_cpu_has(nofpuex);
+		mips_set_cpu_has(tlb);
 		if (__cpu_has_fpu())
 			c->options |= MIPS_CPU_FPU;
 		c->tlbsize = 64;
@@ -1343,15 +1353,18 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 
 		set_isa(c, MIPS_CPU_ISA_III);
 		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_WATCH | MIPS_CPU_VCE |
-			     MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU |
+			     MIPS_CPU_WATCH;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(llsc);
+		mips_set_cpu_has(vce);
 		c->tlbsize = 48;
 		break;
 	case PRID_IMP_VR41XX:
 		set_isa(c, MIPS_CPU_ISA_III);
 		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS;
+		set_r4k_opts();
 		c->tlbsize = 32;
 		switch (c->processor_id & 0xf0) {
 		case PRID_REV_VR4111:
@@ -1377,7 +1390,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 				__cpu_name[cpu] = "NEC VR4131";
 			} else {
 				c->cputype = CPU_VR4133;
-				c->options |= MIPS_CPU_LLSC;
+				mips_set_cpu_has(llsc);
 				__cpu_name[cpu] = "NEC VR4133";
 			}
 			break;
@@ -1393,8 +1406,10 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		__cpu_name[cpu] = "R4300";
 		set_isa(c, MIPS_CPU_ISA_III);
 		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(llsc);
 		c->tlbsize = 32;
 		break;
 	case PRID_IMP_R4600:
@@ -1402,8 +1417,10 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		__cpu_name[cpu] = "R4600";
 		set_isa(c, MIPS_CPU_ISA_III);
 		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(llsc);
 		c->tlbsize = 48;
 		break;
 	#if 0
@@ -1418,13 +1435,16 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		__cpu_name[cpu] = "R4650";
 		set_isa(c, MIPS_CPU_ISA_III);
 		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU;
+		set_r4k_opts();
+		mips_set_cpu_has(llsc);
 		c->tlbsize = 48;
 		break;
 	#endif
 	case PRID_IMP_TX39:
 		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_TX39_CACHE;
+		mips_set_cpu_has(tlb);
+		mips_set_cpu_has(tx39_cache);
 
 		if ((c->processor_id & 0xf0) == (PRID_REV_TX3927 & 0xf0)) {
 			c->cputype = CPU_TX3927;
@@ -1450,8 +1470,10 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		__cpu_name[cpu] = "R4700";
 		set_isa(c, MIPS_CPU_ISA_III);
 		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(llsc);
 		c->tlbsize = 48;
 		break;
 	case PRID_IMP_TX49:
@@ -1459,49 +1481,65 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		__cpu_name[cpu] = "R49XX";
 		set_isa(c, MIPS_CPU_ISA_III);
 		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS | MIPS_CPU_LLSC;
-		if (!(c->processor_id & 0x08))
-			c->options |= MIPS_CPU_FPU | MIPS_CPU_32FPR;
+		set_r4k_opts();
+		mips_set_cpu_has(llsc);
+		if (!(c->processor_id & 0x08)) {
+			c->options |= MIPS_CPU_FPU;
+			mips_set_cpu_has(32fpr);
+		}
 		c->tlbsize = 48;
 		break;
 	case PRID_IMP_R5000:
 		c->cputype = CPU_R5000;
 		__cpu_name[cpu] = "R5000";
 		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(llsc);
 		c->tlbsize = 48;
 		break;
 	case PRID_IMP_R5432:
 		c->cputype = CPU_R5432;
 		__cpu_name[cpu] = "R5432";
 		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_WATCH | MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU |
+			     MIPS_CPU_WATCH;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(llsc);
 		c->tlbsize = 48;
 		break;
 	case PRID_IMP_R5500:
 		c->cputype = CPU_R5500;
 		__cpu_name[cpu] = "R5500";
 		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_WATCH | MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU |
+			     MIPS_CPU_WATCH;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(llsc);
 		c->tlbsize = 48;
 		break;
 	case PRID_IMP_NEVADA:
 		c->cputype = CPU_NEVADA;
 		__cpu_name[cpu] = "Nevada";
 		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_DIVEC | MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(divec);
+		mips_set_cpu_has(llsc);
 		c->tlbsize = 48;
 		break;
 	case PRID_IMP_RM7000:
 		c->cputype = CPU_RM7000;
 		__cpu_name[cpu] = "RM7000";
 		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(llsc);
 		/*
 		 * Undocumented RM7000:	 Bit 29 in the info register of
 		 * the RM7000 v2.0 indicates if the TLB has 48 or 64
@@ -1516,29 +1554,40 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_R8000;
 		__cpu_name[cpu] = "RM8000";
 		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4KEX |
-			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU;
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(4kex);
+		mips_set_cpu_has(llsc);
+		mips_set_cpu_has(tlb);
 		c->tlbsize = 384;      /* has weird TLB: 3-way x 128 */
 		break;
 	case PRID_IMP_R10000:
 		c->cputype = CPU_R10000;
 		__cpu_name[cpu] = "R10000";
 		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
-			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
-			     MIPS_CPU_LLSC;
+		c->options = MIPS_CPU_FPU |
+			     MIPS_CPU_WATCH;
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(4k_cache);
+		mips_set_cpu_has(4kex);
+		mips_set_cpu_has(counter);
+		mips_set_cpu_has(llsc);
+		mips_set_cpu_has(tlb);
 		c->tlbsize = 64;
 		break;
 	case PRID_IMP_R12000:
 		c->cputype = CPU_R12000;
 		__cpu_name[cpu] = "R12000";
 		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
-			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
-			     MIPS_CPU_LLSC | MIPS_CPU_BP_GHIST;
+		c->options = MIPS_CPU_FPU |
+			     MIPS_CPU_WATCH;
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(4k_cache);
+		mips_set_cpu_has(4kex);
+		mips_set_cpu_has(bp_ghist);
+		mips_set_cpu_has(counter);
+		mips_set_cpu_has(llsc);
+		mips_set_cpu_has(tlb);
 		c->tlbsize = 64;
 		break;
 	case PRID_IMP_R14000:
@@ -1550,10 +1599,15 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			__cpu_name[cpu] = "R14000";
 		}
 		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
-			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
-			     MIPS_CPU_LLSC | MIPS_CPU_BP_GHIST;
+		c->options = MIPS_CPU_FPU |
+			     MIPS_CPU_WATCH;
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(4k_cache);
+		mips_set_cpu_has(4kex);
+		mips_set_cpu_has(bp_ghist);
+		mips_set_cpu_has(counter);
+		mips_set_cpu_has(llsc);
+		mips_set_cpu_has(tlb);
 		c->tlbsize = 64;
 		break;
 	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
@@ -1587,9 +1641,10 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			break;
 		}
 
-		c->options = R4K_OPTS |
-			     MIPS_CPU_FPU | MIPS_CPU_LLSC |
-			     MIPS_CPU_32FPR;
+		c->options = MIPS_CPU_FPU;
+		set_r4k_opts();
+		mips_set_cpu_has(32fpr);
+		mips_set_cpu_has(llsc);
 		c->tlbsize = 64;
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		break;
@@ -1746,10 +1801,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 
 	switch (__get_cpu_type(c->cputype)) {
 	case CPU_I6500:
-		c->options |= MIPS_CPU_SHARED_FTLB_ENTRIES;
+		mips_set_cpu_has(shared_ftlb_entries);
 		/* fall-through */
 	case CPU_I6400:
-		c->options |= MIPS_CPU_SHARED_FTLB_RAM;
+		mips_set_cpu_has(shared_ftlb_ram);
 		/* fall-through */
 	default:
 		break;
@@ -1802,8 +1857,10 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_SB1;
 		__cpu_name[cpu] = "SiByte SB1";
 		/* FPU in pass1 is known to have issues. */
-		if ((c->processor_id & PRID_REV_MASK) < 0x02)
-			c->options &= ~(MIPS_CPU_FPU | MIPS_CPU_32FPR);
+		if ((c->processor_id & PRID_REV_MASK) < 0x02) {
+			c->options &= ~MIPS_CPU_FPU;
+			mips_clear_cpu_has(32fpr);
+		}
 		break;
 	case PRID_IMP_SB1A:
 		c->cputype = CPU_SB1A;
@@ -1862,7 +1919,7 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 			c->cputype = CPU_BMIPS4380;
 			__cpu_name[cpu] = "Broadcom BMIPS4380";
 			set_elf_platform(cpu, "bmips4380");
-			c->options |= MIPS_CPU_RIXI;
+			mips_set_cpu_has(rixi);
 		} else {
 			c->cputype = CPU_BMIPS4350;
 			__cpu_name[cpu] = "Broadcom BMIPS4350";
@@ -1878,7 +1935,8 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 		else
 			__cpu_name[cpu] = "Broadcom BMIPS5000";
 		set_elf_platform(cpu, "bmips5000");
-		c->options |= MIPS_CPU_ULRI | MIPS_CPU_RIXI;
+		mips_set_cpu_has(rixi);
+		mips_set_cpu_has(userlocal);
 		break;
 	}
 }
@@ -1948,7 +2006,9 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 		}
 
 		decode_configs(c);
-		c->options |= MIPS_CPU_FTLB | MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
+		mips_set_cpu_has(ftlb);
+		mips_set_cpu_has(ldpte);
+		mips_set_cpu_has(tlbinv);
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		break;
 	default:
@@ -1961,7 +2021,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	decode_configs(c);
 	/* JZRISC does not implement the CP0 counter. */
-	c->options &= ~MIPS_CPU_COUNTER;
+	mips_clear_cpu_has(counter);
 	BUG_ON(!__builtin_constant_p(cpu_has_counter) || cpu_has_counter);
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_JZRISC:
@@ -1986,13 +2046,13 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 		return;
 	}
 
-	c->options = (MIPS_CPU_TLB	 |
-			MIPS_CPU_4KEX	 |
-			MIPS_CPU_COUNTER |
-			MIPS_CPU_DIVEC	 |
-			MIPS_CPU_WATCH	 |
-			MIPS_CPU_EJTAG	 |
-			MIPS_CPU_LLSC);
+	c->options = MIPS_CPU_WATCH;
+	mips_set_cpu_has(4kex);
+	mips_set_cpu_has(counter);
+	mips_set_cpu_has(divec);
+	mips_set_cpu_has(ejtag);
+	mips_set_cpu_has(llsc);
+	mips_set_cpu_has(tlb);
 
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_NETLOGIC_XLP2XX:
@@ -2046,7 +2106,9 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 
 	if (c->cputype == CPU_XLP) {
 		set_isa(c, MIPS_CPU_ISA_M64R2);
-		c->options |= (MIPS_CPU_FPU | MIPS_CPU_ULRI | MIPS_CPU_MCHECK);
+		mips_set_cpu_has(mcheck);
+		mips_set_cpu_has(userlocal);
+		c->options |= MIPS_CPU_FPU;
 		/* This will be updated again after all threads are woken up */
 		c->tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
 	} else {
@@ -2139,7 +2201,7 @@ void cpu_probe(void)
 		back_to_back_c0_hazard();
 		/* Verify the IEC bit is set */
 		if (read_c0_pagegrain() & PG_IEC)
-			c->options |= MIPS_CPU_RIXIEX;
+			mips_set_cpu_has(rixiex);
 	}
 
 	if (mips_fpu_disabled)
@@ -2149,7 +2211,7 @@ void cpu_probe(void)
 		c->ases &= ~(MIPS_ASE_DSP | MIPS_ASE_DSP2P);
 
 	if (mips_htw_disabled) {
-		c->options &= ~MIPS_CPU_HTW;
+		mips_clear_cpu_has(htw);
 		write_c0_pwctl(read_c0_pwctl() &
 			       ~(1 << MIPS_PWCTL_PWEN_SHIFT));
 	}
@@ -2166,7 +2228,7 @@ void cpu_probe(void)
 	if (cpu_has_mips_r2_r6) {
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
 		/* R2 has Performance Counter Interrupt indicator */
-		c->options |= MIPS_CPU_PCI;
+		mips_set_cpu_has(perf_cntr_intr_bit);
 	}
 	else
 		c->srsets = 1;
