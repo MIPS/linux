@@ -131,4 +131,6 @@ obj-$(CONFIG_MIPS_CPC)		+= mips-cpc.o
 obj-$(CONFIG_CPU_PM)		+= pm.o
 obj-$(CONFIG_MIPS_CPS_PM)	+= pm-cps.o
 
+obj-$(CONFIG_MIPS_CP0_DEBUGFS)	+= cp0-debugfs.o
+
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)
