@@ -2614,13 +2614,14 @@ early_param("keep_bootcon", keep_bootcon_setup);
  *  - Once a "real" console is registered, any attempt to register a
  *    bootconsoles will be rejected
  */
-void register_console(struct console *newcon)
+void register_console_dev(struct console *newcon, struct device *dev)
 {
 	int i;
 	unsigned long flags;
 	struct console *bcon = NULL;
 	struct console_cmdline *c;
 	static bool has_preferred;
+	bool other_of_stdout;
 
 	if (console_drivers)
 		for_each_console(bcon)
@@ -2716,11 +2717,21 @@ void register_console(struct console *newcon)
 		newcon->flags &= ~CON_PRINTBUFFER;
 
 	/*
+	 * Determine whether another device has or may have been set as of_stdout
+	 * (ie. the stdout-path property of the DT /chosen node). This allows
+	 * us to keep the boot console around until the correct console device
+	 * is registered, and to unregister it once that happens.
+	 */
+	other_of_stdout = IS_ENABLED(CONFIG_OF) && of_stdout &&
+			  (!dev || (dev->of_node != of_stdout));
+
+	/*
 	 *	Put this console in the list - keep the
 	 *	preferred driver at the head of the list.
 	 */
 	console_lock();
-	if ((newcon->flags & CON_CONSDEV) || console_drivers == NULL) {
+	if (((newcon->flags & CON_CONSDEV) && !other_of_stdout) ||
+	    console_drivers == NULL) {
 		newcon->next = console_drivers;
 		console_drivers = newcon;
 		if (newcon->next)
@@ -2767,16 +2778,26 @@ void register_console(struct console *newcon)
 	pr_info("%sconsole [%s%d] enabled\n",
 		(newcon->flags & CON_BOOT) ? "boot" : "" ,
 		newcon->name, newcon->index);
+
+	/*
+	 */
 	if (bcon &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
-	    !keep_bootcon) {
-		/* We need to iterate through all boot consoles, to make
+	    !keep_bootcon && !other_of_stdout) {
+		/*
+		 * We need to iterate through all boot consoles, to make
 		 * sure we print everything out, before we unregister them.
 		 */
 		for_each_console(bcon)
 			if (bcon->flags & CON_BOOT)
 				unregister_console(bcon);
 	}
+}
+EXPORT_SYMBOL(register_console_dev);
+
+void register_console(struct console *newcon)
+{
+	register_console_dev(newcon, NULL);
 }
 EXPORT_SYMBOL(register_console);
 
@@ -2874,6 +2895,15 @@ static int __init printk_late_init(void)
 {
 	struct console *con;
 	int ret;
+	bool have_real_console;
+
+	have_real_console = false;
+	for_each_console(con) {
+		if ((con->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) {
+			have_real_console = true;
+			break;
+		}
+	}
 
 	for_each_console(con) {
 		if (!(con->flags & CON_BOOT))
@@ -2892,6 +2922,8 @@ static int __init printk_late_init(void)
 			 */
 			pr_warn("bootconsole [%s%d] uses init memory and must be disabled even before the real one is ready\n",
 				con->name, con->index);
+			unregister_console(con);
+		} else if (IS_ENABLED(CONFIG_OF) && of_stdout && have_real_console) {
 			unregister_console(con);
 		}
 	}
