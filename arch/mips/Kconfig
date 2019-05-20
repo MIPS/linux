@@ -112,6 +112,7 @@ config MIPS_GENERIC
 	select PCI_DRIVERS_GENERIC
 	select PINCTRL
 	select SMP_UP if SMP
+	select SPARSE_IRQ
 	select SWAP_IO_SPACE
 	select SWIOTLB if ARCH_DMA_ADDR_T_64BIT && PCI
 	select SYS_HAS_CPU_MIPS32_R1
