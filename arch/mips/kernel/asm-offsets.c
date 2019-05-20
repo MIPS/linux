@@ -403,3 +403,19 @@ void output_cps_defines(void)
 	DEFINE(VPEBOOTCFG_SIZE, sizeof(struct vpe_boot_config));
 }
 #endif
+
+void output_cpu_keys_needed(void)
+{
+	COMMENT(" MIPS CPU key necessity. ");
+
+#define CPU_KEY(name) \
+	DEFINE(__cpu_has_key_##name, !__builtin_constant_p(cpu_has_##name));
+
+#define CPU_GUEST_KEY(name) \
+	DEFINE(__cpu_guest_has_key_##name, !__builtin_constant_p(cpu_guest_has_##name));
+
+#include <asm/cpu-feature-keys.h>
+
+#undef CPU_KEY
+#undef CPU_GUEST_KEY
+}

@@ -174,7 +174,7 @@ static int __init mips_sc_probe_cm3(void)
 
 	if (c->scache.linesz) {
 		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
-		c->options |= MIPS_CPU_INCLUSIVE_CACHES;
+		mips_set_cpu_has(inclusive_pcaches);
 		return 1;
 	}
 

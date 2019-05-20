@@ -1095,7 +1095,7 @@ static void probe_pcache(void)
 		c->dcache.ways = 2;
 		c->dcache.waybit= __ffs(dcache_size/2);
 
-		c->options |= MIPS_CPU_CACHE_CDEX_P;
+		mips_set_cpu_has(cache_cdex_p);
 		break;
 
 	case CPU_R5432:
@@ -1110,7 +1110,8 @@ static void probe_pcache(void)
 		c->dcache.ways = 2;
 		c->dcache.waybit = 0;
 
-		c->options |= MIPS_CPU_CACHE_CDEX_P | MIPS_CPU_PREFETCH;
+		mips_set_cpu_has(cache_cdex_p);
+		mips_set_cpu_has(prefetch);
 		break;
 
 	case CPU_TX49XX:
@@ -1124,8 +1125,8 @@ static void probe_pcache(void)
 		c->dcache.ways = 4;
 		c->dcache.waybit = 0;
 
-		c->options |= MIPS_CPU_CACHE_CDEX_P;
-		c->options |= MIPS_CPU_PREFETCH;
+		mips_set_cpu_has(cache_cdex_p);
+		mips_set_cpu_has(prefetch);
 		break;
 
 	case CPU_R4000PC:
@@ -1145,7 +1146,7 @@ static void probe_pcache(void)
 		c->dcache.ways = 1;
 		c->dcache.waybit = 0;	/* does not matter */
 
-		c->options |= MIPS_CPU_CACHE_CDEX_P;
+		mips_set_cpu_has(cache_cdex_p);
 		break;
 
 	case CPU_R10000:
@@ -1162,7 +1163,7 @@ static void probe_pcache(void)
 		c->dcache.ways = 2;
 		c->dcache.waybit = 0;
 
-		c->options |= MIPS_CPU_PREFETCH;
+		mips_set_cpu_has(prefetch);
 		break;
 
 	case CPU_VR4133:
@@ -1177,7 +1178,7 @@ static void probe_pcache(void)
 				config |= VR41_CONF_BP;
 			write_c0_config(config);
 		} else
-			c->options |= MIPS_CPU_CACHE_CDEX_P;
+			mips_set_cpu_has(cache_cdex_p);
 
 		icache_size = 1 << (10 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
@@ -1206,7 +1207,7 @@ static void probe_pcache(void)
 		c->dcache.ways = 1;
 		c->dcache.waybit = 0;	/* does not matter */
 
-		c->options |= MIPS_CPU_CACHE_CDEX_P;
+		mips_set_cpu_has(cache_cdex_p);
 		break;
 
 	case CPU_RM7000:
@@ -1222,8 +1223,8 @@ static void probe_pcache(void)
 		c->dcache.ways = 4;
 		c->dcache.waybit = __ffs(dcache_size / c->dcache.ways);
 
-		c->options |= MIPS_CPU_CACHE_CDEX_P;
-		c->options |= MIPS_CPU_PREFETCH;
+		mips_set_cpu_has(cache_cdex_p);
+		mips_set_cpu_has(prefetch);
 		break;
 
 	case CPU_LOONGSON2:
@@ -1270,7 +1271,7 @@ static void probe_pcache(void)
 					  c->dcache.linesz;
 		c->dcache.waybit = 0;
 		if ((prid & PRID_REV_MASK) >= PRID_REV_LOONGSON3A_R2_0)
-			c->options |= MIPS_CPU_PREFETCH;
+			mips_set_cpu_has(prefetch);
 		break;
 
 	case CPU_CAVIUM_OCTEON3:
@@ -1285,7 +1286,7 @@ static void probe_pcache(void)
 		c->dcache.ways = 8;
 		c->dcache.sets = 8;
 		dcache_size = c->dcache.sets * c->dcache.ways * c->dcache.linesz;
-		c->options |= MIPS_CPU_PREFETCH;
+		mips_set_cpu_has(prefetch);
 		break;
 
 	default:
@@ -1338,7 +1339,7 @@ static void probe_pcache(void)
 			      c->dcache.linesz;
 		c->dcache.waybit = __ffs(dcache_size/c->dcache.ways);
 
-		c->options |= MIPS_CPU_PREFETCH;
+		mips_set_cpu_has(prefetch);
 		break;
 	}
 
@@ -1575,7 +1576,7 @@ static void __init loongson2_sc_init(void)
 	pr_info("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
 	       scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
 
-	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
+	mips_set_cpu_has(inclusive_pcaches);
 }
 
 static void __init loongson3_sc_init(void)
@@ -1602,7 +1603,7 @@ static void __init loongson3_sc_init(void)
 	pr_info("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
 	       scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
 	if (scache_size)
-		c->options |= MIPS_CPU_INCLUSIVE_CACHES;
+		mips_set_cpu_has(inclusive_pcaches);
 	return;
 }
 
@@ -1628,7 +1629,7 @@ static void setup_scache(void)
 	case CPU_R4400MC:
 		sc_present = run_uncached(probe_scache);
 		if (sc_present)
-			c->options |= MIPS_CPU_CACHE_CDEX_S;
+			mips_set_cpu_has(cache_cdex_s);
 		break;
 
 	case CPU_R10000:
@@ -1699,7 +1700,7 @@ static void setup_scache(void)
 	printk("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
 	       scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
 
-	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
+	mips_set_cpu_has(inclusive_pcaches);
 }
 
 void au1x00_fixup_config_od(void)
@@ -1926,7 +1927,7 @@ void r4k_cache_init(void)
 
 
 		/* Optimization: an L2 flush implicitly flushes the L1 */
-		current_cpu_data.options |= MIPS_CPU_INCLUSIVE_CACHES;
+		mips_set_cpu_has(inclusive_pcaches);
 		break;
 	case CPU_LOONGSON3:
 		/* Loongson-3 maintains cache coherency by hardware */
