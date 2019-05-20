@@ -1665,6 +1665,8 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 
 static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 {
+	bool i6x00_e75_war;
+
 	c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_QEMU_GENERIC:
@@ -1799,9 +1801,19 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 
 	spram_config();
 
+	i6x00_e75_war = true;
 	switch (__get_cpu_type(c->cputype)) {
 	case CPU_I6500:
 		mips_set_cpu_has(shared_ftlb_entries);
+
+		/*
+		 * Disable E75 workaround if the CPU is new enough to not
+		 * suffer from the errata.
+		 */
+		if ((c->processor_id & PRID_REV_MASK) >=
+		    PRID_REV_ENCODE_332(1, 3, 3))
+			i6x00_e75_war = false;
+
 		/* fall-through */
 	case CPU_I6400:
 		mips_set_cpu_has(shared_ftlb_ram);
@@ -1809,6 +1821,15 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	default:
 		break;
 	}
+
+	/*
+	 * I6400 & I6500 CPUs prior to revision 1.3.3 suffer from an errata E75
+	 * which can lead to CPU hangs in rare circumstances. Set DSLD to
+	 * disable speculative loads as a workaround, as described by errata
+	 * documentation.
+	 */
+	if (i6x00_e75_war)
+		set_c0_config7(I6x00_CONF7_DSLD);
 }
 
 static inline void cpu_probe_alchemy(struct cpuinfo_mips *c, unsigned int cpu)
