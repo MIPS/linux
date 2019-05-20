@@ -156,7 +156,6 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		/* IRQ support not mandatory */
 		irq = 0;
 	}
-
 	port->irq = irq;
 
 	port->iotype = UPIO_MEM;
