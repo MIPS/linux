@@ -459,3 +459,79 @@ void mips_cm_error_report(void)
 	/* reprime cause register */
 	write_gcr_error_cause(cm_error);
 }
+
+bool mips_cm_error_precise(void)
+{
+	u64 cause, type, cmd, grp;
+	unsigned int rev;
+
+	rev = mips_cm_revision();
+	cause = read_gcr_error_cause();
+
+	if (rev >= CM_REV_CM3) {
+		/* Decode the type of error */
+		type = cause & CM3_GCR_ERROR_CAUSE_ERRTYPE;
+		type >>= __ffs64(CM3_GCR_ERROR_CAUSE_ERRTYPE);
+
+		/* Check that the error is with mainpipe request decode */
+		if (type != CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC)
+			return false;
+
+		/* Check that the error is with CCA, atomicity or size */
+		if (!(cause & (CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_ERR_CCA_LLSC |
+			       CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_ERR_SIZE)))
+			return false;
+
+		/* Check that the error is with access to a register block */
+		if (!(cause & (CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_GCR_HIT |
+			       CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_UGCR_HIT |
+			       CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CPC_HIT |
+			       CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_GIC_HIT |
+			       CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_IOCU_HIT)))
+			return false;
+
+		/* Decode the command group that triggered the error */
+		grp = cause & CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_GRP;
+		grp >>= __ffs64(CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_GRP);
+
+		/* Check that the error is with normal register access */
+		if (grp != CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_GRP_NORMAL)
+			return false;
+
+		/* Decode the command that triggered the error */
+		cmd = cause & CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD;
+		cmd >>= __ffs64(CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD);
+
+		/* Only reads are known to generate precise exceptions */
+		switch (cmd) {
+		case CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_READ:
+		case CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_READ_OWN:
+		case CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_READ_SHARE:
+		case CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_READ_DISCARD:
+			return true;
+
+		default:
+			return false;
+		}
+	}
+
+	if (rev >= CM_REV_CM2) {
+		/* Decode the type of error */
+		type = cause & CM_GCR_ERROR_CAUSE_ERRTYPE;
+		type >>= __ffs(CM_GCR_ERROR_CAUSE_ERRTYPE);
+
+		switch (type) {
+		case CM_GCR_ERROR_CAUSE_ERRTYPE_READ:
+		case CM_GCR_ERROR_CAUSE_ERRTYPE_READ_OWN:
+		case CM_GCR_ERROR_CAUSE_ERRTYPE_READ_SHARE:
+		case CM_GCR_ERROR_CAUSE_ERRTYPE_READ_DISCARD:
+		case CM_GCR_ERROR_CAUSE_ERRTYPE_READ_SHARE_ALWAYS:
+			return true;
+
+		default:
+			return false;
+		}
+	}
+
+	return false;
+}

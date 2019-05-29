@@ -60,6 +60,20 @@ static inline void mips_cm_error_report(void) {}
 #endif
 
 /**
+ * mips_cm_error_precise() - Determine whether an error exception is precise
+ *
+ * Determine whether an error reported by the CM is known to have been reported
+ * as a precise or imprecise data bus error exception.
+ *
+ * Returns: true if known precise, else false.
+ */
+#ifdef CONFIG_MIPS_CM
+extern bool mips_cm_error_precise(void);
+#else
+static inline bool mips_cm_error_precise(void) { return false; }
+#endif
+
+/**
  * mips_cm_probe - probe for a Coherence Manager
  *
  * Attempt to detect the presence of a Coherence Manager. Returns 0 if a CM
@@ -176,7 +190,27 @@ GCR_ACCESSOR_RW(64, 0x040, error_mask)
 /* GCR_ERR_CAUSE - Indicates the type of error that occurred */
 GCR_ACCESSOR_RW(64, 0x048, error_cause)
 #define CM_GCR_ERROR_CAUSE_ERRTYPE		GENMASK(31, 27)
+#define CM_GCR_ERROR_CAUSE_ERRTYPE_READ			2
+#define CM_GCR_ERROR_CAUSE_ERRTYPE_READ_OWN		8
+#define CM_GCR_ERROR_CAUSE_ERRTYPE_READ_SHARE		9
+#define CM_GCR_ERROR_CAUSE_ERRTYPE_READ_DISCARD		10
+#define CM_GCR_ERROR_CAUSE_ERRTYPE_READ_SHARE_ALWAYS	11
 #define CM3_GCR_ERROR_CAUSE_ERRTYPE		GENMASK_ULL(63, 58)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC	2
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_ERR_CCA_LLSC	BIT_ULL(52)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_ERR_SIZE		BIT_ULL(51)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_GCR_HIT		BIT_ULL(45)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_UGCR_HIT		BIT_ULL(44)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CPC_HIT		BIT_ULL(43)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_GIC_HIT		BIT_ULL(42)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_IOCU_HIT		BIT_ULL(41)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD		GENMASK_ULL(17, 14)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_READ		0
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_READ_OWN	2
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_READ_SHARE	3
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_READ_DISCARD	4
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_GRP		GENMASK_ULL(13, 11)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MP_REQDEC_CMD_GRP_NORMAL	0
 #define CM_GCR_ERROR_CAUSE_ERRINFO		GENMASK(26, 0)
 
 /* GCR_ERR_ADDR - Indicates the address associated with an error */
