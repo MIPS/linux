@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/irqchip.h>
 #include <linux/of_fdt.h>
+#include <linux/swiotlb.h>
 
 #include <asm/bootinfo.h>
 #include <asm/fw/fw.h>
@@ -211,3 +212,12 @@ void __init arch_init_irq(void)
 void __init prom_free_prom_memory(void)
 {
 }
+
+#ifdef CONFIG_SWIOTLB
+
+void __init plat_swiotlb_setup(void)
+{
+	swiotlb_init(1);
+}
+
+#endif /* CONFIG_SWIOTLB */
