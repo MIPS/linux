@@ -39,6 +39,7 @@ ifdef CONFIG_CPU_NANOMIPS
   $(warning VDSO largely disabled for nanoMIPS)
   obj-vdso-y := $(filter-out gettimeofday.o, $(obj-vdso-y))
   ccflags-vdso += -DDISABLE_MIPS_VDSO
+  aflags-vdso += -fPIC -Wa,-mPIC
 endif
 
 # VDSO linker flags.
