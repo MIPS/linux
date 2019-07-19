@@ -141,7 +141,7 @@ static DEFINE_RWLOCK(pmuint_rwlock);
  * FIXME: For VSMP, vpe_id() is redefined for Perf-events, because
  * cpu_data[cpuid].vpe_id reports 0 for _both_ CPUs.
  */
-#define vpe_id()	(cpu_has_mipsmt_pertccounters ? \
+#define vpe_id()	((cpu_has_mipsmt_pertccounters || !cpu_has_mipsmt) ? \
 			 0 : smp_processor_id())
 #endif
 
@@ -1724,8 +1724,16 @@ init_hw_perf_events(void)
 	}
 
 #ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
-	cpu_has_mipsmt_pertccounters = read_c0_config7() & (1<<19);
-	if (!cpu_has_mipsmt_pertccounters)
+	switch (boot_cpu_type()) {
+	case CPU_I7200:
+		cpu_has_mipsmt_pertccounters = 1;
+		break;
+
+	default:
+		cpu_has_mipsmt_pertccounters = read_c0_config7() & (1<<19);
+	}
+
+	if (cpu_has_mipsmt && !cpu_has_mipsmt_pertccounters)
 		counters = counters_total_to_per_cpu(counters);
 #endif
 
