@@ -1709,7 +1709,7 @@ static const struct mips_perf_event *xlp_pmu_map_raw_event(u64 config)
 	return &raw_event;
 }
 
-static int __init
+static int __init __attribute__((optimize("-O1")))
 init_hw_perf_events(void)
 {
 	int counters, irq;
