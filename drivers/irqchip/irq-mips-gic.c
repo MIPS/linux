@@ -711,7 +711,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 
 	spin_lock_irqsave(&gic_lock, flags);
 	gic_with_each_online_cpu(cpu)
-		write_gic_vo_map(intr, map);
+		write_gic_vo_map(mips_gic_vx_map_reg(intr), map);
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return 0;
