@@ -125,7 +125,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * only map a page even though the total area is 64K, as we only need
 	 * the counter registers at the start.
 	 */
-	gic_size = gic_present ? PAGE_SIZE : 0;
+	gic_size = 0;
 	vvar_size = gic_size + PAGE_SIZE;
 	size = vvar_size + image->size;
 
