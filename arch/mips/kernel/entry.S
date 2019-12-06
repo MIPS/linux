@@ -51,7 +51,14 @@ resume_userspace:
 	LONG_L	a2, TI_FLAGS($28)	# current->work
 	andi	t0, a2, _TIF_WORK_MASK	# (ignoring syscall_trace)
 	bnez	t0, work_pending
-	j	restore_all
+#ifdef CONFIG_HARDWARE_WATCHPOINTS
+	li	t0, _TIF_LOAD_WATCH
+	and	t0, a2, t0
+	beqz	t0, 1f
+	PTR_L	a0, TI_TASK($28)
+	jal	mips_install_watch_registers
+#endif
+1:	j	restore_all
 
 #ifdef CONFIG_PREEMPT
 resume_kernel:
