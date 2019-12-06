@@ -1337,6 +1337,9 @@ fault:
 	return;
 
 sigbus:
+	if (fixup_exception(regs))
+		return;
+
 	die_if_kernel("Unhandled kernel unaligned access", regs);
 	force_sig(SIGBUS, current);
 
