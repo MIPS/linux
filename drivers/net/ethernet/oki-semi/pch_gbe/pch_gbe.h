@@ -431,13 +431,13 @@ struct pch_gbe_hw {
  * @reserved2:		Reserved
  */
 struct pch_gbe_rx_desc {
-	u32 buffer_addr;
-	u32 tcp_ip_status;
-	u16 rx_words_eob;
-	u16 gbec_status;
+	__le32 buffer_addr;
+	__le32 tcp_ip_status;
+	__le16 rx_words_eob;
+	__le16 gbec_status;
 	u8 dma_status;
 	u8 reserved1;
-	u16 reserved2;
+	__le16 reserved2;
 };
 
 /**
@@ -452,14 +452,14 @@ struct pch_gbe_rx_desc {
  * @gbec_status:	GMAC Status
  */
 struct pch_gbe_tx_desc {
-	u32 buffer_addr;
-	u16 length;
-	u16 reserved1;
-	u16 tx_words_eob;
-	u16 tx_frame_ctrl;
+	__le32 buffer_addr;
+	__le16 length;
+	__le16 reserved1;
+	__le16 tx_words_eob;
+	__le16 tx_frame_ctrl;
 	u8 dma_status;
 	u8 reserved2;
-	u16 gbec_status;
+	__le16 gbec_status;
 };
 
 
