@@ -280,7 +280,7 @@ static void __init vsmp_prepare_cpus(unsigned int max_cpus)
 	mips_mt_set_cpuoptions();
 }
 
-struct plat_smp_ops vsmp_smp_ops = {
+const struct plat_smp_ops vsmp_smp_ops = {
 	.send_ipi_single	= vsmp_send_ipi_single,
 	.send_ipi_mask		= vsmp_send_ipi_mask,
 	.init_secondary		= vsmp_init_secondary,
