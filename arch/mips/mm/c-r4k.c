@@ -117,6 +117,11 @@ static unsigned long scache_size __read_mostly;
  */
 static void cache_noop(void) {}
 
+static __maybe_unused void cache_noop_sync(void)
+{
+	__sync();
+}
+
 static struct bcache_ops no_sc_ops = {
 	.bc_enable = (void *)cache_noop,
 	.bc_disable = (void *)cache_noop,
@@ -1997,9 +2002,9 @@ void r4k_cache_init(void)
 	if ((coherentio == IO_COHERENCE_ENABLED) ||
 	    ((coherentio == IO_COHERENCE_DEFAULT) && hw_coherentio)) {
 # endif
-		_dma_cache_wback_inv	= (void *)cache_noop;
-		_dma_cache_wback	= (void *)cache_noop;
-		_dma_cache_inv		= (void *)cache_noop;
+		_dma_cache_wback_inv	= (void *)cache_noop_sync;
+		_dma_cache_wback	= (void *)cache_noop_sync;
+		_dma_cache_inv		= (void *)cache_noop_sync;
 	} else {
 		_dma_cache_wback_inv	= r4k_dma_cache_wback_inv;
 		_dma_cache_wback	= r4k_dma_cache_wback_inv;
