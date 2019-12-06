@@ -15,6 +15,91 @@
 #include <asm/processor.h>
 
 /*
+ * Walks up the stack frames to make sure that the specified object is
+ * entirely contained by a single stack frame.
+ *
+ * Returns:
+ *		 1 if within a frame
+ *		-1 if placed across a frame boundary (or outside stack)
+ *		 0 unable to determine (no frame pointers, etc)
+ */
+static inline int arch_within_stack_frames(const void * const stack,
+					   const void * const stackend,
+					   const void *obj, unsigned long len)
+{
+#ifdef CONFIG_KALLSYMS
+	/* Avoid header soup by just declaring this here */
+	extern unsigned long notrace unwind_stack_by_address(
+						unsigned long stack_page,
+						unsigned long *sp,
+						unsigned long pc,
+						unsigned long *ra);
+	unsigned long sp, lastsp, ra, pc;
+	int skip_frames;
+
+	/* Get this frame's details */
+	sp = (unsigned long)__builtin_frame_address(0);
+	__asm__ __volatile__(
+		".set push\n\t"
+		".set noat\n\t"
+#ifdef CONFIG_64BIT
+		"1: dla $1, 1b\n\t"
+		"sd $1, %0\n\t"
+#else
+		"1: la $1, 1b\n\t"
+		"sw $1, %0\n\t"
+#endif
+		".set pop\n\t"
+		: "=m" (pc));
+
+	/*
+	 * Skip initial frames to get back the function requesting the copy.
+	 * Unwind the frames of:
+	 *   arch_within_stack_frames (inlined into check_stack_object)
+	 *   __check_object_size
+	 * This leaves sp & pc in the frame associated with
+	 *   copy_{to,from}_user() (inlined into do_usercopy_stack)
+	 */
+	for (skip_frames = 0; skip_frames < 2; skip_frames++) {
+		pc = unwind_stack_by_address((unsigned long)stack, &sp, pc, &ra);
+		if (!pc)
+			return -1;
+	}
+
+	if ((unsigned long)obj < sp) {
+		/* obj is not in the frame of the requestor or it's callers */
+		return -1;
+	}
+
+	/*
+	 * low ---------------------------------------> high
+	 * [local vars][saved regs][ra][local vars']
+	 * ^                           ^
+	 * lastsp                      sp
+	 * ^----------------------^
+	 *  allow copies only within here
+	 */
+	do {
+		lastsp = sp;
+		pc = unwind_stack_by_address((unsigned long)stack, &sp, pc, &ra);
+		if ((((unsigned long)obj) >= lastsp) &&
+		    (((unsigned long)obj + len) < (sp - sizeof(void*)))) {
+			/* obj is entirely within this stack frame */
+			return 1;
+		}
+	} while (pc);
+
+	/*
+	 * We can't unwind any further. If we haven't found the object entirely
+	 * within one of our callers frames, it must be a bad object.
+	 */
+	return -1;
+#else
+	return 0;
+#endif
+}
+
+/*
  * low level task data that entry.S needs immediate access to
  * - this struct should fit entirely inside of one cache line
  * - this struct shares the supervisor stack pages
