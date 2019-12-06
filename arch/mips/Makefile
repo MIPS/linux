@@ -516,3 +516,25 @@ sead3_defconfig:
 .PHONY: sead3micro_defconfig
 sead3micro_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile micro32r2el_defconfig BOARDS=sead-3
+
+#
+# Engineering kernel configs, for use by CI tests & release builds
+#
+eng_configs := $(addsuffix _defconfig,$(shell grep '^[a-z]' $(srctree)/.eng-configs | cut -f1))
+.PHONY: $(eng_configs)
+$(eng_configs):
+	$(Q)line=`grep -E "^$(patsubst %_defconfig,%,$@)[[:space:]]" $(srctree)/.eng-configs`; \
+	defconfig=`echo $$line | cut -d' ' -f2`_defconfig; \
+	extra=`echo $$line | cut -d' ' -f3-`; \
+	$(MAKE) -f $(srctree)/Makefile $$defconfig \
+		KCONFIG_CONFIG=$(objtree)/.config; \
+	$(MAKE) -f $(srctree)/Makefile eng/base.config \
+		KCONFIG_CONFIG=$(objtree)/.config; \
+	for frag in $$extra; do \
+		$(MAKE) -f $(srctree)/Makefile eng/$$frag.config \
+			KCONFIG_CONFIG=$(objtree)/.config; \
+	done
+
+.PHONY: list_eng_defconfig
+list_eng_defconfig:
+	$(Q)grep '^[a-z]' $(srctree)/.eng-configs | cut -f1
