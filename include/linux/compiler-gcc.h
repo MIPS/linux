@@ -217,8 +217,27 @@
  * this in the preprocessor, but we can live with this because they're
  * unreleased.  Really, we need to have autoconf for the kernel.
  */
-#define unreachable() \
+#if defined(__mips__)
+/*
+ * GCC for MIPS currently has a bug which leads to it incorrectly
+ * reordering instructions into branch delay slots when a call to
+ * __builtin_unreachable() is the only thing in the default case of a
+ * switch statement. We avoid this bug for those versions of GCC by
+ * placing an empty volatile asm statement before the call to
+ * __builtin_unreachable, which GCC is prevented from reordering past.
+ *
+ * See this thread for details:
+ * https://gcc.gnu.org/ml/gcc-patches/2015-09/msg00360.html
+ */
+# define unreachable() do {		\
+	annotate_unreachable();		\
+	asm volatile(".insn");		\
+	__builtin_unreachable();	\
+} while (0)
+#else
+# define unreachable() \
 	do { annotate_unreachable(); __builtin_unreachable(); } while (0)
+#endif
 
 /* Mark a function definition as prohibited from being cloned. */
 #define __noclone	__attribute__((__noclone__, __optimize__("no-tracer")))
