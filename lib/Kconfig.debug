@@ -800,6 +800,20 @@ config LOCKUP_DETECTOR
 	  The frequency of hrtimer and NMI events and the soft and hard lockup
 	  thresholds can be controlled through the sysctl watchdog_thresh.
 
+config LOCKUP_DETECTOR_THRESHOLD
+	int "Lockup Detector Threshold"
+	depends on LOCKUP_DETECTOR
+	default 10
+	help
+	  The kernel's softlockup detection will kick in if code stays in
+	  kernel mode for more than the number of seconds equalling twice this
+	  value. On extremely slow systems such as emulators it may make sense
+	  for this value to be increased.
+
+	  This value can be overriden using /proc/sys/kernel/watchdog_thresh.
+
+	  If unsure, leave at its default.
+
 config HARDLOCKUP_DETECTOR
 	def_bool y
 	depends on LOCKUP_DETECTOR && !HAVE_NMI_WATCHDOG
