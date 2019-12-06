@@ -91,6 +91,20 @@ static inline bool eva_kernel_access(void)
 	return segment_eq(get_fs(), get_ds());
 }
 
+/**
+ * eva_user_access() - determine whether access should use EVA instructions
+ *
+ * Determines whether memory accesses should be performed using EVA memory
+ * access instructions - that is, whether to access the user address space on
+ * an EVA system.
+ *
+ * Return: true if user memory access on an EVA system, else false
+ */
+static inline bool eva_user_access(void)
+{
+	return IS_ENABLED(CONFIG_EVA) && !eva_kernel_access();
+}
+
 /*
  * Is a address valid? This does a straightforward calculation rather
  * than tests.
@@ -807,38 +821,18 @@ extern void __put_user_unaligned_unknown(void);
 	"jal\t" #destination "\n\t"
 #endif
 
-#if defined(CONFIG_CPU_DADDI_WORKAROUNDS) || (defined(CONFIG_EVA) &&	\
-					      defined(CONFIG_CPU_HAS_PREFETCH))
-#define DADDI_SCRATCH "$3"
-#else
-#define DADDI_SCRATCH "$0"
-#endif
-
-extern size_t __copy_user(void *__to, const void *__from, size_t __n);
-
-#ifndef CONFIG_EVA
-#define __invoke_copy_to_user(to, from, n)				\
-({									\
-	register void __user *__cu_to_r __asm__("$4");			\
-	register const void *__cu_from_r __asm__("$5");			\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	__MODULE_JAL(__copy_user)					\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
-})
-
-#define __invoke_copy_to_kernel(to, from, n)				\
-	__invoke_copy_to_user(to, from, n)
-
-#endif
+extern size_t __copy_user(void *to, const void *from, size_t n,
+			  const void *from_end);
+extern size_t __copy_user_inatomic(void *to, const void *from, size_t n,
+				   const void *from_end);
+extern size_t __copy_to_user_eva(void *to, const void *from, size_t n,
+				 const void *from_end);
+extern size_t __copy_from_user_eva(void *to, const void *from, size_t n,
+				   const void *from_end);
+extern size_t __copy_user_inatomic_eva(void *to, const void *from, size_t n,
+				       const void *from_end);
+extern size_t __copy_in_user_eva(void *to, const void *from, size_t n,
+				 const void *from_end);
 
 /*
  * __copy_to_user: - Copy a block of data into user space, with less checking.
@@ -855,264 +849,17 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
  * Returns number of bytes that could not be copied.
  * On success, this will be zero.
  */
-#define __copy_to_user(to, from, n)					\
-({									\
-	void __user *__cu_to;						\
-	const void *__cu_from;						\
-	long __cu_len;							\
-									\
-	__cu_to = (to);							\
-	__cu_from = (from);						\
-	__cu_len = (n);							\
-									\
-	check_object_size(__cu_from, __cu_len, true);			\
-	might_fault();							\
-									\
-	if (eva_kernel_access())					\
-		__cu_len = __invoke_copy_to_kernel(__cu_to, __cu_from,	\
-						   __cu_len);		\
-	else								\
-		__cu_len = __invoke_copy_to_user(__cu_to, __cu_from,	\
-						 __cu_len);		\
-	__cu_len;							\
-})
+static inline unsigned long __must_check
+__copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	check_object_size(from, n, true);
+	might_fault();
 
-extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
+	if (eva_user_access())
+		return __copy_to_user_eva(to, from, n, from + n);
 
-#define __copy_to_user_inatomic(to, from, n)				\
-({									\
-	void __user *__cu_to;						\
-	const void *__cu_from;						\
-	long __cu_len;							\
-									\
-	__cu_to = (to);							\
-	__cu_from = (from);						\
-	__cu_len = (n);							\
-									\
-	check_object_size(__cu_from, __cu_len, true);			\
-									\
-	if (eva_kernel_access())					\
-		__cu_len = __invoke_copy_to_kernel(__cu_to, __cu_from,	\
-						   __cu_len);		\
-	else								\
-		__cu_len = __invoke_copy_to_user(__cu_to, __cu_from,	\
-						 __cu_len);		\
-	__cu_len;							\
-})
-
-#define __copy_from_user_inatomic(to, from, n)				\
-({									\
-	void *__cu_to;							\
-	const void __user *__cu_from;					\
-	long __cu_len;							\
-									\
-	__cu_to = (to);							\
-	__cu_from = (from);						\
-	__cu_len = (n);							\
-									\
-	check_object_size(__cu_to, __cu_len, false);			\
-									\
-	if (eva_kernel_access())					\
-		__cu_len = __invoke_copy_from_kernel_inatomic(__cu_to,	\
-							      __cu_from,\
-							      __cu_len);\
-	else								\
-		__cu_len = __invoke_copy_from_user_inatomic(__cu_to,	\
-							    __cu_from,	\
-							    __cu_len);	\
-	__cu_len;							\
-})
-
-/*
- * copy_to_user: - Copy a block of data into user space.
- * @to:	  Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:	  Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-#define copy_to_user(to, from, n)					\
-({									\
-	void __user *__cu_to;						\
-	const void *__cu_from;						\
-	long __cu_len;							\
-									\
-	__cu_to = (to);							\
-	__cu_from = (from);						\
-	__cu_len = (n);							\
-									\
-	check_object_size(__cu_from, __cu_len, true);			\
-									\
-	if (eva_kernel_access()) {					\
-		__cu_len = __invoke_copy_to_kernel(__cu_to,		\
-						   __cu_from,		\
-						   __cu_len);		\
-	} else {							\
-		if (access_ok(VERIFY_WRITE, __cu_to, __cu_len)) {       \
-			might_fault();                                  \
-			__cu_len = __invoke_copy_to_user(__cu_to,	\
-							 __cu_from,	\
-							 __cu_len);     \
-		}							\
-	}								\
-	__cu_len;							\
-})
-
-#ifndef CONFIG_EVA
-
-#define __invoke_copy_from_user(to, from, n)				\
-({									\
-	register void *__cu_to_r __asm__("$4");				\
-	register const void __user *__cu_from_r __asm__("$5");		\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	".set\tnoreorder\n\t"						\
-	__MODULE_JAL(__copy_user)					\
-	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$1, %1, %2\n\t"					\
-	".set\tat\n\t"							\
-	".set\treorder"							\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
-})
-
-#define __invoke_copy_from_kernel(to, from, n)				\
-	__invoke_copy_from_user(to, from, n)
-
-/* For userland <-> userland operations */
-#define ___invoke_copy_in_user(to, from, n)				\
-	__invoke_copy_from_user(to, from, n)
-
-/* For kernel <-> kernel operations */
-#define ___invoke_copy_in_kernel(to, from, n)				\
-	__invoke_copy_from_user(to, from, n)
-
-#define __invoke_copy_from_user_inatomic(to, from, n)			\
-({									\
-	register void *__cu_to_r __asm__("$4");				\
-	register const void __user *__cu_from_r __asm__("$5");		\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	".set\tnoreorder\n\t"						\
-	__MODULE_JAL(__copy_user_inatomic)				\
-	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$1, %1, %2\n\t"					\
-	".set\tat\n\t"							\
-	".set\treorder"							\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
-})
-
-#define __invoke_copy_from_kernel_inatomic(to, from, n)			\
-	__invoke_copy_from_user_inatomic(to, from, n)			\
-
-#else
-
-/* EVA specific functions */
-
-extern size_t __copy_user_inatomic_eva(void *__to, const void *__from,
-				       size_t __n);
-extern size_t __copy_from_user_eva(void *__to, const void *__from,
-				   size_t __n);
-extern size_t __copy_to_user_eva(void *__to, const void *__from,
-				 size_t __n);
-extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
-
-#define __invoke_copy_from_user_eva_generic(to, from, n, func_ptr)	\
-({									\
-	register void *__cu_to_r __asm__("$4");				\
-	register const void __user *__cu_from_r __asm__("$5");		\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	".set\tnoreorder\n\t"						\
-	__MODULE_JAL(func_ptr)						\
-	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$1, %1, %2\n\t"					\
-	".set\tat\n\t"							\
-	".set\treorder"							\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
-})
-
-#define __invoke_copy_to_user_eva_generic(to, from, n, func_ptr)	\
-({									\
-	register void *__cu_to_r __asm__("$4");				\
-	register const void __user *__cu_from_r __asm__("$5");		\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	__MODULE_JAL(func_ptr)						\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
-})
-
-/*
- * Source or destination address is in userland. We need to go through
- * the TLB
- */
-#define __invoke_copy_from_user(to, from, n)				\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_from_user_eva)
-
-#define __invoke_copy_from_user_inatomic(to, from, n)			\
-	__invoke_copy_from_user_eva_generic(to, from, n,		\
-					    __copy_user_inatomic_eva)
-
-#define __invoke_copy_to_user(to, from, n)				\
-	__invoke_copy_to_user_eva_generic(to, from, n, __copy_to_user_eva)
-
-#define ___invoke_copy_in_user(to, from, n)				\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_in_user_eva)
-
-/*
- * Source or destination address in the kernel. We are not going through
- * the TLB
- */
-#define __invoke_copy_from_kernel(to, from, n)				\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_user)
-
-#define __invoke_copy_from_kernel_inatomic(to, from, n)			\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_user_inatomic)
-
-#define __invoke_copy_to_kernel(to, from, n)				\
-	__invoke_copy_to_user_eva_generic(to, from, n, __copy_user)
-
-#define ___invoke_copy_in_kernel(to, from, n)				\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_user)
-
-#endif /* CONFIG_EVA */
+	return __copy_user(to, from, n, from + n);
+}
 
 /*
  * __copy_from_user: - Copy a block of data from user space, with less checking.
@@ -1132,29 +879,62 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
  */
-#define __copy_from_user(to, from, n)					\
-({									\
-	void *__cu_to;							\
-	const void __user *__cu_from;					\
-	long __cu_len;							\
-									\
-	__cu_to = (to);							\
-	__cu_from = (from);						\
-	__cu_len = (n);							\
-									\
-	check_object_size(__cu_to, __cu_len, false);			\
-									\
-	if (eva_kernel_access()) {					\
-		__cu_len = __invoke_copy_from_kernel(__cu_to,		\
-						     __cu_from,		\
-						     __cu_len);		\
-	} else {							\
-		might_fault();						\
-		__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,	\
-						   __cu_len);		\
-	}								\
-	__cu_len;							\
-})
+static inline unsigned long __must_check
+__copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	check_object_size(to, n, false);
+	might_fault();
+
+	if (eva_user_access())
+		return __copy_from_user_eva(to, from, n, from + n);
+
+	return __copy_user(to, from, n, from + n);
+}
+
+static inline unsigned long __must_check
+__copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
+{
+	check_object_size(from, n, true);
+
+	if (eva_user_access())
+		return __copy_to_user_eva(to, from, n, from + n);
+
+	return __copy_user(to, from, n, from + n);
+}
+
+static inline unsigned long __must_check
+__copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
+{
+	check_object_size(to, n, false);
+
+	if (eva_user_access())
+		return __copy_user_inatomic_eva(to, from, n, from + n);
+
+	return __copy_user_inatomic(to, from, n, from + n);
+}
+
+/*
+ * copy_to_user: - Copy a block of data into user space.
+ * @to:	  Destination address, in user space.
+ * @from: Source address, in kernel space.
+ * @n:	  Number of bytes to copy.
+ *
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
+ *
+ * Copy data from kernel space to user space.
+ *
+ * Returns number of bytes that could not be copied.
+ * On success, this will be zero.
+ */
+static inline unsigned long __must_check
+copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	if (!access_ok(VERIFY_WRITE, to, n))
+		return n;
+
+	return __copy_to_user(to, from, n);
+}
 
 /*
  * copy_from_user: - Copy a block of data from user space.
@@ -1173,78 +953,38 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
  */
-#define copy_from_user(to, from, n)					\
-({									\
-	void *__cu_to;							\
-	const void __user *__cu_from;					\
-	long __cu_len;							\
-									\
-	__cu_to = (to);							\
-	__cu_from = (from);						\
-	__cu_len = (n);							\
-									\
-	check_object_size(__cu_to, __cu_len, false);			\
-									\
-	if (eva_kernel_access()) {					\
-		__cu_len = __invoke_copy_from_kernel(__cu_to,		\
-						     __cu_from,		\
-						     __cu_len);		\
-	} else {							\
-		if (access_ok(VERIFY_READ, __cu_from, __cu_len)) {	\
-			might_fault();                                  \
-			__cu_len = __invoke_copy_from_user(__cu_to,	\
-							   __cu_from,	\
-							   __cu_len);   \
-		} else {						\
-			memset(__cu_to, 0, __cu_len);			\
-		}							\
-	}								\
-	__cu_len;							\
-})
+static inline unsigned long __must_check
+copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	if (!access_ok(VERIFY_READ, from, n)) {
+		memset(to, 0, n);
+		return n;
+	}
 
-#define __copy_in_user(to, from, n)					\
-({									\
-	void __user *__cu_to;						\
-	const void __user *__cu_from;					\
-	long __cu_len;							\
-									\
-	__cu_to = (to);							\
-	__cu_from = (from);						\
-	__cu_len = (n);							\
-	if (eva_kernel_access()) {					\
-		__cu_len = ___invoke_copy_in_kernel(__cu_to, __cu_from,	\
-						    __cu_len);		\
-	} else {							\
-		might_fault();						\
-		__cu_len = ___invoke_copy_in_user(__cu_to, __cu_from,	\
-						  __cu_len);		\
-	}								\
-	__cu_len;							\
-})
+	return __copy_from_user(to, from, n);
+}
 
-#define copy_in_user(to, from, n)					\
-({									\
-	void __user *__cu_to;						\
-	const void __user *__cu_from;					\
-	long __cu_len;							\
-									\
-	__cu_to = (to);							\
-	__cu_from = (from);						\
-	__cu_len = (n);							\
-	if (eva_kernel_access()) {					\
-		__cu_len = ___invoke_copy_in_kernel(__cu_to,__cu_from,	\
-						    __cu_len);		\
-	} else {							\
-		if (likely(access_ok(VERIFY_READ, __cu_from, __cu_len) &&\
-			   access_ok(VERIFY_WRITE, __cu_to, __cu_len))) {\
-			might_fault();					\
-			__cu_len = ___invoke_copy_in_user(__cu_to,	\
-							  __cu_from,	\
-							  __cu_len);	\
-		}							\
-	}								\
-	__cu_len;							\
-})
+static inline unsigned long __must_check
+__copy_in_user(void __user *to, const void __user *from, unsigned long n)
+{
+	might_fault();
+
+	if (eva_user_access())
+		return __copy_in_user_eva(to, from, n, from + n);
+
+	return __copy_user(to, from, n, from + n);
+}
+
+static inline unsigned long __must_check
+copy_in_user(void __user *to, const void __user *from, unsigned long n)
+{
+	if (unlikely(!access_ok(VERIFY_READ, from, n)))
+		return n;
+	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
+		return n;
+
+	return __copy_in_user(to, from, n);
+}
 
 extern __kernel_size_t __bzero_kernel(void __user *addr, __kernel_size_t size);
 extern __kernel_size_t __bzero(void __user *addr, __kernel_size_t size);

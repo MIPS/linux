@@ -2,9 +2,17 @@
 # Makefile for MIPS-specific library files..
 #
 
-lib-y	+= bitops.o csum_partial.o delay.o memcpy.o memset.o \
-	   mips-atomic.o strlen_user.o strncpy_user.o \
-	   strnlen_user.o uncached.o
+lib-y += bitops.o
+lib-y += csum_partial.o
+lib-y += delay.o
+lib-y += memcpy.o
+lib-y += memmove.o
+lib-y += memset.o
+lib-y += mips-atomic.o
+lib-y += strlen_user.o
+lib-y += strncpy_user.o
+lib-y += strnlen_user.o
+lib-y += uncached.o
 
 obj-y			+= iomap.o
 obj-$(CONFIG_PCI)	+= iomap-pci.o

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Unified implementation of memcpy, memmove and the __copy_user backend.
+ * Unified implementation of memcpy and the __copy_user backend.
  *
  * Copyright (C) 1998, 99, 2000, 01, 2002 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999, 2000, 01, 2002 Silicon Graphics, Inc.
@@ -56,8 +56,6 @@
  *     - src is readable  (no exceptions when reading src)
  *   copy_from_user
  *     - dst is writable  (no exceptions when writing dst)
- * __copy_user uses a non-standard calling convention; see
- * include/asm-mips/uaccess.h
  *
  * When an exception happens on a load, the handler must
  # ensure that all of the destination buffer is overwritten to prevent
@@ -70,21 +68,18 @@
 
 /*
  * The exception handler for loads requires that:
- *  1- AT contain the address of the byte just past the end of the source
+ *  1- a3 contain the address of the byte just past the end of the source
  *     of the copy,
- *  2- src_entry <= src < AT, and
+ *  2- src_entry <= src < a3, and
  *  3- (dst - src) == (dst_entry - src_entry),
  * The _entry suffix denotes values when __copy_user was called.
  *
- * (1) is set up up by uaccess.h and maintained by not writing AT in copy_user
+ * (1) is set up up by uaccess.h and maintained by not writing a3 in copy_user
  * (2) is met by incrementing src by the number of bytes copied
  * (3) is met by not doing loads between a pair of increments of dst and src
  *
  * The exception handlers for stores adjust len (if necessary) and return.
  * These handlers do not need to overwrite any data.
- *
- * For __rmemcpy and memmove an exception is always a kernel bug, therefore
- * they're not protected.
  */
 
 /* Instruction type */
@@ -95,6 +90,7 @@
 #define DST_PREFETCH 2
 #define LEGACY_MODE 1
 #define EVA_MODE    2
+#define MEMCPY_MODE 3
 #define USEROP   1
 #define KERNELOP 2
 
@@ -110,7 +106,9 @@
  */
 
 #define EXC(insn, type, reg, addr, handler)			\
-	.if \mode == LEGACY_MODE;				\
+	.if \mode == MEMCPY_MODE;				\
+		insn reg, addr;					\
+	.elseif \mode == LEGACY_MODE;				\
 9:		insn reg, addr;					\
 		.section __ex_table,"a";			\
 		PTR	9b, handler;				\
@@ -159,24 +157,6 @@
 #define NBYTES 8
 #define LOG_NBYTES 3
 
-/*
- * As we are sharing code base with the mips32 tree (which use the o32 ABI
- * register definitions). We need to redefine the register definitions from
- * the n64 ABI register naming to the o32 ABI register naming.
- */
-#undef t0
-#undef t1
-#undef t2
-#undef t3
-#define t0	$8
-#define t1	$9
-#define t2	$10
-#define t3	$11
-#define t4	$12
-#define t5	$13
-#define t6	$14
-#define t7	$15
-
 #else
 
 #define LOADK lw /* No exception */
@@ -202,7 +182,7 @@
 #define STOREB(reg, addr, handler)	EXC(sb, ST_INSN, reg, addr, handler)
 
 #define _PREF(hint, addr, type)						\
-	.if \mode == LEGACY_MODE;					\
+	.if \mode != EVA_MODE;						\
 		PREF(hint, addr);					\
 	.else;								\
 		.if ((\from == USEROP) && (type == SRC_PREFETCH)) ||	\
@@ -214,9 +194,7 @@
 			 * register should remain intact because it's	\
 			 * used later on. Therefore use $v1.		\
 			 */						\
-			.set at=v1;					\
 			PREFE(hint, addr);				\
-			.set noat;					\
 		.else;							\
 			PREF(hint, addr);				\
 		.endif;							\
@@ -247,28 +225,17 @@
 
 	.text
 	.set	noreorder
-#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
-	.set	noat
-#else
-	.set	at=v1
-#endif
 
 	.align	5
 
 	/*
 	 * Macro to build the __copy_user common code
 	 * Arguments:
-	 * mode : LEGACY_MODE or EVA_MODE
+	 * mode : LEGACY_MODE, EVA_MODE or MEMCPY_MODE
 	 * from : Source operand. USEROP or KERNELOP
 	 * to   : Destination operand. USEROP or KERNELOP
 	 */
-	.macro __BUILD_COPY_USER mode, from, to
-
-	/* initialize __memcpy if this the first time we execute this macro */
-	.ifnotdef __memcpy
-	.set __memcpy, 1
-	.hidden __memcpy /* make sure it does not leak */
-	.endif
+	.macro __BUILD_COPY_USER mode, from, to, uncopied
 
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
@@ -320,8 +287,8 @@
 	LOAD(t2, UNIT(2)(src), .Ll_exc_copy\@)
 	LOAD(t3, UNIT(3)(src), .Ll_exc_copy\@)
 	SUB	len, len, 8*NBYTES
-	LOAD(t4, UNIT(4)(src), .Ll_exc_copy\@)
-	LOAD(t7, UNIT(5)(src), .Ll_exc_copy\@)
+	LOAD(ta0, UNIT(4)(src), .Ll_exc_copy\@)
+	LOAD(ta1, UNIT(5)(src), .Ll_exc_copy\@)
 	STORE(t0, UNIT(0)(dst),	.Ls_exc_p8u\@)
 	STORE(t1, UNIT(1)(dst),	.Ls_exc_p7u\@)
 	LOAD(t0, UNIT(6)(src), .Ll_exc_copy\@)
@@ -330,8 +297,8 @@
 	ADD	dst, dst, 8*NBYTES
 	STORE(t2, UNIT(-6)(dst), .Ls_exc_p6u\@)
 	STORE(t3, UNIT(-5)(dst), .Ls_exc_p5u\@)
-	STORE(t4, UNIT(-4)(dst), .Ls_exc_p4u\@)
-	STORE(t7, UNIT(-3)(dst), .Ls_exc_p3u\@)
+	STORE(ta0, UNIT(-4)(dst), .Ls_exc_p4u\@)
+	STORE(ta1, UNIT(-3)(dst), .Ls_exc_p3u\@)
 	STORE(t0, UNIT(-2)(dst), .Ls_exc_p2u\@)
 	STORE(t1, UNIT(-1)(dst), .Ls_exc_p1u\@)
 	PREFS(	0, 8*32(src) )
@@ -404,7 +371,7 @@
 	SHIFT_DISCARD t0, t0, bits
 	STREST(t0, -1(t1), .Ls_exc\@)
 	jr	ra
-	 move	len, zero
+	 move	\uncopied, zero
 .Ldst_unaligned\@:
 	/*
 	 * dst is unaligned
@@ -506,12 +473,12 @@
 	COPY_BYTE(5)
 #endif
 	LOADB(t0, NBYTES-2(src), .Ll_exc\@)
-	SUB	len, len, 1
+	SUB	\uncopied, len, 1
 	jr	ra
 	STOREB(t0, NBYTES-2(dst), .Ls_exc_p1\@)
 .Ldone\@:
 	jr	ra
-	 nop
+	 move	\uncopied, len
 
 #ifdef CONFIG_CPU_MIPSR6
 .Lcopy_unaligned_bytes\@:
@@ -528,11 +495,9 @@
 	b	1b
 	 ADD	dst, dst, 8
 #endif /* CONFIG_CPU_MIPSR6 */
-	.if __memcpy == 1
-	END(memcpy)
-	.set __memcpy, 0
-	.hidden __memcpy
-	.endif
+
+	/* memcpy shouldn't generate exceptions */
+	.if	\mode != MEMCPY_MODE
 
 .Ll_exc_copy\@:
 	/*
@@ -561,8 +526,8 @@
 	 nop
 	LOADK	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
 	 nop
-	SUB	len, AT, t0		# len number of uncopied bytes
-	bnez	t6, .Ldone\@	/* Skip the zeroing part if inatomic */
+	SUB	len, a3, t0		# len number of uncopied bytes
+	bnez	ta2, .Ldone\@	/* Skip the zeroing part if inatomic */
 	/*
 	 * Here's where we rely on src and dst being incremented in tandem,
 	 *   See (3) above.
@@ -584,21 +549,18 @@
 	bnez	src, 1b
 	 SUB	src, src, 1
 #else
-	.set	push
-	.set	noat
 	li	v1, 1
 	bnez	src, 1b
 	 SUB	src, src, v1
-	.set	pop
 #endif
 	jr	ra
-	 nop
+	 move	\uncopied, len
 
 
 #define SEXC(n)							\
 	.set	reorder;			/* DADDI_WAR */ \
 .Ls_exc_p ## n ## u\@:						\
-	ADD	len, len, n*NBYTES;				\
+	ADD	\uncopied, len, n*NBYTES;			\
 	jr	ra;						\
 	.set	noreorder
 
@@ -613,91 +575,63 @@ SEXC(1)
 
 .Ls_exc_p1\@:
 	.set	reorder				/* DADDI_WAR */
-	ADD	len, len, 1
+	ADD	\uncopied, len, 1
 	jr	ra
 	.set	noreorder
 .Ls_exc\@:
 	jr	ra
-	 nop
+	 move	\uncopied, len
+
+	.endif	/* \mode != MEMCPY_MODE */
 	.endm
 
-	.align	5
-LEAF(memmove)
-EXPORT_SYMBOL(memmove)
-	ADD	t0, a0, a2
-	ADD	t1, a1, a2
-	sltu	t0, a1, t0			# dst + len <= src -> memcpy
-	sltu	t1, a0, t1			# dst >= src + len -> memcpy
-	and	t0, t1
-	beqz	t0, .L__memcpy
-	 move	v0, a0				/* return value */
-	beqz	a2, .Lr_out
-	END(memmove)
-
-	/* fall through to __rmemcpy */
-LEAF(__rmemcpy)					/* a0=dst a1=src a2=len */
-	 sltu	t0, a1, a0
-	beqz	t0, .Lr_end_bytes_up		# src >= dst
-	 nop
-	ADD	a0, a2				# dst = dst + len
-	ADD	a1, a2				# src = src + len
-
-.Lr_end_bytes:
-	R10KCBARRIER(0(ra))
-	lb	t0, -1(a1)
-	SUB	a2, a2, 0x1
-	sb	t0, -1(a0)
-	SUB	a1, a1, 0x1
-	.set	reorder				/* DADDI_WAR */
-	SUB	a0, a0, 0x1
-	bnez	a2, .Lr_end_bytes
-	.set	noreorder
-
-.Lr_out:
-	jr	ra
-	 move	a2, zero
-
-.Lr_end_bytes_up:
-	R10KCBARRIER(0(ra))
-	lb	t0, (a1)
-	SUB	a2, a2, 0x1
-	sb	t0, (a0)
-	ADD	a1, a1, 0x1
-	.set	reorder				/* DADDI_WAR */
-	ADD	a0, a0, 0x1
-	bnez	a2, .Lr_end_bytes_up
-	.set	noreorder
-
-	jr	ra
-	 move	a2, zero
-	END(__rmemcpy)
-
 /*
- * t6 is used as a flag to note inatomic mode.
- */
-LEAF(__copy_user_inatomic)
-EXPORT_SYMBOL(__copy_user_inatomic)
-	b	__copy_user_common
-	li	t6, 1
-	END(__copy_user_inatomic)
-
-/*
- * A combined memcpy/__copy_user
- * __copy_user sets len to 0 for success; else to an upper bound of
- * the number of uncopied bytes.
- * memcpy sets v0 to dst.
+ * memcpy() - Copy memory
+ * @a0 - destination
+ * @a1 - source
+ * @a2 - length
+ *
+ * Copy @a2 bytes of memory from @a1 to @a0.
+ *
+ * Returns: the destination pointer
  */
 	.align	5
 LEAF(memcpy)					/* a0=dst a1=src a2=len */
 EXPORT_SYMBOL(memcpy)
 	move	v0, dst				/* return value */
 .L__memcpy:
-FEXPORT(__copy_user)
+	li	ta2, 0	/* not inatomic */
+	/* Legacy Mode, user <-> user */
+	__BUILD_COPY_USER MEMCPY_MODE USEROP USEROP len
+	END(memcpy)
+
+/*
+ * __copy_user() - Copy memory
+ * @a0 - destination
+ * @a1 - source
+ * @a2 - length
+ *
+ * Copy @a2 bytes of memory from @a1 to @a0.
+ *
+ * Returns: the number of uncopied bytes in @a2
+ */
+	.align	5
+LEAF(__copy_user)
 EXPORT_SYMBOL(__copy_user)
-	li	t6, 0	/* not inatomic */
+	li	ta2, 0	/* not inatomic */
 __copy_user_common:
 	/* Legacy Mode, user <-> user */
-	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP
+	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP v0
+	END(__copy_user)
+
+/*
+ * ta2 is used as a flag to note inatomic mode.
+ */
+LEAF(__copy_user_inatomic)
+EXPORT_SYMBOL(__copy_user_inatomic)
+	b	__copy_user_common
+	li	ta2, 1
+	END(__copy_user_inatomic)
 
 #ifdef CONFIG_EVA
 
@@ -711,7 +645,7 @@ __copy_user_common:
 LEAF(__copy_user_inatomic_eva)
 EXPORT_SYMBOL(__copy_user_inatomic_eva)
 	b       __copy_from_user_common
-	li	t6, 1
+	li	ta2, 1
 	END(__copy_user_inatomic_eva)
 
 /*
@@ -720,9 +654,9 @@ EXPORT_SYMBOL(__copy_user_inatomic_eva)
 
 LEAF(__copy_from_user_eva)
 EXPORT_SYMBOL(__copy_from_user_eva)
-	li	t6, 0	/* not inatomic */
+	li	ta2, 0	/* not inatomic */
 __copy_from_user_common:
-	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP
+	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP v0
 END(__copy_from_user_eva)
 
 
@@ -733,7 +667,7 @@ END(__copy_from_user_eva)
 
 LEAF(__copy_to_user_eva)
 EXPORT_SYMBOL(__copy_to_user_eva)
-__BUILD_COPY_USER EVA_MODE KERNELOP USEROP
+__BUILD_COPY_USER EVA_MODE KERNELOP USEROP v0
 END(__copy_to_user_eva)
 
 /*
@@ -742,7 +676,7 @@ END(__copy_to_user_eva)
 
 LEAF(__copy_in_user_eva)
 EXPORT_SYMBOL(__copy_in_user_eva)
-__BUILD_COPY_USER EVA_MODE USEROP USEROP
+__BUILD_COPY_USER EVA_MODE USEROP USEROP v0
 END(__copy_in_user_eva)
 
 #endif
