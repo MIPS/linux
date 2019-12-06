@@ -39,55 +39,6 @@ unsigned long _pcictrl_gt64120;
 /* MIPS System controller register base */
 unsigned long _pcictrl_msc;
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-static void __init console_config(void)
-{
-	char console_string[40];
-	int baud = 0;
-	char parity = '\0', bits = '\0', flow = '\0';
-	char *s;
-
-	s = fw_getenv("modetty0");
-	if (s) {
-		while (*s >= '0' && *s <= '9')
-			baud = baud*10 + *s++ - '0';
-		if (*s == ',')
-			s++;
-		if (*s)
-			parity = *s++;
-		if (*s == ',')
-			s++;
-		if (*s)
-			bits = *s++;
-		if (*s == ',')
-			s++;
-		if (*s == 'h')
-			flow = 'r';
-	}
-	if (baud == 0)
-		baud = 38400;
-	if (parity != 'n' && parity != 'o' && parity != 'e')
-		parity = 'n';
-	if (bits != '7' && bits != '8')
-		bits = '8';
-	if (flow == '\0')
-		flow = 'r';
-
-	if ((strstr(fw_getcmdline(), "earlycon=")) == NULL) {
-		sprintf(console_string, "uart8250,io,0x3f8,%d%c%c", baud,
-			parity, bits);
-		setup_earlycon(console_string);
-	}
-
-	if ((strstr(fw_getcmdline(), "console=")) == NULL) {
-		sprintf(console_string, " console=ttyS0,%d%c%c%c", baud,
-			parity, bits, flow);
-		strcat(fw_getcmdline(), console_string);
-		pr_info("Config serial console:%s\n", console_string);
-	}
-}
-#endif
-
 static void __init mips_nmi_setup(void)
 {
 	void *base;
@@ -119,8 +70,6 @@ phys_addr_t mips_cpc_default_phys_base(void)
 
 void __init prom_init(void)
 {
-	mips_display_message("LINUX");
-
 	/*
 	 * early setup of _pcictrl_bonito so that we can determine
 	 * the system controller on a CORE_EMUL board
@@ -278,7 +227,6 @@ mips_pci_controller:
 
 	default:
 		/* Unknown system controller */
-		mips_display_message("SC Error");
 		while (1);	/* We die here... */
 	}
 	board_nmi_handler_setup = mips_nmi_setup;
@@ -286,9 +234,6 @@ mips_pci_controller:
 
 	fw_init_cmdline();
 	fw_meminit();
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	console_config();
-#endif
 	/* Early detection of CMP support */
 	mips_cpc_probe();
 

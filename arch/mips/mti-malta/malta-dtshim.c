@@ -302,6 +302,73 @@ static void __init remove_gic(void *fdt)
 	}
 }
 
+static int serial_config(void *fdt)
+{
+	const char *mode_var;
+	char path[20], parity;
+	unsigned int baud, stop_bits;
+	bool hw_flow;
+	int chosen_off, err;
+
+	baud = stop_bits = 0;
+	parity = 0;
+	hw_flow = false;
+
+	mode_var = fw_getenv("modetty0");
+	if (mode_var) {
+		while (mode_var[0] >= '0' && mode_var[0] <= '9') {
+			baud *= 10;
+			baud += mode_var[0] - '0';
+			mode_var++;
+		}
+		if (mode_var[0] == ',')
+			mode_var++;
+		if (mode_var[0])
+			parity = mode_var[0];
+		if (mode_var[0] == ',')
+			mode_var++;
+		if (mode_var[0])
+			stop_bits = mode_var[0] - '0';
+		if (mode_var[0] == ',')
+			mode_var++;
+		if (!strcmp(mode_var, "hw"))
+			hw_flow = true;
+	}
+
+	if (!baud)
+		baud = 38400;
+
+	if (parity != 'e' && parity != 'n' && parity != 'o')
+		parity = 'n';
+
+	if (stop_bits != 7 && stop_bits != 8)
+		stop_bits = 8;
+
+	WARN_ON(snprintf(path, sizeof(path), "serial0:%u%c%u%s",
+			 baud, parity, stop_bits,
+			 hw_flow ? "r" : "") >= sizeof(path));
+
+	/* find or add chosen node */
+	chosen_off = fdt_path_offset(fdt, "/chosen");
+	if (chosen_off == -FDT_ERR_NOTFOUND)
+		chosen_off = fdt_path_offset(fdt, "/chosen@0");
+	if (chosen_off == -FDT_ERR_NOTFOUND)
+		chosen_off = fdt_add_subnode(fdt, 0, "chosen");
+	if (chosen_off < 0) {
+		pr_err("Unable to find or add DT chosen node: %d\n",
+		       chosen_off);
+		return chosen_off;
+	}
+
+	err = fdt_setprop_string(fdt, chosen_off, "stdout-path", path);
+	if (err) {
+		pr_err("Unable to set stdout-path property: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
 void __init *malta_dt_shim(void *fdt)
 {
 	int root_off, len, err;
@@ -328,6 +395,10 @@ void __init *malta_dt_shim(void *fdt)
 
 	append_memory(fdt_buf, root_off);
 	remove_gic(fdt_buf);
+
+	err = serial_config(fdt_buf);
+	if (err)
+		panic("Failed to manipulate DT: %d\n", err);
 
 	err = fdt_pack(fdt_buf);
 	if (err)

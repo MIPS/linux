@@ -209,8 +209,12 @@ config COMMON_CLK_VC5
 	  This driver supports the IDT VersaClock5 programmable clock
 	  generator.
 
+config COMMON_CLK_PISTACHIO
+	bool "Clock driver for ImgTec Pistachio SoCs"
+
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
+source "drivers/clk/imgtec/Kconfig"
 source "drivers/clk/mediatek/Kconfig"
 source "drivers/clk/meson/Kconfig"
 source "drivers/clk/mvebu/Kconfig"

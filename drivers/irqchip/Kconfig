@@ -293,3 +293,14 @@ config QCOM_IRQ_COMBINER
 	help
 	  Say yes here to add support for the IRQ combiner devices embedded
 	  in Qualcomm Technologies chips.
+
+config CONCORD_SLEIPNIR_IRQ
+	bool "Concord-Sleipnir IRQ Passthrough"
+	depends on MIPS || COMPILE_TEST
+	select IRQ_DOMAIN
+	help
+	  Support IRQ passthrough from a MIPS core running on a Sleipnir-based
+	  FPGA system connected to a MIPS Boston development board & its
+	  Concord FPGA daughterboard via PCIe.
+
+	  Say Y if you're using a MIPS Boston system with a Sleipnir-based FPGA.
