@@ -46,7 +46,11 @@ extern phys_addr_t __mips_cm_phys_base(void);
  *
  * It's set to 0 for 32-bit accesses and 1 for 64-bit accesses.
  */
+#ifdef CONFIG_64BIT
 extern int mips_cm_is64;
+#else
+# define mips_cm_is64 0
+#endif
 
 /**
  * mips_cm_error_report - Report CM cache errors
