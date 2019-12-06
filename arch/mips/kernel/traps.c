@@ -2344,6 +2344,8 @@ void __init trap_init(void)
 				ebase += (read_c0_ebase() & 0x3ffff000);
 			}
 		}
+
+		reserve_bootmem(__pa(ebase), 0x1000, BOOTMEM_DEFAULT);
 	}
 
 	if (cpu_has_mmips) {
