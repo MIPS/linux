@@ -121,7 +121,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 			void *kaddr;
 
 			kaddr = kmap_coherent(page, vmaddr);
-			flush_data_cache_page((unsigned long)kaddr);
+			local_flush_data_cache_page(kaddr);
 			kunmap_coherent();
 		} else
 			flush_data_cache_page(addr);
@@ -130,30 +130,101 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 
 EXPORT_SYMBOL(__flush_anon_page);
 
+/**
+ * __update_cache() - Synchronise caches before mapping a page for user code
+ * @address: the user address at which the page will be mapped
+ * @pte: the page table entry for the page about to be mapped
+ *
+ * This is called, from set_pte_at(), just before a page is mapped for user
+ * code in order to ensure that the caches are synchronised such that the user
+ * will correctly see any code or data that we've written to the page. There
+ * are two main reasons why we may need to do anything in particular here:
+ *
+ *   - Aliasing in the data cache, which may require us to writeback any
+ *     content that we've written via a kernel mapping of the page in order to
+ *     ensure that the users mapping doesn't produce a cache alias which sees
+ *     outdated code or data.
+ *
+ *   - If a page is executable then we need to ensure that the icache does not
+ *     contain, and cannot fetch, outdated code (or more likely garbage) from
+ *     the page. This can occur if the icache has speculatively prefetched code
+ *     whilst we've been running in the kernel to a cache line which may later
+ *     alias with one forming part of the users view of the page content.
+ */
 void __update_cache(unsigned long address, pte_t pte)
 {
 	struct page *page;
 	unsigned long pfn, addr;
-	int exec = !pte_no_exec(pte) && !cpu_has_ic_fills_f_dc;
+	bool exec = !pte_no_exec(pte);
 
 	pfn = pte_pfn(pte);
-	if (unlikely(!pfn_valid(pfn)))
-		return;
-	page = pfn_to_page(pfn);
-	if (Page_dcache_dirty(page)) {
-		if (PageHighMem(page))
-			addr = (unsigned long)kmap_atomic(page);
-		else
-			addr = (unsigned long)page_address(page);
 
-		if (exec || pages_do_alias(addr, address & PAGE_MASK))
-			flush_data_cache_page(addr);
+	if (IS_ENABLED(CONFIG_DEBUG_VM)) {
+		/*
+		 * Perform some basic sanity checks that the cache sync
+		 * mechanism split between flush_dcache_page(), set_pte_at()
+		 * & here is functioning as expected.
+		 */
 
-		if (PageHighMem(page))
-			__kunmap_atomic((void *)addr);
+		if (WARN_ON(!cpu_has_dc_aliases && !exec)) {
+			/*
+			 * Apparently we have nothing to do... set_pte_at()
+			 * shouldn't have called this function.
+			 */
+			return;
+		}
 
-		ClearPageDcacheDirty(page);
+		if (WARN_ON(!pfn_valid(pfn))) {
+			/*
+			 * We ought not to be trying to sync caches for an
+			 * invalid page.
+			 */
+			return;
+		}
 	}
+
+	page = pfn_to_page(pfn);
+
+	/*
+	 * If we haven't written to this page then there's no need for us to do
+	 * anything here, since the caches views of it must already be
+	 * consistent because we've not dirtied any of them.
+	 */
+	if (!Page_dcache_dirty(page))
+		return;
+
+	if (exec) {
+		/*
+		 * The page is executable, so we need to ensure that it's
+		 * clean in the icache & that the icache will see the
+		 * correct content when it fetches code.
+		 */
+		if (PageHighMem(page)) {
+			addr = (unsigned long)kmap_atomic(page);
+			local_flush_icache_range(addr, addr + PAGE_SIZE);
+			__kunmap_atomic((void *)addr);
+		} else {
+			addr = (unsigned long)page_address(page);
+			flush_icache_range(addr, addr + PAGE_SIZE);
+		}
+	} else {
+		/*
+		 * The page is non-executable, so we only need to worry about
+		 * handling dcache aliasing to ensure that when user code
+		 * accesses the page it sees content coherent with whatever we
+		 * wrote to it.
+		 */
+
+		if (WARN_ON(PageHighMem(page))) {
+			/* We don't support dcache aliasing with highmem */
+		} else {
+			addr = (unsigned long)page_address(page);
+			if (pages_do_alias(addr, address & PAGE_MASK))
+				flush_data_cache_page(addr);
+		}
+	}
+
+	ClearPageDcacheDirty(page);
 }
 
 unsigned long _page_cachable_default;

@@ -512,6 +512,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 
 	default:
 		r4k_blast_dcache();
+		mb();
 		r4k_blast_icache();
 		break;
 	}
@@ -590,8 +591,11 @@ static inline void local_r4k_flush_cache_range(void * args)
 	 * If executable, we must ensure any dirty lines are written back far
 	 * enough to be visible to icache.
 	 */
-	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc))
+	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
 		r4k_blast_dcache();
+		if (exec)
+			mb();
+	}
 	/* If executable, blast stale lines from icache */
 	if (exec)
 		r4k_blast_icache();
@@ -763,6 +767,7 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 		if (type == R4K_INDEX ||
 		    (type & R4K_INDEX && end - start >= dcache_size)) {
 			r4k_blast_dcache();
+			mb();
 		} else {
 			R4600_HIT_CACHEOP_WAR_IMPL;
 			if (user)
@@ -864,7 +869,8 @@ static void r4k_flush_icache_user_range(unsigned long start, unsigned long end)
 static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 {
 	/* Catch bad driver code */
-	BUG_ON(size == 0);
+	if (WARN_ON(size == 0))
+		return;
 
 	preempt_disable();
 	if (cpu_has_inclusive_pcaches) {
@@ -897,10 +903,16 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 {
 	/* Catch bad driver code */
-	BUG_ON(size == 0);
+	if (WARN_ON(size == 0))
+		return;
 
 	preempt_disable();
 	if (cpu_has_inclusive_pcaches) {
+		unsigned int slsize = cpu_scache_line_size();
+
+		if (slsize)
+			WARN_ON(addr % slsize);
+
 		if (size >= scache_size)
 			r4k_blast_scache();
 		else {
@@ -918,6 +930,8 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		__sync();
 		return;
 	}
+
+	WARN_ON(addr % cpu_dcache_line_size());
 
 	if (size >= dcache_size) {
 		r4k_blast_dcache();
@@ -1529,6 +1543,13 @@ static void probe_pcache(void)
 	/* Physically indexed caches don't suffer from virtual aliasing */
 	if (c->dcache.flags & MIPS_CACHE_PINDEX)
 		c->dcache.flags &= ~MIPS_CACHE_ALIASES;
+
+	/*
+	 * In systems with CM the icache fills from L2, and thus sees remote
+	 * stores without needing to write them back any further than that
+	 */
+	if (mips_cm_present())
+		c->icache.flags |= MIPS_IC_SNOOPS_REMOTE;
 
 	switch (current_cpu_type()) {
 	case CPU_20KC:

@@ -36,8 +36,40 @@ static void mips_sc_inv(unsigned long addr, unsigned long size)
 	unsigned long lsize = cpu_scache_line_size();
 	unsigned long almask = ~(lsize - 1);
 
-	cache_op(Hit_Writeback_Inv_SD, addr & almask);
-	cache_op(Hit_Writeback_Inv_SD, (addr + size - 1) & almask);
+	if (WARN_ON(addr % lsize)) {
+		/*
+		 * This is dangerous. The first or last cache line here may be
+		 * overlapping other data which is not in the region being
+		 * written to by DMA. Writing back here may therefore seem to
+		 * make sense in order to avoid discarding data that we may
+		 * have written to those cache lines, however doing so does not
+		 * fix problems which may arise if either:
+		 *
+		 * - We read the data that shares cache lines with the memory
+		 *   region being DMA'd to whilst the DMA occurs. This would
+		 *   result in the cache line being brought into cache & us
+		 *   seeing a potentially stale view of memory that was written
+		 *   to via DMA.
+		 *
+		 * - We write to the data that shares cache lines with the
+		 *   memory region being DMA'd to whilst the DMA occurs. On
+		 *   systems where this may occur we need to invalidate in
+		 *   caches the region written to by DMA after the DMA
+		 *   completes, as well as before it starts. When we do this
+		 *   second invalidate we may discard any data currently dirty
+		 *   in the first or last cache lines - essentially the problem
+		 *   these writebacks intended to avoid.
+		 *
+		 * The only correct solution to this is for memory regions
+		 * being used for DMA to be cacheline-aligned, as described by
+		 * Documentation/DMA-API.txt. With any luck the warning
+		 * generated above will be enough to cause people to fix any
+		 * drivers which do not do so.
+		 */
+		cache_op(Hit_Writeback_Inv_SD, addr & almask);
+		cache_op(Hit_Writeback_Inv_SD, (addr + size - 1) & almask);
+	}
+
 	blast_inv_scache_range(addr, addr + size);
 }
 
@@ -241,7 +273,12 @@ int mips_sc_init(void)
 	int found = mips_sc_probe();
 	if (found) {
 		mips_sc_enable();
-		mips_sc_prefetch_enable();
+		if (strstr(boot_command_line, "nol2prefetch")) {
+			mips_sc_prefetch_disable();
+			pr_info("L2 prefetch disabled\n");
+		} else {
+			mips_sc_prefetch_enable();
+		}
 		bcops = &mips_sc_ops;
 	}
 	return found;
