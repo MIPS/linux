@@ -153,7 +153,9 @@
 #endif
 
 #ifndef cpu_has_mmips
-# ifdef CONFIG_SYS_SUPPORTS_MICROMIPS
+# if defined(__mips_micromips)
+#  define cpu_has_mmips		1
+# elif defined(CONFIG_SYS_SUPPORTS_MICROMIPS)
 #  define cpu_has_mmips		(cpu_data[0].options & MIPS_CPU_MICROMIPS)
 # else
 #  define cpu_has_mmips		0
@@ -202,6 +204,47 @@
 #else
 #define cpu_icache_snoops_remote_store	1
 #endif
+#endif
+
+#if defined(__mips_isa_rev) && __mips_isa_rev >= 6
+/* MIPSr6 kernels run on MIPSr6 CPUs */
+# undef cpu_has_mips_1
+# define cpu_has_mips_1		0
+# undef cpu_has_mips_2
+# define cpu_has_mips_2		0
+# undef cpu_has_mips_3
+# define cpu_has_mips_3		0
+# undef cpu_has_mips_4
+# define cpu_has_mips_4		0
+# undef cpu_has_mips_5
+# define cpu_has_mips_5		0
+# undef cpu_has_mips32r1
+# define cpu_has_mips32r1	0
+# undef cpu_has_mips32r2
+# define cpu_has_mips32r2	0
+# undef cpu_has_mips64r1
+# define cpu_has_mips64r1	0
+# undef cpu_has_mips64r2
+# define cpu_has_mips64r2	0
+
+/* MIPSr6 kernels must be running on at least a MIPS32r6 CPU */
+# undef cpu_has_mips32r6
+# define cpu_has_mips32r6	1
+#else
+/* Kernels built for pre-MIPSr6 cannot run on MIPSr6 CPUs */
+# undef cpu_has_mips32r6
+# define cpu_has_mips32r6	0
+# undef cpu_has_mips64r6
+# define cpu_has_mips64r6	0
+
+# if defined(__mips_isa_rev) && __mips_isa_rev >= 2
+#  undef cpu_has_mips32r2
+#  define cpu_has_mips32r2	1
+# endif
+# if defined(__mips_isa_rev) && __mips_isa_rev >= 1
+#  undef cpu_has_mips32r1
+#  define cpu_has_mips32r1	1
+# endif
 #endif
 
 /* __builtin_constant_p(cpu_has_mips_r) && cpu_has_mips_r */
