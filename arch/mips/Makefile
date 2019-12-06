@@ -534,6 +534,10 @@ sead3_defconfig:
 sead3micro_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile micro32r2el_defconfig BOARDS=sead-3
 
+.PHONY: xilfpga_defconfig
+xilfpga_defconfig:
+	$(Q)$(MAKE) 32r2el_defconfig BOARDS=xilfpga
+
 #
 # Engineering kernel configs, for use by CI tests & release builds
 #
