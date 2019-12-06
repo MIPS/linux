@@ -1501,6 +1501,7 @@ static void probe_pcache(void)
 	case CPU_20KC:
 	case CPU_25KF:
 	case CPU_I6400:
+	case CPU_I6500:
 	case CPU_SB1:
 	case CPU_SB1A:
 	case CPU_XLR:
@@ -1567,6 +1568,7 @@ static void probe_pcache(void)
 
 	case CPU_ALCHEMY:
 	case CPU_I6400:
+	case CPU_I6500:
 		c->icache.flags |= MIPS_CACHE_IC_F_DC;
 		break;
 
