@@ -1204,14 +1204,14 @@ do {								\
  * Macros to access the system control coprocessor
  */
 
-#define __read_32bit_c0_register(source, sel)				\
+#define ___read_32bit_c0_register(source, sel, vol)			\
 ({ unsigned int __res;							\
 	if (sel == 0)							\
-		__asm__ __volatile__(					\
+		__asm__ vol(						\
 			"mfc0\t%0, " #source "\n\t"			\
 			: "=r" (__res));				\
 	else								\
-		__asm__ __volatile__(					\
+		__asm__ vol(						\
 			".set\tmips32\n\t"				\
 			"mfc0\t%0, " #source ", " #sel "\n\t"		\
 			".set\tmips0\n\t"				\
@@ -1219,24 +1219,36 @@ do {								\
 	__res;								\
 })
 
-#define __read_64bit_c0_register(source, sel)				\
+#define ___read_64bit_c0_register(source, sel, vol)				\
 ({ unsigned long long __res;						\
 	if (sizeof(unsigned long) == 4)					\
-		__res = __read_64bit_c0_split(source, sel);		\
+		__res = __read_64bit_c0_split(source, sel, vol);	\
 	else if (sel == 0)						\
-		__asm__ __volatile__(					\
+		__asm__ vol (						\
 			".set\tmips3\n\t"				\
 			"dmfc0\t%0, " #source "\n\t"			\
 			".set\tmips0"					\
 			: "=r" (__res));				\
 	else								\
-		__asm__ __volatile__(					\
+		__asm__ vol (						\
 			".set\tmips64\n\t"				\
 			"dmfc0\t%0, " #source ", " #sel "\n\t"		\
 			".set\tmips0"					\
 			: "=r" (__res));				\
 	__res;								\
 })
+
+#define __read_32bit_c0_register(source, sel)				\
+	___read_32bit_c0_register(source, sel, __volatile__)
+
+#define __read_const_32bit_c0_register(source, sel)			\
+	___read_32bit_c0_register(source, sel, )
+
+#define __read_64bit_c0_register(source, sel)				\
+	___read_64bit_c0_register(source, sel, __volatile__)
+
+#define __read_const_64bit_c0_register(source, sel)			\
+	___read_64bit_c0_register(source, sel, )
 
 #define __write_32bit_c0_register(register, sel, value)			\
 do {									\
@@ -1305,14 +1317,14 @@ do {									\
  * These versions are only needed for systems with more than 38 bits of
  * physical address space running the 32-bit kernel.  That's none atm :-)
  */
-#define __read_64bit_c0_split(source, sel)				\
+#define __read_64bit_c0_split(source, sel, vol)				\
 ({									\
 	unsigned long long __val;					\
 	unsigned long __flags;						\
 									\
 	local_irq_save(__flags);					\
 	if (sel == 0)							\
-		__asm__ __volatile__(					\
+		__asm__ vol(						\
 			".set\tmips64\n\t"				\
 			"dmfc0\t%M0, " #source "\n\t"			\
 			"dsll\t%L0, %M0, 32\n\t"			\
@@ -1321,7 +1333,7 @@ do {									\
 			".set\tmips0"					\
 			: "=r" (__val));				\
 	else								\
-		__asm__ __volatile__(					\
+		__asm__ vol(						\
 			".set\tmips64\n\t"				\
 			"dmfc0\t%M0, " #source ", " #sel "\n\t"		\
 			"dsll\t%L0, %M0, 32\n\t"			\
@@ -1497,7 +1509,7 @@ do {									\
 #define read_c0_epc()		__read_ulong_c0_register($14, 0)
 #define write_c0_epc(val)	__write_ulong_c0_register($14, 0, val)
 
-#define read_c0_prid()		__read_32bit_c0_register($15, 0)
+#define read_c0_prid()		__read_const_32bit_c0_register($15, 0)
 
 #define read_c0_cmgcrbase()	__read_ulong_c0_register($15, 3)
 
