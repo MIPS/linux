@@ -89,7 +89,7 @@ enum spec3_op {
 	lhe_op    = 0x2d, lle_op    = 0x2e,
 	lwe_op    = 0x2f, pref6_op  = 0x35,
 	ll6_op    = 0x36, lld6_op   = 0x37,
-	rdhwr_op  = 0x3b
+	rdhwr_op  = 0x3b, ginv_op   = 0x3d,
 };
 
 /*
@@ -179,7 +179,7 @@ enum cop0_coi_func {
 	tlbr_op	      = 0x01, tlbwi_op	    = 0x02,
 	tlbwr_op      = 0x06, tlbp_op	    = 0x08,
 	rfe_op	      = 0x10, eret_op	    = 0x18,
-	wait_op       = 0x20,
+	wait_op       = 0x20, hypcall_op    = 0x28
 };
 
 /*
