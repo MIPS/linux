@@ -171,7 +171,7 @@ static int mipsxx_pmu_handle_shared_irq(void);
 
 static unsigned int mipsxx_pmu_swizzle_perf_idx(unsigned int idx)
 {
-	if (vpe_id() == 1)
+	if (cpu_has_mipsmt && vpe_id() == 1)
 		idx = (idx + 2) & 3;
 	return idx;
 }
@@ -1272,6 +1272,9 @@ static void check_and_calc_range(struct perf_event *event,
 {
 	struct hw_perf_event *hwc = &event->hw;
 
+	if (!cpu_has_mipsmt)
+		return;
+
 	if (event->cpu >= 0) {
 		if (pev->range > V) {
 			/*
@@ -1724,9 +1727,11 @@ init_hw_perf_events(void)
 	}
 
 #ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
-	cpu_has_mipsmt_pertccounters = read_c0_config7() & (1<<19);
-	if (!cpu_has_mipsmt_pertccounters)
-		counters = counters_total_to_per_cpu(counters);
+	if (cpu_has_mipsmt) {
+		cpu_has_mipsmt_pertccounters = read_c0_config7() & (1<<19);
+		if (!cpu_has_mipsmt_pertccounters)
+			counters = counters_total_to_per_cpu(counters);
+	}
 #endif
 
 	if (get_c0_perfcount_int)
