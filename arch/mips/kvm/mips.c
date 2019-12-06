@@ -1688,9 +1688,24 @@ static struct notifier_block kvm_mips_csr_die_notifier = {
 	.notifier_call = kvm_mips_csr_die_notify,
 };
 
+static int __init kvm_mips_check_mmid(void)
+{
+	if (cpu_has_mmid) {
+		pr_err("MMID is not supported by KVM, use 'nommid' arg to disable it\n");
+		pr_err("KVM Disabled\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static int __init kvm_mips_init(void)
 {
 	int ret;
+
+	ret = kvm_mips_check_mmid();
+	if(ret)
+		return ret;
 
 	ret = kvm_mips_entry_setup();
 	if (ret)

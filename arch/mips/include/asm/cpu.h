@@ -416,6 +416,8 @@ enum cpu_type_enum {
 #define MIPS_CPU_GUESTID	MBIT_ULL(51)	/* CPU uses VZ ASE GuestID feature */
 #define MIPS_CPU_DRG		MBIT_ULL(52)	/* CPU has VZ Direct Root to Guest (DRG) */
 #define MIPS_CPU_UFR		MBIT_ULL(53)	/* CPU supports User mode FR switching */
+#define MIPS_CPU_MMID		MBIT_ULL(54)	/* CPU supports MemoryMapID */
+#define MIPS_CPU_GINVI		MBIT_ULL(57)	/* CPU supports Global Instruction Cache Invalidation */
 
 /*
  * CPU ASE encodings

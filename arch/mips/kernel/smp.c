@@ -47,6 +47,7 @@
 #include <asm/time.h>
 #include <asm/setup.h>
 #include <asm/maar.h>
+#include <asm/tlb.h>
 
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 EXPORT_SYMBOL(__cpu_number_map);
@@ -350,6 +351,7 @@ asmlinkage void start_secondary(void)
 	unsigned int cpu;
 
 	cpu_probe();
+	setup_mmid();
 	per_cpu_trap_init(false);
 	mips_clockevent_init();
 	mp_ops->init_secondary();
@@ -494,6 +496,32 @@ static inline void smp_on_each_tlb(void (*func) (void *info), void *info)
 	preempt_enable();
 }
 
+static void flush_tlb_mmid(struct mm_struct *mm,
+	unsigned long start, unsigned long end,
+	enum mips_global_tlb_invalidate_type type)
+{
+	unsigned long flags, mmid;
+
+	local_irq_save(flags);
+	htw_stop();
+	mmid = read_c0_memorymapid();
+	write_c0_memorymapid(atomic64_read(&mm->context.mmid));
+	mtc0_tlbw_hazard();
+
+	start = round_down(start, PAGE_SIZE << 1);
+	end = round_up(end, PAGE_SIZE << 1);
+
+	do {
+		global_tlb_invalidate(start, type);
+		start += (PAGE_SIZE << 1);
+	} while (start < end);
+
+	write_c0_memorymapid(mmid);
+	instruction_hazard();
+	htw_start();
+	local_irq_restore(flags);
+}
+
 /*
  * The following tlb flush calls are invoked when old translations are
  * being torn down, or pte attributes are changing. For single threaded
@@ -509,6 +537,11 @@ static inline void smp_on_each_tlb(void (*func) (void *info), void *info)
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
+	if (cpu_has_mmid) {
+		flush_tlb_mmid(mm, 0, 0, invalidate_by_mmid);
+		return;
+	}
+
 	preempt_disable();
 
 	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
@@ -518,7 +551,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 
 		for_each_online_cpu(cpu) {
 			if (cpu != smp_processor_id() && cpu_context(cpu, mm))
-				cpu_context(cpu, mm) = 0;
+				mm->context.asid[cpu] = 0;
 		}
 	}
 	local_flush_tlb_mm(mm);
@@ -543,6 +576,11 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
 {
 	struct mm_struct *mm = vma->vm_mm;
 
+	if (cpu_has_mmid) {
+		flush_tlb_mmid(mm, start, end, invalidate_by_va_mmid);
+		return;
+	}
+
 	preempt_disable();
 	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
 		struct flush_tlb_data fd = {
@@ -564,7 +602,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
 			 * mm has been completely unused by that CPU.
 			 */
 			if (cpu != smp_processor_id() && cpu_context(cpu, mm))
-				cpu_context(cpu, mm) = !exec;
+				mm->context.asid[cpu] = !exec;
 		}
 	}
 	local_flush_tlb_range(vma, start, end);
@@ -597,6 +635,11 @@ static void flush_tlb_page_ipi(void *info)
 
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
+	if (cpu_has_mmid) {
+		flush_tlb_mmid(vma->vm_mm, page, page, invalidate_by_va_mmid);
+		return;
+	}
+
 	preempt_disable();
 	if ((atomic_read(&vma->vm_mm->mm_users) != 1) || (current->mm != vma->vm_mm)) {
 		struct flush_tlb_data fd = {
@@ -616,7 +659,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 			 * by that CPU.
 			 */
 			if (cpu != smp_processor_id() && cpu_context(cpu, vma->vm_mm))
-				cpu_context(cpu, vma->vm_mm) = 1;
+				vma->vm_mm->context.asid[cpu] = 1;
 		}
 	}
 	local_flush_tlb_page(vma, page);

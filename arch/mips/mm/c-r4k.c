@@ -382,11 +382,36 @@ static void r4k_blast_icache_page_indexed_setup(void)
 void (* r4k_blast_icache)(void);
 EXPORT_SYMBOL(r4k_blast_icache);
 
+static void blast_icache_ginvi(void)
+{
+	u32 gnr = read_c0_globalnumber();
+
+	__asm__ __volatile__(
+		".set	push\n\t"
+#ifdef TOOLCHAIN_SUPPORTS_GINV
+		".set	ginv\n\t"
+		"ginvi	%0\n\t"
+#else	/* TOOLCHAIN_SUPPORTS_GINV */
+		".set	noat\n\t"
+		"move\t$1, %0\n\t"
+		"# ginvi $1\n\t"
+		_ASM_INSN_IF_MIPS(0x7c20003d)
+		_ASM_INSN32_IF_MM(0x0001617c)
+#endif	/* !TOOLCHAIN_SUPPORTS_GINV */
+		".set	pop\n\t"
+	: /* No outputs */
+	: "r" (gnr));
+	sync_ginv();
+	instruction_hazard();
+}
+
 static void r4k_blast_icache_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
-	if (ic_lsize == 0)
+	if (cpu_has_ginvi)
+		r4k_blast_icache = blast_icache_ginvi;
+	else if (ic_lsize == 0)
 		r4k_blast_icache = (void *)cache_noop;
 	else if (ic_lsize == 16)
 		r4k_blast_icache = blast_icache16;
@@ -517,6 +542,10 @@ static inline int has_valid_asid(const struct mm_struct *mm, unsigned int type)
 {
 	unsigned int i;
 	const cpumask_t *mask = cpu_present_mask;
+
+	
+	if (cpu_has_mmid)
+		return cpu_context(0, mm) != 0;
 
 	/* cpu_sibling_map[] undeclared when !CONFIG_SMP */
 #ifdef CONFIG_SMP
