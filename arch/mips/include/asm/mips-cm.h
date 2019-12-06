@@ -230,6 +230,8 @@ BUILD_CM_Cx_R_(tcid_7_priority,	0x78)
 BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 
 /* GCR_CONFIG register fields */
+#define CM3_GCR_CONFIG_ITU_PRESENT_SHF		31
+#define CM3_GCR_CONFIG_ITU_PRESENT_MSK		(_ULCAST_(0x1) << 31)
 #define CM_GCR_CONFIG_NUMIOCU_SHF		8
 #define CM_GCR_CONFIG_NUMIOCU_MSK		(_ULCAST_(0xf) << 8)
 #define CM_GCR_CONFIG_PCORES_SHF		0
@@ -504,6 +506,27 @@ static inline unsigned int mips_cm_vp_id(unsigned int cpu)
 
 	return (core * mips_cm_max_vp_width()) + vp;
 }
+
+/**
+ * mips_cm_itu_preset() - determine whether an ITU is provided by the CM
+ *
+ * Returns true if an ITU is implemented in the Coherence Manager. This should
+ * not be confused with systems that implement MT ASE and the presence of an
+ * ITU can be determined by the availability of the MT ASEs.
+ */
+static inline unsigned int mips_cm_itu_present(void)
+{
+	unsigned int cfg;
+
+	if (mips_cm_revision() < CM_REV_CM3_5)
+		return 0;
+
+	cfg = read_gcr_config();
+	cfg &= CM3_GCR_CONFIG_ITU_PRESENT_MSK;
+
+	return !!cfg;
+}
+
 
 #ifdef CONFIG_MIPS_CM
 
