@@ -1058,7 +1058,7 @@ emul:
 			*fault_addr = dva;
 			return SIGBUS;
 		}
-		if (__get_user(dval, dva)) {
+		if (__copy_from_user(&dval, dva, sizeof(u64))) {
 			MIPS_FPU_EMU_INC_STATS(errors);
 			*fault_addr = dva;
 			return SIGSEGV;
@@ -1076,7 +1076,7 @@ emul:
 			*fault_addr = dva;
 			return SIGBUS;
 		}
-		if (__put_user(dval, dva)) {
+		if (__copy_to_user(dva, &dval, sizeof(u64))) {
 			MIPS_FPU_EMU_INC_STATS(errors);
 			*fault_addr = dva;
 			return SIGSEGV;
@@ -1092,7 +1092,7 @@ emul:
 			*fault_addr = wva;
 			return SIGBUS;
 		}
-		if (__get_user(wval, wva)) {
+		if (__copy_from_user(&wval, wva, sizeof(u32))) {
 			MIPS_FPU_EMU_INC_STATS(errors);
 			*fault_addr = wva;
 			return SIGSEGV;
@@ -1110,7 +1110,7 @@ emul:
 			*fault_addr = wva;
 			return SIGBUS;
 		}
-		if (__put_user(wval, wva)) {
+		if (__copy_to_user(wva, &wval, sizeof(u32))) {
 			MIPS_FPU_EMU_INC_STATS(errors);
 			*fault_addr = wva;
 			return SIGSEGV;
@@ -1484,7 +1484,7 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 				*fault_addr = va;
 				return SIGBUS;
 			}
-			if (__get_user(val, va)) {
+			if (__copy_from_user(&val, va, sizeof(u32))) {
 				MIPS_FPU_EMU_INC_STATS(errors);
 				*fault_addr = va;
 				return SIGSEGV;
@@ -1504,7 +1504,7 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 				*fault_addr = va;
 				return SIGBUS;
 			}
-			if (put_user(val, va)) {
+			if (__copy_to_user(va, &val, sizeof(u32))) {
 				MIPS_FPU_EMU_INC_STATS(errors);
 				*fault_addr = va;
 				return SIGSEGV;
@@ -1581,7 +1581,7 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 				*fault_addr = va;
 				return SIGBUS;
 			}
-			if (__get_user(val, va)) {
+			if (__copy_from_user(&val, va, sizeof(u64))) {
 				MIPS_FPU_EMU_INC_STATS(errors);
 				*fault_addr = va;
 				return SIGSEGV;
@@ -1600,7 +1600,7 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 				*fault_addr = va;
 				return SIGBUS;
 			}
-			if (__put_user(val, va)) {
+			if (__copy_to_user(va, &val, sizeof(u64))) {
 				MIPS_FPU_EMU_INC_STATS(errors);
 				*fault_addr = va;
 				return SIGSEGV;
