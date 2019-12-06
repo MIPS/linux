@@ -236,6 +236,18 @@ static void smp_ipi_init_one(unsigned int virq,
 				    struct irqaction *action)
 {
 	int ret;
+#ifdef CONFIG_MIPS_CPU_STEAL
+	struct irq_data *data;
+	/*
+	 * A bit of a hack to ensure that the ipi_offset is 0.
+	 * This is to deal with removing / reallocating IPIs
+	 * to subsets of the possible CPUs, where the IPI IRQ domain
+	 * will set ipi_offset to the first cpu in the cpumask when the
+	 * IPI is reallocated.
+	 */
+	data = irq_get_irq_data(virq);
+	data->common->ipi_offset = 0;
+#endif /* CONFIG_MIPS_CPU_STEAL */
 
 	irq_set_handler(virq, handle_percpu_irq);
 	ret = setup_irq(virq, action);

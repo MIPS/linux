@@ -2309,7 +2309,7 @@ config MIPSR2_TO_R6_EMULATOR
 	  final kernel image.
 
 config MIPS_VPE_LOADER
-	bool "VPE loader support."
+	bool "VPE loader support (DEPRECATED)"
 	depends on SYS_SUPPORTS_MULTITHREADING && MODULES
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
@@ -2317,6 +2317,9 @@ config MIPS_VPE_LOADER
 	help
 	  Includes a loader for loading an elf relocatable object
 	  onto another VPE and running it.
+
+	  Unless you have a specific need, you should use CONFIG_MIPS_REMOTEPROC
+          instead of this.
 
 config MIPS_VPE_LOADER_CMP
 	bool
@@ -2386,6 +2389,13 @@ config MIPS_CPS
 	  enabled the kernel will probe for other cores and boot them with
 	  no external assistance. It is safe to enable this when hardware
 	  support is unavailable.
+
+config MIPS_CPU_STEAL
+	bool "VPE stealing"
+	depends on HOTPLUG_CPU && MIPS_CPS
+	help
+	  Select this is you wish to be able to run bare metal code on offline
+	  VPEs.
 
 config MIPS_CPS_PM
 	depends on MIPS_CPS

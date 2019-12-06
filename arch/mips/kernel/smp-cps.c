@@ -8,6 +8,7 @@
  * option) any later version.
  */
 
+#include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/irqchip/mips-gic.h>
@@ -39,6 +40,31 @@ static int __init setup_nothreads(char *s)
 	return 0;
 }
 early_param("nothreads", setup_nothreads);
+
+#ifdef CONFIG_MIPS_CPU_STEAL
+struct cpumask cpu_stolen_mask;
+
+static inline bool cpu_stolen(int cpu)
+{
+	return cpumask_test_cpu(cpu, &cpu_stolen_mask);
+}
+
+static inline void set_cpu_stolen(int cpu, bool state)
+{
+	if (state)
+		cpumask_set_cpu(cpu, &cpu_stolen_mask);
+	else
+		cpumask_clear_cpu(cpu, &cpu_stolen_mask);
+}
+#else
+static inline bool cpu_stolen(int cpu)
+{
+	return false;
+}
+
+static inline void set_cpu_stolen(int cpu, bool state) { }
+
+#endif /* CONFIG_MIPS_CPU_STEAL */
 
 static unsigned core_vpe_count(unsigned core)
 {
@@ -109,6 +135,10 @@ static void __init cps_smp_setup(void)
 		core_entry = CKSEG1ADDR((unsigned long)mips_cps_core_entry);
 		write_gcr_bev_base(core_entry);
 	}
+
+#ifdef CONFIG_MIPS_CPU_STEAL
+	cpumask_clear(&cpu_stolen_mask);
+#endif /* CONFIG_MIPS_CPU_STEAL */
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* If we have an FPU, enroll ourselves in the FPU-full mask */
@@ -288,7 +318,7 @@ static void remote_vpe_boot(void *dummy)
 	mips_cps_boot_vpes(core_cfg, cpu_vpe_id(&current_cpu_data));
 }
 
-static void cps_boot_secondary(int cpu, struct task_struct *idle)
+static void cps_start_secondary(int cpu, void *entry_fn, struct task_struct *tsk)
 {
 	unsigned core = cpu_data[cpu].core;
 	unsigned vpe_id = cpu_vpe_id(&cpu_data[cpu]);
@@ -298,9 +328,9 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 	unsigned int remote;
 	int err;
 
-	vpe_cfg->pc = (unsigned long)&smp_bootstrap;
-	vpe_cfg->sp = __KSTK_TOS(idle);
-	vpe_cfg->gp = (unsigned long)task_thread_info(idle);
+	vpe_cfg->pc = (unsigned long)entry_fn;
+	vpe_cfg->sp = __KSTK_TOS(tsk);
+	vpe_cfg->gp = (unsigned long)task_thread_info(tsk);
 
 	atomic_or(1 << cpu_vpe_id(&cpu_data[cpu]), &core_cfg->vpe_mask);
 
@@ -346,6 +376,11 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 	mips_cps_boot_vpes(core_cfg, vpe_id);
 out:
 	preempt_enable();
+}
+
+static void cps_boot_secondary(int cpu, struct task_struct *idle)
+{
+	cps_start_secondary(cpu, &smp_bootstrap, idle);
 }
 
 static void cps_init_secondary(void)
@@ -399,6 +434,28 @@ static int cps_cpu_disable(void)
 	if (!cps_pm_support_state(CPS_PM_POWER_GATED))
 		return -EINVAL;
 
+#ifdef CONFIG_MIPS_CPU_STEAL
+	/*
+	 * With the MT ASE only VPEs in the same core may read / write the
+	 * control registers of other VPEs. Therefore to maintain control of
+	 * any stolen VPEs at least one sibling VPE must be kept online.
+	 */
+	if (cpu_has_mipsmt) {
+		int stolen, siblings = 0;
+
+		for_each_cpu((stolen), &cpu_stolen_mask)
+			if (cpu_data[stolen].core == cpu_data[cpu].core)
+				siblings++;
+
+		if (siblings == 1)
+			/*
+			 * When a VPE has been stolen, keep at least one of it's
+			 * siblings around in order to control it.
+			 */
+			return -EBUSY;
+	}
+#endif /* CONFIG_MIPS_CPU_STEAL */
+
 	core_cfg = &mips_cps_core_bootcfg[current_cpu_data.core];
 	atomic_sub(1 << cpu_vpe_id(&current_cpu_data), &core_cfg->vpe_mask);
 	smp_mb__after_atomic();
@@ -428,7 +485,7 @@ void play_dead(void)
 
 	if (cpu_has_mipsmt || cpu_has_vp) {
 		/* Look for another online VPE within the core */
-		for_each_online_cpu(cpu_death_sibling) {
+		for_each_possible_cpu(cpu_death_sibling) {
 			if (cpu_data[cpu_death_sibling].core != core)
 				continue;
 
@@ -436,8 +493,11 @@ void play_dead(void)
 			 * There is an online VPE within the core. Just halt
 			 * this TC and leave the core alone.
 			 */
-			cpu_death = CPU_DEATH_HALT;
-			break;
+			if (cpu_online(cpu_death_sibling) ||
+			    cpu_stolen(cpu_death_sibling))
+				cpu_death = CPU_DEATH_HALT;
+			if (cpu_online(cpu_death_sibling))
+				break;
 		}
 	}
 
@@ -467,6 +527,93 @@ void play_dead(void)
 	/* This should never be reached */
 	panic("Failed to offline CPU %u", cpu);
 }
+
+#ifdef CONFIG_MIPS_CPU_STEAL
+
+/* Find an online sibling CPU (another VPE in the same core) */
+static inline int mips_cps_get_online_sibling(unsigned int cpu)
+{
+	int sibling;
+
+	for_each_online_cpu(sibling)
+		if (cpus_are_siblings(sibling, cpu))
+			return sibling;
+
+	return -1;
+}
+
+int mips_cps_steal_cpu_and_execute(unsigned int cpu, void *entry_fn,
+				   struct task_struct *tsk)
+{
+	int err = -EINVAL;
+
+	preempt_disable();
+
+	if (!cpu_present(cpu) || cpu_online(cpu) || cpu_stolen(cpu))
+		goto out;
+
+	if (cpu_has_mipsmt && (mips_cps_get_online_sibling(cpu) < 0))
+		pr_warn("CPU%d has no online siblings to control it\n", cpu);
+	else {
+		set_cpu_present(cpu, false);
+		set_cpu_stolen(cpu, true);
+
+		cps_start_secondary(cpu, entry_fn, tsk);
+		err = 0;
+	}
+out:
+	preempt_enable();
+	return err;
+}
+
+static void mips_cps_halt_sibling(void *ptr_cpu)
+{
+	unsigned int cpu = (unsigned long)ptr_cpu;
+	unsigned int vpe_id = cpu_vpe_id(&cpu_data[cpu]);
+	unsigned long flags;
+	int vpflags;
+
+	local_irq_save(flags);
+	vpflags = dvpe();
+	settc(vpe_id);
+	write_tc_c0_tchalt(TCHALT_H);
+	evpe(vpflags);
+	local_irq_restore(flags);
+}
+
+int mips_cps_halt_and_return_cpu(unsigned int cpu)
+{
+	unsigned int vpe_id = cpu_vpe_id(&cpu_data[cpu]);
+
+	if (!cpu_stolen(cpu))
+		return -EINVAL;
+
+	if (cpu_has_mipsmt && cpus_are_siblings(cpu, smp_processor_id()))
+		mips_cps_halt_sibling((void *)(unsigned long)cpu);
+	else if (cpu_has_mipsmt) {
+		int sibling = mips_cps_get_online_sibling(cpu);
+
+		if (sibling < 0) {
+			pr_warn("CPU%d has no online siblings\n", cpu);
+			return -EINVAL;
+		}
+
+		if (smp_call_function_single(sibling, mips_cps_halt_sibling,
+						(void *)(unsigned long)cpu, 1))
+			panic("Failed to call sibling CPU\n");
+
+	} else if (cpu_has_vp) {
+		mips_cm_lock_other(core, vpe_id);
+		write_cpc_co_vp_stop(1 << vpe_id);
+		mips_cm_unlock_other();
+	}
+
+	set_cpu_stolen(cpu, false);
+	set_cpu_present(cpu, true);
+	return 0;
+}
+
+#endif /* CONFIG_MIPS_CPU_STEAL */
 
 static void wait_for_sibling_halt(void *ptr_cpu)
 {

@@ -71,6 +71,17 @@ config DA8XX_REMOTEPROC
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading.
 
+config MIPS_REMOTEPROC
+	tristate "MIPS remoteproc support"
+	depends on MIPS_CPS && HAS_DMA && !64BIT
+	depends on REMOTEPROC
+	select CMA
+	select MIPS_CPU_STEAL
+	help
+	  Say y here to support using offline cores/VPEs as remote processors
+	  via the remote processor framework.
+	  If unsure say N.
+
 config QCOM_ADSP_PIL
 	tristate "Qualcomm ADSP Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
