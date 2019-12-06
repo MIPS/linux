@@ -477,6 +477,11 @@ static void flush_tlb_all_ipi(void *info)
 
 void flush_tlb_all(void)
 {
+	if (cpu_has_mmid) {
+		global_tlb_invalidate(0, invalidate_all_tlb);
+		return;
+	}
+
 	on_each_cpu(flush_tlb_all_ipi, NULL, 1);
 }
 
@@ -517,7 +522,7 @@ static void flush_tlb_mmid(struct mm_struct *mm,
 	local_irq_save(flags);
 	htw_stop();
 	mmid = read_c0_memorymapid();
-	write_c0_memorymapid(atomic64_read(&mm->context.mmid));
+	write_c0_memorymapid(atomic64_read(&mm->context.mmid) & mmid_mask);
 	mtc0_tlbw_hazard();
 
 	start = round_down(start, PAGE_SIZE << 1);
