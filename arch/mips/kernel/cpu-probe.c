@@ -934,9 +934,12 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 #ifndef CONFIG_MIPS_CPS
 	if (cpu_has_mips_r2_r6) {
-		c->core = get_ebase_cpunum();
+		unsigned int core;
+
+		core = get_ebase_cpunum();
 		if (cpu_has_mipsmt)
-			c->core >>= fls(core_nvpes()) - 1;
+			core >>= fls(core_nvpes()) - 1;
+		cpu_set_core(c, core);
 	}
 #endif
 }
@@ -2119,4 +2122,35 @@ void cpu_report(void)
 		printk(KERN_INFO "FPU revision is: %08x\n", c->fpu_id);
 	if (cpu_has_msa)
 		pr_info("MSA revision is: %08x\n", c->msa_id);
+}
+
+void cpu_set_cluster(struct cpuinfo_mips *cpuinfo, unsigned int cl)
+{
+	/* Ensure the cluster number fits in the field */
+	WARN_ON(cl > (MIPS_GLOBALNUMBER_CLUSTER >> MIPS_GLOBALNUMBER_CLUSTER_SHF));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_CLUSTER;
+	cpuinfo->globalnumber |= cl << MIPS_GLOBALNUMBER_CLUSTER_SHF;
+}
+
+void cpu_set_core(struct cpuinfo_mips *cpuinfo, unsigned int core)
+{
+	/* Ensure the core number fits in the field */
+	WARN_ON(core > (MIPS_GLOBALNUMBER_CORE >> MIPS_GLOBALNUMBER_CORE_SHF));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_CORE;
+	cpuinfo->globalnumber |= core << MIPS_GLOBALNUMBER_CORE_SHF;
+}
+
+void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe)
+{
+	/* Ensure the VP(E) ID fits in the field */
+	WARN_ON(vpe > (MIPS_GLOBALNUMBER_VP >> MIPS_GLOBALNUMBER_VP_SHF));
+
+	/* Ensure we're not using VP(E)s without support */
+	WARN_ON(vpe && !IS_ENABLED(CONFIG_MIPS_MT_SMP) &&
+		!IS_ENABLED(CONFIG_CPU_MIPSR6));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_VP;
+	cpuinfo->globalnumber |= vpe << MIPS_GLOBALNUMBER_VP_SHF;
 }

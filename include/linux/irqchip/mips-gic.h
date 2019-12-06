@@ -259,6 +259,7 @@ extern void gic_init(unsigned long gic_base_addr,
 	unsigned long gic_addrspace_size, unsigned int cpu_vec,
 	unsigned int irqbase);
 extern u64 gic_read_count(void);
+extern u64 gic_read_cluster_count(unsigned int cluster);
 extern unsigned int gic_get_count_width(void);
 extern u64 gic_read_compare(void);
 extern void gic_write_compare(u64 cnt);

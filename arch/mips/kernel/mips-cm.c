@@ -8,6 +8,7 @@
  * option) any later version.
  */
 
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/percpu.h>
 #include <linux/spinlock.h>
@@ -270,21 +271,56 @@ int mips_cm_probe(void)
 	return 0;
 }
 
-void mips_cm_lock_other(unsigned int core, unsigned int vp)
+void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+			unsigned int vp, enum gcr_redir_block block)
 {
-	unsigned curr_core;
+	unsigned int curr_core, cm_rev;
 	u32 val;
 
-	preempt_disable();
-	curr_core = current_cpu_data.core;
-	spin_lock_irqsave(&per_cpu(cm_core_lock, curr_core),
-			  per_cpu(cm_core_lock_flags, curr_core));
+	cm_rev = mips_cm_revision();
 
-	if (mips_cm_revision() >= CM_REV_CM3) {
+	preempt_disable();
+
+	if (cm_rev >= CM_REV_CM3) {
 		val = core << CM3_GCR_Cx_OTHER_CORE_SHF;
 		val |= vp << CM3_GCR_Cx_OTHER_VP_SHF;
+
+		if (cm_rev >= CM_REV_CM3_5) {
+			val |= cluster << CM3_GCR_Cx_REDIRECT_CLUSTER_SHF;
+			if (cluster != cpu_cluster(&current_cpu_data))
+				val |= CM3_GCR_Cx_REDIRECT_CLUSTER_REDIREN_MSK;
+			val |= (unsigned int)block << CM3_GCR_Cx_REDIRECT_BLOCK_SHF;
+			val |= CM3_GCR_Cx_REDIRECT_GIC_REDIREN_MSK;
+		} else {
+			WARN_ON(cluster != 0);
+			WARN_ON(block != BLOCK_GCR_CORE_LOCAL);
+		}
+
+		/*
+		 * We need to disable interrupts in SMP systems in order to
+		 * ensure that we don't interrupt the caller with code which
+		 * may modify the redirect register. We do so here in a
+		 * slightly obscure way by using a spin lock, since this has
+		 * the neat property of also catching any nested uses of
+		 * mips_cm_lock_other() leading to a deadlock or a nice warning
+		 * with lockdep enabled.
+		 */
+		spin_lock_irqsave(this_cpu_ptr(&cm_core_lock),
+				  *this_cpu_ptr(&cm_core_lock_flags));
 	} else {
-		BUG_ON(vp != 0);
+		WARN_ON(cluster != 0);
+		WARN_ON(vp != 0);
+		WARN_ON(block != BLOCK_GCR_CORE_LOCAL);
+
+		/*
+		 * We only have a GCR_CL_OTHER per core in systems with
+		 * CM 2.5 & older, so have to ensure other VP(E)s don't
+		 * race with us.
+		 */
+		curr_core = cpu_core(&current_cpu_data);
+		spin_lock_irqsave(&per_cpu(cm_core_lock, curr_core),
+				  per_cpu(cm_core_lock_flags, curr_core));
+
 		val = core << CM_GCR_Cx_OTHER_CORENUM_SHF;
 	}
 
@@ -299,10 +335,17 @@ void mips_cm_lock_other(unsigned int core, unsigned int vp)
 
 void mips_cm_unlock_other(void)
 {
-	unsigned curr_core = current_cpu_data.core;
+	unsigned curr_core;
 
-	spin_unlock_irqrestore(&per_cpu(cm_core_lock, curr_core),
-			       per_cpu(cm_core_lock_flags, curr_core));
+	if (mips_cm_revision() < CM_REV_CM3) {
+		curr_core = cpu_core(&current_cpu_data);
+		spin_unlock_irqrestore(&per_cpu(cm_core_lock, curr_core),
+				       per_cpu(cm_core_lock_flags, curr_core));
+	} else {
+		spin_unlock_irqrestore(this_cpu_ptr(&cm_core_lock),
+				       *this_cpu_ptr(&cm_core_lock_flags));
+	}
+
 	preempt_enable();
 }
 
@@ -436,4 +479,47 @@ void mips_cm_error_report(void)
 
 	/* reprime cause register */
 	write_gcr_error_cause(0);
+}
+
+
+int mips_cm_l2sm_cacheop(enum l2sm_cacheop cop, unsigned long tag,
+			  unsigned long ecc)
+{
+	u32 l2sm_cop;
+
+	l2sm_cop = read_redir_gcr_l2sm_cop();
+	if ((mips_cm_revision() < CM_REV_CM3_5) ||
+	    !(l2sm_cop & CM_GCR_L2SM_COP_PRESENT)) {
+		return -ENODEV;
+	}
+
+	write_redir_gcr_l2_tag_state(tag);
+	write_redir_gcr_l2_ecc(ecc);
+
+	/*
+	 * Ensure L2 tag state & ECC register writes take
+	 * effect before we start the state machine
+	 */
+	mb();
+
+	while (l2sm_cop & CM_GCR_L2SM_COP_RUNNING) {
+		/* Wait for the L2 state machine to be idle */
+		l2sm_cop = read_redir_gcr_l2sm_cop();
+	}
+
+	write_redir_gcr_l2sm_cop((cop << CM_GCR_L2SM_COP_TYPE_SHF) |
+				 CM_GCR_L2SM_COP_CMD_START);
+	mb();
+
+	do {
+		mdelay(1); /*** TODO omitting this delay seems to occasionally hang the core */
+		l2sm_cop = read_redir_gcr_l2sm_cop();
+		l2sm_cop &= CM_GCR_L2SM_COP_RESULT_MSK;
+
+		if (l2sm_cop > CM_GCR_L2SM_COP_RESULT_DONE_NOERR)
+			panic("L2 State machine failed with error\n");
+
+	} while (l2sm_cop != CM_GCR_L2SM_COP_RESULT_DONE_NOERR);
+
+	return 0;
 }

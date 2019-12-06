@@ -12,6 +12,7 @@
 #include <asm/cpu-features.h>
 #include <asm/elf.h>
 #include <asm/idle.h>
+#include <asm/mips-cm.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
 #include <asm/prom.h>
@@ -180,13 +181,15 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "kscratch registers\t: %d\n",
 		      hweight8(cpu_data[n].kscratch_mask));
 	seq_printf(m, "package\t\t\t: %d\n", cpu_data[n].package);
-	seq_printf(m, "core\t\t\t: %d\n", cpu_data[n].core);
+	if (mips_cm_revision() >= CM_REV_CM3_5)
+		seq_printf(m, "cluster\t\t\t: %d\n", cpu_cluster(&cpu_data[n]));
+	seq_printf(m, "core\t\t\t: %d\n", cpu_core(&cpu_data[n]));
 
 #if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
 	if (cpu_has_mipsmt)
-		seq_printf(m, "VPE\t\t\t: %d\n", cpu_data[n].vpe_id);
+		seq_printf(m, "VPE\t\t\t: %d\n", cpu_vpe_id(&cpu_data[n]));
 	else if (cpu_has_vp)
-		seq_printf(m, "VP\t\t\t: %d\n", cpu_data[n].vpe_id);
+		seq_printf(m, "VP\t\t\t: %d\n", cpu_vpe_id(&cpu_data[n]));
 #endif
 
 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",

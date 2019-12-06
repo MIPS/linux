@@ -117,103 +117,113 @@ static inline bool mips_cm_has_l2sync(void)
 #define MIPS_CM_L2SYNC_SIZE	0x1000
 
 /* Macros to ease the creation of register access functions */
-#define BUILD_CM_R_(name, off)					\
-static inline unsigned long __iomem *addr_gcr_##name(void)	\
-{								\
-	return (unsigned long __iomem *)(mips_cm_base + (off));	\
-}								\
-								\
-static inline u32 read32_gcr_##name(void)			\
-{								\
-	return __raw_readl(addr_gcr_##name());			\
-}								\
-								\
-static inline u64 read64_gcr_##name(void)			\
-{								\
-	void __iomem *addr = addr_gcr_##name();			\
-	u64 ret;						\
-								\
-	if (mips_cm_is64) {					\
-		ret = __raw_readq(addr);			\
-	} else {						\
-		ret = __raw_readl(addr);			\
-		ret |= (u64)__raw_readl(addr + 0x4) << 32;	\
-	}							\
-								\
-	return ret;						\
-}								\
-								\
-static inline unsigned long read_gcr_##name(void)		\
-{								\
-	if (mips_cm_is64)					\
-		return read64_gcr_##name();			\
-	else							\
-		return read32_gcr_##name();			\
+#define BUILD_CM_R_(name, block, off, redir)					\
+static inline unsigned long __iomem *addr##redir##_gcr_##name(void)		\
+{										\
+	return (unsigned long __iomem *)(mips_cm_base + (block) + (off));	\
+}										\
+										\
+static inline u32 read32##redir##_gcr_##name(void)				\
+{										\
+	return __raw_readl(addr##redir##_gcr_##name());				\
+}										\
+										\
+static inline u64 read64##redir##_gcr_##name(void)				\
+{										\
+	void __iomem *addr = addr##redir##_gcr_##name();			\
+	u64 ret;								\
+										\
+	if (mips_cm_is64) {							\
+		ret = __raw_readq(addr);					\
+	} else {								\
+		ret = __raw_readl(addr);					\
+		ret |= (u64)__raw_readl(addr + 0x4) << 32;			\
+	}									\
+										\
+	return ret;								\
+}										\
+										\
+static inline unsigned long read##redir##_gcr_##name(void)			\
+{										\
+	if (mips_cm_is64)							\
+		return read64##redir##_gcr_##name();				\
+	else									\
+		return read32##redir##_gcr_##name();				\
 }
 
-#define BUILD_CM__W(name, off)					\
-static inline void write32_gcr_##name(u32 value)		\
-{								\
-	__raw_writel(value, addr_gcr_##name());			\
-}								\
-								\
-static inline void write64_gcr_##name(u64 value)		\
-{								\
-	__raw_writeq(value, addr_gcr_##name());			\
-}								\
-								\
-static inline void write_gcr_##name(unsigned long value)	\
-{								\
-	if (mips_cm_is64)					\
-		write64_gcr_##name(value);			\
-	else							\
-		write32_gcr_##name(value);			\
+#define BUILD_CM__W(name, redir)						\
+static inline void write32##redir##_gcr_##name(u32 value)			\
+{										\
+	__raw_writel(value, addr##redir##_gcr_##name());			\
+}										\
+										\
+static inline void write64##redir##_gcr_##name(u64 value)			\
+{										\
+	__raw_writeq(value, addr##redir##_gcr_##name());			\
+}										\
+										\
+static inline void write##redir##_gcr_##name(unsigned long value)		\
+{										\
+	if (mips_cm_is64)							\
+		write64##redir##_gcr_##name(value);				\
+	else									\
+		write32##redir##_gcr_##name(value);				\
 }
 
-#define BUILD_CM_RW(name, off)					\
-	BUILD_CM_R_(name, off)					\
-	BUILD_CM__W(name, off)
+#define BUILD_GCR_R_(name, off)					\
+	BUILD_CM_R_(name, MIPS_CM_GCB_OFS, off, )		\
+	BUILD_CM_R_(name, MIPS_CM_COCB_OFS, off, _redir)
+
+#define BUILD_GCR_RW(name, off)					\
+	BUILD_GCR_R_(name, off)					\
+	BUILD_CM__W(name, )					\
+	BUILD_CM__W(name, _redir)
 
 #define BUILD_CM_Cx_R_(name, off)				\
-	BUILD_CM_R_(cl_##name, MIPS_CM_CLCB_OFS + (off))	\
-	BUILD_CM_R_(co_##name, MIPS_CM_COCB_OFS + (off))
+	BUILD_CM_R_(cl_##name, MIPS_CM_CLCB_OFS, (off), )	\
+	BUILD_CM_R_(co_##name, MIPS_CM_COCB_OFS, (off), )
 
-#define BUILD_CM_Cx__W(name, off)				\
-	BUILD_CM__W(cl_##name, MIPS_CM_CLCB_OFS + (off))	\
-	BUILD_CM__W(co_##name, MIPS_CM_COCB_OFS + (off))
+#define BUILD_CM_Cx__W(name)					\
+	BUILD_CM__W(cl_##name, )				\
+	BUILD_CM__W(co_##name, )
 
 #define BUILD_CM_Cx_RW(name, off)				\
 	BUILD_CM_Cx_R_(name, off)				\
-	BUILD_CM_Cx__W(name, off)
+	BUILD_CM_Cx__W(name)
 
 /* GCB register accessor functions */
-BUILD_CM_R_(config,		MIPS_CM_GCB_OFS + 0x00)
-BUILD_CM_RW(base,		MIPS_CM_GCB_OFS + 0x08)
-BUILD_CM_RW(access,		MIPS_CM_GCB_OFS + 0x20)
-BUILD_CM_R_(rev,		MIPS_CM_GCB_OFS + 0x30)
-BUILD_CM_RW(err_control,	MIPS_CM_GCB_OFS + 0x38)
-BUILD_CM_RW(error_mask,		MIPS_CM_GCB_OFS + 0x40)
-BUILD_CM_RW(error_cause,	MIPS_CM_GCB_OFS + 0x48)
-BUILD_CM_RW(error_addr,		MIPS_CM_GCB_OFS + 0x50)
-BUILD_CM_RW(error_mult,		MIPS_CM_GCB_OFS + 0x58)
-BUILD_CM_RW(l2_only_sync_base,	MIPS_CM_GCB_OFS + 0x70)
-BUILD_CM_RW(gic_base,		MIPS_CM_GCB_OFS + 0x80)
-BUILD_CM_RW(cpc_base,		MIPS_CM_GCB_OFS + 0x88)
-BUILD_CM_RW(reg0_base,		MIPS_CM_GCB_OFS + 0x90)
-BUILD_CM_RW(reg0_mask,		MIPS_CM_GCB_OFS + 0x98)
-BUILD_CM_RW(reg1_base,		MIPS_CM_GCB_OFS + 0xa0)
-BUILD_CM_RW(reg1_mask,		MIPS_CM_GCB_OFS + 0xa8)
-BUILD_CM_RW(reg2_base,		MIPS_CM_GCB_OFS + 0xb0)
-BUILD_CM_RW(reg2_mask,		MIPS_CM_GCB_OFS + 0xb8)
-BUILD_CM_RW(reg3_base,		MIPS_CM_GCB_OFS + 0xc0)
-BUILD_CM_RW(reg3_mask,		MIPS_CM_GCB_OFS + 0xc8)
-BUILD_CM_R_(gic_status,		MIPS_CM_GCB_OFS + 0xd0)
-BUILD_CM_R_(cpc_status,		MIPS_CM_GCB_OFS + 0xf0)
-BUILD_CM_RW(l2_config,		MIPS_CM_GCB_OFS + 0x130)
-BUILD_CM_RW(sys_config2,	MIPS_CM_GCB_OFS + 0x150)
-BUILD_CM_RW(l2_pft_control,	MIPS_CM_GCB_OFS + 0x300)
-BUILD_CM_RW(l2_pft_control_b,	MIPS_CM_GCB_OFS + 0x308)
-BUILD_CM_RW(bev_base,		MIPS_CM_GCB_OFS + 0x680)
+BUILD_GCR_R_(config,		0x00)
+BUILD_GCR_RW(base,		0x08)
+BUILD_GCR_RW(access,		0x20)
+BUILD_GCR_R_(rev,		0x30)
+BUILD_GCR_RW(err_control,	0x38)
+BUILD_GCR_RW(error_mask,	0x40)
+BUILD_GCR_RW(error_cause,	0x48)
+BUILD_GCR_RW(error_addr,	0x50)
+BUILD_GCR_RW(error_mult,	0x58)
+BUILD_GCR_RW(l2_only_sync_base,	0x70)
+BUILD_GCR_RW(gic_base,		0x80)
+BUILD_GCR_RW(cpc_base,		0x88)
+BUILD_GCR_RW(reg0_base,		0x90)
+BUILD_GCR_RW(reg0_mask,		0x98)
+BUILD_GCR_RW(reg1_base,		0xa0)
+BUILD_GCR_RW(reg1_mask,		0xa8)
+BUILD_GCR_RW(reg2_base,		0xb0)
+BUILD_GCR_RW(reg2_mask,		0xb8)
+BUILD_GCR_RW(reg3_base,		0xc0)
+BUILD_GCR_RW(reg3_mask,		0xc8)
+BUILD_GCR_R_(gic_status,	0xd0)
+BUILD_GCR_R_(cpc_status,	0xf0)
+BUILD_GCR_RW(l2_config,		0x130)
+BUILD_GCR_RW(sys_config2,	0x150)
+BUILD_GCR_RW(l2_ram_config,	0x240)
+BUILD_GCR_RW(l2_pft_control,	0x300)
+BUILD_GCR_RW(l2_pft_control_b,	0x308)
+BUILD_GCR_RW(l2_tag_state,	0x608)
+BUILD_GCR_RW(l2_ecc,		0x618)
+BUILD_GCR_RW(l2sm_cop,		0x620)
+BUILD_GCR_RW(l2sm_tag_addr_cop,	0x628)
+BUILD_GCR_RW(bev_base,		0x680)
 
 /* Core Local & Core Other register accessor functions */
 BUILD_CM_Cx_RW(reset_release,	0x00)
@@ -236,6 +246,8 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 /* GCR_CONFIG register fields */
 #define CM3_GCR_CONFIG_ITU_PRESENT_SHF		31
 #define CM3_GCR_CONFIG_ITU_PRESENT_MSK		(_ULCAST_(0x1) << 31)
+#define CM3_GCR_CONFIG_NUMCLUSTERS_SHF		23
+#define CM3_GCR_CONFIG_NUMCLUSTERS_MSK		(_ULCAST_(0x3f) << 23)
 #define CM_GCR_CONFIG_NUMIOCU_SHF		8
 #define CM_GCR_CONFIG_NUMIOCU_MSK		(_ULCAST_(0xf) << 8)
 #define CM_GCR_CONFIG_PCORES_SHF		0
@@ -272,6 +284,7 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_REV_CM2				CM_ENCODE_REV(6, 0)
 #define CM_REV_CM2_5				CM_ENCODE_REV(7, 0)
 #define CM_REV_CM3				CM_ENCODE_REV(8, 0)
+#define CM_REV_CM3_5				CM_ENCODE_REV(9, 0)
 
 /* GCR_ERR_CONTROL register fields */
 #define CM_GCR_ERR_CONTROL_L2_ECC_EN_SHF	1
@@ -355,6 +368,11 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_SYS_CONFIG2_MAXVPW_SHF		0
 #define CM_GCR_SYS_CONFIG2_MAXVPW_MSK		(_ULCAST_(0xf) << 0)
 
+/* GCR_L2_RAM_CONFIG register fields */
+#define CM_HCR_L2_RAM_CONFIG_PRESENT		BIT(31)
+#define CM_HCR_L2_RAM_CONFIG_HCI_DONE		BIT(30)
+#define CM_HCR_L2_RAM_CONFIG_HCI_SUPPORTED	BIT(29)
+
 /* GCR_L2_PFT_CONTROL register fields */
 #define CM_GCR_L2_PFT_CONTROL_PAGEMASK_SHF	12
 #define CM_GCR_L2_PFT_CONTROL_PAGEMASK_MSK	(_ULCAST_(0xfffff) << 12)
@@ -368,6 +386,23 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_L2_PFT_CONTROL_B_CEN_MSK		(_ULCAST_(0x1) << 8)
 #define CM_GCR_L2_PFT_CONTROL_B_PORTID_SHF	0
 #define CM_GCR_L2_PFT_CONTROL_B_PORTID_MSK	(_ULCAST_(0xff) << 0)
+
+/* GCR_L2SM_COP register fields */
+#define CM_GCR_L2SM_COP_PRESENT			BIT(31)
+#define CM_GCR_L2SM_COP_RESULT_MSK		(_ULCAST_(0x7) << 6)
+#define CM_GCR_L2SM_COP_RESULT_DONE_NOERR	(_ULCAST_(0x1) << 6)
+#define CM_GCR_L2SM_COP_RUNNING			BIT(5)
+#define CM_GCR_L2SM_COP_TYPE_SHF		2
+#define CM_GCR_L2SM_COP_TYPE_MSK		(_ULCAST_(0x7) << 2)
+#define CM_GCR_L2SM_COP_TYPE_STORE_TAG		(_ULCAST_(0x1) << 2)
+#define CM_GCR_L2SM_COP_CMD_MSK			(_ULCAST_(0x3) << 0)
+#define CM_GCR_L2SM_COP_CMD_START		(_ULCAST_(0x1) << 0)
+
+/* GCR_L2SM_TAG_ADDR_COP register fields */
+#define CM_GCR_L2SM_TAG_ADDR_COP_NUM_SHF	48
+#define CM_GCR_L2SM_TAG_ADDR_COP_NUM_MSK	(_ULCAST_(0xffff) << 48)
+#define CM_GCR_L2SM_TAG_ADDR_COP_START_SHF	6
+#define CM_GCR_L2SM_TAG_ADDR_COP_START_MSK	(_ULCAST_(0x3ffffffffff) << 6)
 
 /* GCR_Cx_COHERENCE register fields */
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_SHF	0
@@ -383,6 +418,14 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 /* GCR_Cx_OTHER register fields */
 #define CM_GCR_Cx_OTHER_CORENUM_SHF		16
 #define CM_GCR_Cx_OTHER_CORENUM_MSK		(_ULCAST_(0xffff) << 16)
+#define CM3_GCR_Cx_REDIRECT_CLUSTER_REDIREN_SHF	31
+#define CM3_GCR_Cx_REDIRECT_CLUSTER_REDIREN_MSK	(_ULCAST_(0x1) << 31)
+#define CM3_GCR_Cx_REDIRECT_GIC_REDIREN_SHF	30
+#define CM3_GCR_Cx_REDIRECT_GIC_REDIREN_MSK	(_ULCAST_(0x1) << 30)
+#define CM3_GCR_Cx_REDIRECT_BLOCK_SHF		24
+#define CM3_GCR_Cx_REDIRECT_BLOCK_MSK		(_ULCAST_(0x3) << 24)
+#define CM3_GCR_Cx_REDIRECT_CLUSTER_SHF		16
+#define CM3_GCR_Cx_REDIRECT_CLUSTER_MSK		(_ULCAST_(0x3f) << 16)
 #define CM3_GCR_Cx_OTHER_CORE_SHF		8
 #define CM3_GCR_Cx_OTHER_CORE_MSK		(_ULCAST_(0x3f) << 8)
 #define CM3_GCR_Cx_OTHER_VP_SHF			0
@@ -404,19 +447,78 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_Cx_RESET_EXT_BASE_PRESENT_SHF	0
 #define CM_GCR_Cx_RESET_EXT_BASE_PRESENT_MSK	(_ULCAST_(0x1) << 0)
 
-/**
- * mips_cm_numcores - return the number of cores present in the system
+/*
+ * enum gcr_redir_block - blocks to target using GCR_Cx_REDIRECT
  *
- * Returns the value of the PCORES field of the GCR_CONFIG register plus 1, or
- * zero if no Coherence Manager is present.
+ * Register blocks that a core or VP "other" register block can be redirected
+ * to using the GCR_Cx_REDIRECT register, typically via mips_cm_lock_other().
  */
-static inline unsigned mips_cm_numcores(void)
-{
-	if (!mips_cm_present())
-		return 0;
+enum gcr_redir_block {
+	/* CM GCR redirect blocks */
+	BLOCK_GCR_CORE_LOCAL = 0,
+	BLOCK_GCR_GLOBAL = 1,
+	BLOCK_GCR_DEBUG = 2,
 
-	return ((read_gcr_config() & CM_GCR_CONFIG_PCORES_MSK)
-		>> CM_GCR_CONFIG_PCORES_SHF) + 1;
+	/* CPC redirect blocks */
+	BLOCK_CPC_CORE_LOCAL = 0,
+	BLOCK_CPC_GLOBAL = 1,
+
+	/* GIC redirect blocks */
+	BLOCK_GIC_VP_LOCAL = 0,
+	BLOCK_GIC_SHARED_LOWER = 1,
+	BLOCK_GIC_USER = 2,
+	BLOCK_GIC_SHARED_UPPER = 3,
+};
+
+#ifdef CONFIG_MIPS_CM
+
+/**
+ * mips_cm_lock_other - lock access to redirect region
+ * @cluster: the other cluster to be accessed
+ * @core: the other core to be accessed
+ * @vp: the VP within the other core to be accessed
+ * @block: the register block to be accessed
+ *
+ * Call in order to configure the redirect region to point at the register
+ * block @block corresponding to the provided @cluster, @core & @vp numbers.
+ * Must be followed by a call to mips_cm_unlock_other.
+ */
+extern void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+			       unsigned int vp, enum gcr_redir_block block);
+
+/**
+ * mips_cm_unlock_other - unlock access to another core
+ *
+ * Call after operating upon another core via the 'other' register region.
+ * Must be called after mips_cm_lock_other.
+ */
+extern void mips_cm_unlock_other(void);
+
+#else /* !CONFIG_MIPS_CM */
+
+static inline void
+mips_cm_lock_other(unsigned int cluster, unsigned int core,
+		   unsigned int vp, enum gcr_redir_block block) { }
+static inline void mips_cm_unlock_other(void) { }
+
+#endif /* !CONFIG_MIPS_CM */
+
+/**
+ * mips_cm_lock_other_cpu - lock access to redirect region
+ * @cpu: the CPU whose registers will be accessed
+ * @block: the register block to be accessed
+ *
+ * Call in order to configure the redirect region to point at the register
+ * block @block corresponding to the CPU @cpu. Must be followed by a call to
+ * mips_cm_unlock_other.
+ */
+static inline void mips_cm_lock_other_cpu(unsigned int cpu,
+					  enum gcr_redir_block block)
+{
+	mips_cm_lock_other(cpu_cluster(&cpu_data[cpu]),
+			   cpu_core(&cpu_data[cpu]),
+			   cpu_vpe_id(&cpu_data[cpu]),
+			   block);
 }
 
 /**
@@ -505,7 +607,7 @@ static inline unsigned int mips_cm_max_vp_width(void)
  */
 static inline unsigned int mips_cm_vp_id(unsigned int cpu)
 {
-	unsigned int core = cpu_data[cpu].core;
+	unsigned int core = cpu_core(&cpu_data[cpu]);
 	unsigned int vp = cpu_vpe_id(&cpu_data[cpu]);
 
 	return (core * mips_cm_max_vp_width()) + vp;
@@ -532,32 +634,164 @@ static inline unsigned int mips_cm_itu_present(void)
 }
 
 
-#ifdef CONFIG_MIPS_CM
+/**
+ * mips_cm_numcores - return the number of cores present in the system
+ *
+ * Returns the value of the PCORES field of the GCR_CONFIG register plus 1, or
+ * zero if no Coherence Manager is present.
+ */
+static inline unsigned int mips_cm_numcores(unsigned int cluster)
+{
+	unsigned int cfg;
+
+	if (!mips_cm_present())
+		return 0;
+
+	if (mips_cm_revision() >= CM_REV_CM3_5) {
+		mips_cm_lock_other(cluster, 0, 0, BLOCK_GCR_GLOBAL);
+		cfg = read_redir_gcr_config();
+		mips_cm_unlock_other();
+	} else {
+		/* We only have one truly global GCR_CONFIG */
+		cfg = read_gcr_config();
+	}
+
+	return ((cfg >> CM_GCR_CONFIG_PCORES_SHF) + 1) & CM_GCR_CONFIG_PCORES_MSK;
+}
 
 /**
- * mips_cm_lock_other - lock access to another core
- * @core: the other core to be accessed
- * @vp: the VP within the other core to be accessed
+ * mips_cm_numclusters() - return the number of clusters present in the system
  *
- * Call before operating upon a core via the 'other' register region in
- * order to prevent the region being moved during access. Must be followed
- * by a call to mips_cm_unlock_other.
+ * Returns the value of the NUM_CLUSTERS field of the GCR_CONFIG register where
+ * implemented, or 1 if the system doesn't support clusters or no Coherence
+ * Manager is present.
  */
-extern void mips_cm_lock_other(unsigned int core, unsigned int vp);
+static inline unsigned int mips_cm_numclusters(void)
+{
+	unsigned int cfg;
+
+	if (mips_cm_revision() < CM_REV_CM3_5)
+		return 1;
+
+	cfg = read_gcr_config();
+	cfg &= CM3_GCR_CONFIG_NUMCLUSTERS_MSK;
+	cfg >>= CM3_GCR_CONFIG_NUMCLUSTERS_SHF;
+
+	return cfg;
+}
 
 /**
- * mips_cm_unlock_other - unlock access to another core
+ * mips_cm_using_multicluster() - determine whether multiple clusters are in use
  *
- * Call after operating upon another core via the 'other' register region.
- * Must be called after mips_cm_lock_other.
+ * Returns true if the system is using multiple clusters, otherwise false. This
+ * is useful for callers that can act more optimally if they know whether they
+ * need to act upon multiple clusters or not.
  */
-extern void mips_cm_unlock_other(void);
+static inline bool mips_cm_using_multicluster(void)
+{
+	unsigned int last_cpu;
 
-#else /* !CONFIG_MIPS_CM */
+	/*
+	 * We rely upon CPUs being probed in each cluster in order, with CPUs
+	 * in secondary clusters coming after the boot cluster (cluster 0). This
+	 * means that we can determine whether multiple clusters are in use purely
+	 * by examining whether the last possible CPU is in the boot cluster.
+	 */
+	last_cpu = find_last_bit(cpumask_bits(cpu_possible_mask), nr_cpumask_bits);
+	return cpu_cluster(&cpu_data[last_cpu]) != 0;
+}
 
-static inline void mips_cm_lock_other(unsigned int core, unsigned int vp) { }
-static inline void mips_cm_unlock_other(void) { }
+/**
+ * __mips_cm_first_cluster() - Find the first cluster number from a cpumask
+ * @cpumask: mask containing CPUs whose clusters we want to cover
+ *
+ * Find the cluster number for the first CPU set in @cpumask. Not intended for
+ * direct use - instead make use of this via the for_each_possible_cluster()
+ * macro.
+ *
+ * Return: the cluster number of the first CPU set in @cpumask
+ */
+static inline unsigned int
+__mips_cm_first_cluster(const struct cpumask *cpumask)
+{
+	return cpu_cluster(&cpu_data[cpumask_first(cpumask)]);
+}
 
-#endif /* !CONFIG_MIPS_CM */
+/**
+ * __mips_cm_next_cluster() - Find the next cluster covering a cpumask
+ * @cpumask: mask containing CPUs whose clusters we want to cover
+ * @prev: the cluster to start from
+ *
+ * Find the cluster number for the cluster following @prev which contains CPUs
+ * set within @cpumask. Not intended for direct use - instead make use of this
+ * via the for_each_possible_cluster() macro.
+ *
+ * Return: the cluster number following @prev, or UINT_MAX if no more clusters
+ */
+static inline unsigned int
+__mips_cm_next_cluster(const struct cpumask *cpumask, unsigned int prev)
+{
+	unsigned int cpu;
+
+	/*
+	 * We rely here upon having probed CPUs from each cluster sequentially
+	 * with a strictly incrementing cluster number. That is, each CPU
+	 * should have a cluster number greater or equal than that of all CPUs
+	 * with a lower CPU number.
+	 */
+	for_each_cpu(cpu, cpumask) {
+		if (cpu_cluster(&cpu_data[cpu]) <= prev)
+			continue;
+
+		return cpu_cluster(&cpu_data[cpu]);
+	}
+
+	return UINT_MAX;
+}
+
+/*
+ * for_each_possible_cluster() - Loop over clusters containing possible CPUs
+ * @cluster: an unsigned integer to contain the cluster number
+ *
+ * Loop over all clusters which contain any CPUs set in cpu_possible_mask. This
+ * can be used to easily operate on all clusters that Linux is running across.
+ * For example you may access a register in all clusters by doing something
+ * along the lines of:
+ *
+ *   unsigned int cluster;
+ *   for_each_possible_cluster(cluster) {
+ *     mips_cm_lock_other(cluster, 0, 0, BLOCK_GCR_GLOBAL);
+ *     write_redir_gcr_gic_base(0x10000001);
+ *     mips_cm_unlock_other();
+ *   }
+ */
+#define for_each_possible_cluster(cluster)					\
+	for ((cluster) = __mips_cm_first_cluster(cpu_possible_mask);		\
+	     (cluster) != UINT_MAX;						\
+	     (cluster) = __mips_cm_next_cluster(cpu_possible_mask, cluster))
+
+enum l2sm_cacheop {
+	L2SM_COP_INDEX_WBINV = 0,
+	L2SM_COP_INDEX_STORE_TAG = 1,
+	L2SM_COP_INDEX_STORE_TAG_DATA = 2,
+	L2SM_COP_HIT_INV = 4,
+	L2SM_COP_HIT_WBINV = 5,
+	L2SM_COP_HIT_WB = 6,
+	L2SM_COP_HIT_FETCH_LOCK = 7,
+};
+
+/**
+ * mips_cm_l2sm_cacheop() - Perform an L2 cacheop via the CM redirect region.
+ * @cop: The cacheop to perform
+ * @tag: The tag state
+ * @ecc: The ecc
+ *
+ * The target cluster BLOCK_GCR_GLOBAL should previously be locked via
+ * mips_cm_lock_other().
+ *
+ * Returns 0 on success or an error code
+ */
+extern int mips_cm_l2sm_cacheop(enum l2sm_cacheop cop, unsigned long tag,
+				unsigned long ecc);
 
 #endif /* __MIPS_ASM_MIPS_CM_H__ */

@@ -97,8 +97,7 @@ static inline void set_cpu_sibling_map(int cpu)
 
 	if (smp_num_siblings > 1) {
 		for_each_cpu(i, &cpu_sibling_setup_map) {
-			if (cpu_data[cpu].package == cpu_data[i].package &&
-				    cpu_data[cpu].core == cpu_data[i].core) {
+			if (cpus_are_siblings(cpu, i)) {
 				cpumask_set_cpu(i, &cpu_sibling_map[cpu]);
 				cpumask_set_cpu(cpu, &cpu_sibling_map[i]);
 			}
@@ -135,8 +134,7 @@ void calculate_cpu_foreign_map(void)
 	for_each_online_cpu(i) {
 		core_present = 0;
 		for_each_cpu(k, &temp_foreign_map)
-			if (cpu_data[i].package == cpu_data[k].package &&
-			    cpu_data[i].core == cpu_data[k].core)
+			if (cpus_are_siblings(i, k))
 				core_present = 1;
 		if (!core_present)
 			cpumask_set_cpu(i, &temp_foreign_map);
@@ -187,13 +185,13 @@ void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 
 	if (mips_cpc_present()) {
 		for_each_cpu(cpu, mask) {
-			core = cpu_data[cpu].core;
-
-			if (core == current_cpu_data.core)
+			if (cpus_are_siblings(cpu, smp_processor_id()))
 				continue;
 
+			core = cpu_core(&cpu_data[cpu]);
+
 			while (!cpumask_test_cpu(cpu, &cpu_coherent_mask)) {
-				mips_cm_lock_other(core, 0);
+				mips_cm_lock_other(0, core, 0, BLOCK_CPC_CORE_LOCAL);
 				mips_cpc_lock_other(core);
 				write_cpc_co_cmd(CPC_Cx_CMD_PWRUP);
 				mips_cpc_unlock_other();
@@ -344,6 +342,9 @@ int mips_smp_ipi_free(const struct cpumask *mask)
 
 static int __init mips_smp_ipi_init(void)
 {
+	if (num_possible_cpus() == 1)
+		return 0;
+
 	mips_smp_ipi_allocate(cpu_possible_mask);
 
 	call_desc = irq_to_desc(call_virq);
