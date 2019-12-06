@@ -75,6 +75,7 @@ struct stmmac_priv {
 	u32 rx_riwt;
 	int hwts_rx_en;
 	dma_addr_t *rx_skbuff_dma;
+	dma_addr_t *rx_skbuff_head;
 	dma_addr_t dma_rx_phy;
 
 	struct napi_struct napi ____cacheline_aligned_in_smp;
