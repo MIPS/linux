@@ -90,7 +90,7 @@ enum spec3_op {
 	lhe_op    = 0x2d, lle_op    = 0x2e,
 	lwe_op    = 0x2f, pref6_op  = 0x35,
 	ll6_op    = 0x36, lld6_op   = 0x37,
-	rdhwr_op  = 0x3b
+	rdhwr_op  = 0x3b, ginv_op   = 0x3d,
 };
 
 /*

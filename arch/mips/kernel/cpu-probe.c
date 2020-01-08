@@ -414,7 +414,6 @@ static int __init ftlb_disable(char *s)
 
 __setup("noftlb", ftlb_disable);
 
-
 static inline void check_errata(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -668,7 +667,8 @@ static inline unsigned int decode_config1(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_32FPR;
 	}
 	if (cpu_has_tlb) {
-		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >> 25) + 1;
+		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >>
+			      MIPS_CONF1_TLBS_SHIFT) + 1;
 		c->tlbsizevtlb = c->tlbsize;
 		c->tlbsizeftlbsets = 0;
 	}
@@ -735,6 +735,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->htw_seq = 0;
 		c->options |= MIPS_CPU_HTW;
 	}
+	if (config3 & MIPS_CONF3_BPG)
+		c->options |= MIPS_CPU_BPG;
 	if (config3 & MIPS_CONF3_CDMM)
 		c->options |= MIPS_CPU_CDMM;
 	if (config3 & MIPS_CONF3_SP)
@@ -843,11 +845,25 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_RW_LLB;
 	if (config5 & MIPS_CONF5_MVH)
 		c->options |= MIPS_CPU_MVH;
-	if (cpu_has_mips_r6 && (config5 & MIPS_CONF5_VP))
+
+	if (!cpu_has_mips_r6)
+		goto out;
+
+	if (config5 & MIPS_CONF5_VP)
 		c->options |= MIPS_CPU_VP;
 	if (config5 & MIPS_CONF5_CA2)
 		c->ases |= MIPS_ASE_MIPS16E2;
 
+	switch (config5 & MIPS_CONF5_GI) {
+	case MIPS_CONF5_GI_IC:
+	case MIPS_CONF5_GI_IC_TLB:
+		c->options |= MIPS_CPU_GINVI;
+		break;
+	default:
+		break;
+	}
+
+out:
 	return config5 & MIPS_CONF_M;
 }
 
@@ -1012,8 +1028,8 @@ static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
 	unsigned int config3, config3_dyn;
 
 	probe_gc0_config_dyn(config3, config3, config3_dyn,
-			     MIPS_CONF_M | MIPS_CONF3_MSA | MIPS_CONF3_ULRI |
-			     MIPS_CONF3_CTXTC);
+			     MIPS_CONF_M | MIPS_CONF3_BPG | MIPS_CONF3_MSA |
+			     MIPS_CONF3_ULRI | MIPS_CONF3_CTXTC);
 
 	if (config3 & MIPS_CONF3_CTXTC)
 		c->guest.options |= MIPS_CPU_CTXTC;
@@ -1038,6 +1054,9 @@ static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
 		c->guest.ases |= MIPS_ASE_MSA;
 	if (config3_dyn & MIPS_CONF3_MSA)
 		c->guest.ases_dyn |= MIPS_ASE_MSA;
+
+	if (config3 & MIPS_CONF3_BPG)
+		c->guest.options |= MIPS_CPU_BPG;
 
 	if (config3 & MIPS_CONF_M)
 		c->guest.conf |= BIT(4);
@@ -1076,6 +1095,18 @@ static inline unsigned int decode_guest_config5(struct cpuinfo_mips *c)
 
 	if (config5 & MIPS_CONF5_MVH)
 		c->guest.options |= MIPS_CPU_MVH;
+
+	if (config5 & MIPS_CONF5_VP)
+		c->guest.options |= MIPS_CPU_VP;
+
+	switch (config5 & MIPS_CONF5_GI) {
+	case MIPS_CONF5_GI_IC:
+	case MIPS_CONF5_GI_IC_TLB:
+		c->guest.options |= MIPS_CPU_GINVI;
+		break;
+	default:
+		break;
+	}
 
 	if (config5 & MIPS_CONF_M)
 		c->guest.conf |= BIT(6);

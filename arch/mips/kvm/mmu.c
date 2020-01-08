@@ -1017,6 +1017,10 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	pte_t pte_gpa[2], *ptep_gva;
 	int idx;
 
+#ifdef CONFIG_KVM_MIPS_VZ
+	BUG_ON(cpu_has_vz);
+#endif
+
 	if (KVM_GUEST_KSEGX(badvaddr) != KVM_GUEST_KSEG0) {
 		kvm_err("%s: Invalid BadVaddr: %#lx\n", __func__, badvaddr);
 		kvm_mips_dump_host_tlbs();
@@ -1056,6 +1060,10 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	pte_t pte_gpa[2], *ptep_buddy, *ptep_gva;
 	unsigned int idx = TLB_LO_IDX(*tlb, gva);
 	bool kernel = KVM_GUEST_KERNEL_MODE(vcpu);
+
+#ifdef CONFIG_KVM_MIPS_VZ
+	BUG_ON(cpu_has_vz);
+#endif
 
 	tlb_lo[0] = tlb->tlb_lo[0];
 	tlb_lo[1] = tlb->tlb_lo[1];
@@ -1108,6 +1116,10 @@ int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 {
 	kvm_pfn_t pfn;
 	pte_t *ptep;
+
+#ifdef CONFIG_KVM_MIPS_VZ
+	BUG_ON(cpu_has_vz);
+#endif
 
 	ptep = kvm_trap_emul_pte_for_gva(vcpu, badvaddr);
 	if (!ptep) {

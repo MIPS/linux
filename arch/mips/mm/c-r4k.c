@@ -382,11 +382,22 @@ static void r4k_blast_icache_page_indexed_setup(void)
 void (* r4k_blast_icache)(void);
 EXPORT_SYMBOL(r4k_blast_icache);
 
+static void blast_icache_ginvi(void)
+{
+	u32 gnr = read_c0_globalnumber();
+
+	ginvi(gnr);
+	sync_ginv();
+	instruction_hazard();
+}
+
 static void r4k_blast_icache_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
-	if (ic_lsize == 0)
+	if (cpu_has_ginvi)
+		r4k_blast_icache = blast_icache_ginvi;
+	else if (ic_lsize == 0)
 		r4k_blast_icache = (void *)cache_noop;
 	else if (ic_lsize == 16)
 		r4k_blast_icache = blast_icache16;
@@ -517,6 +528,10 @@ static inline int has_valid_asid(const struct mm_struct *mm, unsigned int type)
 {
 	unsigned int i;
 	const cpumask_t *mask = cpu_present_mask;
+
+	
+	if (cpu_has_mmid)
+		return cpu_context(0, mm) != 0;
 
 	/* cpu_sibling_map[] undeclared when !CONFIG_SMP */
 #ifdef CONFIG_SMP

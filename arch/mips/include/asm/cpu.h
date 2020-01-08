@@ -418,6 +418,9 @@ enum cpu_type_enum {
 				MBIT_ULL(54)	/* CPU shares FTLB RAM with another */
 #define MIPS_CPU_SHARED_FTLB_ENTRIES \
 				MBIT_ULL(55)	/* CPU shares FTLB entries with another */
+#define MIPS_CPU_BPG		MBIT_ULL(56)	/* Big (>256MB) page support */
+#define MIPS_CPU_MMID		MBIT_ULL(57)	/* CPU supports MemoryMapID */
+#define MIPS_CPU_GINVI		MBIT_ULL(58)	/* CPU supports Global Instruction Cache Invalidation */
 
 /*
  * CPU ASE encodings
