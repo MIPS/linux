@@ -271,6 +271,11 @@ enum emulation_result update_pc(struct kvm_vcpu *vcpu, u32 cause)
  */
 int kvm_get_badinstr(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
 {
+	if (get_isa16_mode((unsigned long)opc)) {
+		kvm_err("16bit ISA modes not supported in guest: %p\n", opc);
+		return -EINVAL;
+	}
+
 	if (cpu_has_badinstr) {
 		*out = vcpu->arch.host_cp0_badinstr;
 		return 0;
@@ -292,6 +297,11 @@ int kvm_get_badinstr(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
  */
 int kvm_get_badinstrp(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
 {
+	if (get_isa16_mode((unsigned long)opc)) {
+		kvm_err("16bit ISA modes not supported in guest: %p\n", opc);
+		return -EINVAL;
+	}
+
 	if (cpu_has_badinstrp) {
 		*out = vcpu->arch.host_cp0_badinstrp;
 		return 0;
