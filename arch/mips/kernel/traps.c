@@ -1596,31 +1596,33 @@ asmlinkage void do_mt(struct pt_regs *regs)
 {
 	int subcode;
 
-	subcode = (read_vpe_c0_vpecontrol() & VPECONTROL_EXCPT)
-			>> VPECONTROL_EXCPT_SHIFT;
-	switch (subcode) {
-	case 0:
-		printk(KERN_DEBUG "Thread Underflow\n");
-		break;
-	case 1:
-		printk(KERN_DEBUG "Thread Overflow\n");
-		break;
-	case 2:
-		printk(KERN_DEBUG "Invalid YIELD Qualifier\n");
-		break;
-	case 3:
-		printk(KERN_DEBUG "Gating Storage Exception\n");
-		break;
-	case 4:
-		printk(KERN_DEBUG "YIELD Scheduler Exception\n");
-		break;
-	case 5:
-		printk(KERN_DEBUG "Gating Storage Scheduler Exception\n");
-		break;
-	default:
-		printk(KERN_DEBUG "*** UNKNOWN THREAD EXCEPTION %d ***\n",
-			subcode);
-		break;
+	if (IS_ENABLED(CONFIG_MIPS_MT)) {
+		subcode = (read_vpe_c0_vpecontrol() & VPECONTROL_EXCPT)
+				>> VPECONTROL_EXCPT_SHIFT;
+		switch (subcode) {
+		case 0:
+			printk(KERN_DEBUG "Thread Underflow\n");
+			break;
+		case 1:
+			printk(KERN_DEBUG "Thread Overflow\n");
+			break;
+		case 2:
+			printk(KERN_DEBUG "Invalid YIELD Qualifier\n");
+			break;
+		case 3:
+			printk(KERN_DEBUG "Gating Storage Exception\n");
+			break;
+		case 4:
+			printk(KERN_DEBUG "YIELD Scheduler Exception\n");
+			break;
+		case 5:
+			printk(KERN_DEBUG "Gating Storage Scheduler Exception\n");
+			break;
+		default:
+			printk(KERN_DEBUG "*** UNKNOWN THREAD EXCEPTION %d ***\n",
+				subcode);
+			break;
+		}
 	}
 	die_if_kernel("MIPS MT Thread exception in kernel", regs);
 
@@ -2202,7 +2204,7 @@ static void configure_exception_vector(void)
 		change_c0_intctl(0x3e0, VECTORSPACING);
 	}
 	if (cpu_has_divec) {
-		if (cpu_has_mipsmt) {
+		if (cpu_has_mipsmt && IS_ENABLED(CONFIG_MIPS_MT)) {
 			unsigned int vpflags = dvpe();
 			set_c0_cause(CAUSEF_IV);
 			evpe(vpflags);
