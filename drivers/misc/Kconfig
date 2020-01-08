@@ -504,6 +504,14 @@ config MIPS_SAAR
 	  Enable this to expose devices that are mapped using the SAAR(I)
 	  implementation-specific coprocessor 0 registers to userland via sysfs.
 
+config MIPS_ITC
+	bool "MIPS ITC passthrough driver"
+	depends on MIPS
+	default y
+	help
+	  Enable this to expose the Inter-Thread Communication unit provided by
+	  some MIPS systems to userland via sysfs.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
