@@ -330,6 +330,12 @@ retry:
 	copy_highpage(new_page, old_page);
 	copy_to_page(new_page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
 
+	/*
+	 * Allow the architecture code to flush the page from dcache or mark it
+	 * dirty for later maintenance once it's mapped into user memory.
+	 */
+	flush_dcache_page(new_page);
+
 	ret = __replace_page(vma, vaddr, old_page, new_page);
 	put_page(new_page);
 put_old:
