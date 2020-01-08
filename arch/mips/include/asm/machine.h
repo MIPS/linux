@@ -18,6 +18,7 @@ struct mips_machine {
 	const struct of_device_id *matches;
 	const void *fdt;
 	bool (*detect)(void);
+	void (*prom_init)(void);
 	const void *(*fixup_fdt)(const void *fdt, const void *match_data);
 	unsigned int (*measure_hpt_freq)(void);
 };
