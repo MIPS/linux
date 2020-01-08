@@ -274,14 +274,6 @@ static inline void emt(int previous)
 		__raw_emt();
 }
 
-static inline void ehb(void)
-{
-	__asm__ __volatile__(
-	"	.set	mips32r2				\n"
-	"	ehb						\n"
-	"	.set	mips0					\n");
-}
-
 #define mftc0(rt,sel)							\
 ({									\
 	 unsigned long	__res;						\
