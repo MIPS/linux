@@ -302,7 +302,7 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 	struct core_boot_config *core_cfg = &mips_cps_core_bootcfg[core];
 	struct vpe_boot_config *vpe_cfg = &core_cfg->vpe_config[vpe_id];
 	unsigned long core_entry;
-	unsigned int remote;
+	int remote;
 	int err;
 
 	/* We don't yet support booting CPUs in other clusters */
@@ -331,14 +331,8 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 	}
 
 	if (!cpus_are_siblings(cpu, smp_processor_id())) {
-		/* Boot a VPE on another powered up core */
-		for (remote = 0; remote < NR_CPUS; remote++) {
-			if (!cpus_are_siblings(cpu, remote))
-				continue;
-			if (cpu_online(remote))
-				break;
-		}
-		if (remote >= NR_CPUS) {
+		remote = smp_get_online_sibling(cpu);
+		if (remote < 0) {
 			pr_crit("No online CPU in core %u to start CPU%d\n",
 				core, cpu);
 			goto out;
@@ -408,7 +402,12 @@ static int cps_cpu_disable(void)
 	if (!cpu)
 		return -EBUSY;
 
-	if (!cps_pm_support_state(CPS_PM_POWER_GATED))
+	/*
+	 * Check that the PM code will be able to perform the power down if this
+	 * is the last CPU to be offlined in a core. If not, block the attempt
+	 */
+	if ((smp_get_online_sibling(cpu) < 0) &&
+	    (!cps_pm_support_state(CPS_PM_POWER_GATED)))
 		return -EINVAL;
 
 	core_cfg = &mips_cps_core_bootcfg[cpu_core(&current_cpu_data)];
@@ -420,7 +419,7 @@ static int cps_cpu_disable(void)
 	return 0;
 }
 
-static unsigned cpu_death_sibling;
+static int cpu_death_sibling;
 static enum {
 	CPU_DEATH_HALT,
 	CPU_DEATH_POWER,
@@ -439,19 +438,13 @@ void play_dead(void)
 	pr_debug("CPU%d going offline\n", cpu);
 
 	if (cpu_has_mipsmt || cpu_has_vp) {
-		core = cpu_core(&cpu_data[cpu]);
-
-		/* Look for another online VPE within the core */
-		for_each_online_cpu(cpu_death_sibling) {
-			if (!cpus_are_siblings(cpu, cpu_death_sibling))
-				continue;
-
+		cpu_death_sibling = smp_get_online_sibling(cpu);
+		if (cpu_death_sibling >= 0) {
 			/*
 			 * There is an online VPE within the core. Just halt
 			 * this TC and leave the core alone.
 			 */
 			cpu_death = CPU_DEATH_HALT;
-			break;
 		}
 	}
 
