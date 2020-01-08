@@ -1508,6 +1508,10 @@ do {									\
 	local_irq_restore(__flags);					\
 } while (0)
 
+#if defined(CONFIG_CPU_NANOMIPS)
+/* mfhc0 / mthc0 are base instructions in nanoMIPS */
+#define _ASM_SET_XPA ""
+#else
 #ifndef TOOLCHAIN_SUPPORTS_XPA
 _ASM_MACRO_2R_1S(mfhc0, rt, rs, sel,
 	_ASM_INSN_IF_MIPS(0x40400000 | __rt << 16 | __rs << 11 | \\sel)
@@ -1518,7 +1522,8 @@ _ASM_MACRO_2R_1S(mthc0, rt, rd, sel,
 #define _ASM_SET_XPA ""
 #else	/* !TOOLCHAIN_SUPPORTS_XPA */
 #define _ASM_SET_XPA ".set\txpa\n\t"
-#endif
+#endif /* !TOOLCHAIN_SUPPORTS_XPA */
+#endif /* CONFIG_CPU_NANOMIPS */
 
 #define __readx_32bit_c0_register(source, sel)				\
 ({									\
