@@ -64,6 +64,100 @@ static struct gic_all_vpes_chip_data {
 	bool	mask;
 } gic_all_vpes_chip_data[GIC_NUM_LOCAL_INTRS];
 
+static int __gic_with_next_online_cpu(int prev)
+{
+	unsigned int cpu;
+
+	/*
+	 * Unlock access to the previous CPU's GIC local register block.
+	 *
+	 * Delegate to the CM locking code in the multi-cluster case, since
+	 * other clusters can only be accessed using GCR_CL_REDIRECT.
+	 *
+	 * In the single cluster case we don't need to do anything; the caller
+	 * is responsible for maintaining gic_lock & nothing should be
+	 * expecting any particular value of GIC_VL_OTHER so we can leave it
+	 * as-is.
+	 */
+	if ((prev != -1) && (mips_cps_numclusters() > 1))
+		mips_cm_unlock_other();
+
+	/* Discover the next online CPU */
+	cpu = cpumask_next(prev, cpu_online_mask);
+
+	/* If there isn't one, we're done */
+	if (cpu >= nr_cpu_ids)
+		return cpu;
+
+	/*
+	 * Lock access to the next CPU's GIC local register block.
+	 *
+	 * Delegate to the CM locking code in the multi-cluster case, since
+	 * other clusters can only be accessed using GCR_CL_REDIRECT.
+	 *
+	 * In the single cluster case we simply set GIC_VL_OTHER. The caller
+	 * holds gic_lock so nothing can clobber the value we write.
+	 */
+	if (mips_cps_numclusters() > 1)
+		mips_cm_lock_other_cpu(cpu, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
+	else
+		write_gic_vl_other(mips_cm_vp_id(cpu));
+
+	return cpu;
+}
+
+/**
+ * gic_with_each_online_cpu() - Iterate over online CPUs, access local registers
+ * @cpu: An integer variable to hold the current CPU number
+ *
+ * Iterate over online CPUs & configure the other/redirect register region to
+ * access each CPUs GIC local register block, which can be accessed from the
+ * loop body using read_gic_vo_*() or write_gic_vo_*() accessor functions or
+ * their derivatives.
+ *
+ * The caller must hold gic_lock throughout the loop, such that GIC_VL_OTHER
+ * cannot be clobbered.
+ */
+#define gic_with_each_online_cpu(cpu)			\
+	for ((cpu) = -1;				\
+	     (cpu) = __gic_with_next_online_cpu(cpu),	\
+	     (cpu) < nr_cpu_ids;)
+
+static int __gic_with_next_online_cluster(int prev_cl, int *cpu, bool self)
+{
+	int cl, local_cl;
+
+	local_cl = cpu_cluster(&current_cpu_data);
+
+	if (prev_cl != -1)
+		mips_cm_unlock_other();
+
+	do {
+		/* Discover the next online CPU */
+		*cpu = cpumask_next(*cpu, cpu_online_mask);
+
+		/* If there isn't one, we're done */
+		if (*cpu >= nr_cpu_ids)
+			return -1;
+
+		cl = cpu_cluster(&cpu_data[*cpu]);
+	} while (cl == prev_cl || (!self && (cl == local_cl)));
+
+	mips_cm_lock_other(cl, 0, 0, CM_GCR_Cx_OTHER_BLOCK_GLOBAL);
+
+	return cl;
+}
+
+#define gic_with_each_online_cluster(cl, tmp)				\
+	for ((cl) = (tmp) = -1;						\
+	     (cl) = __gic_with_next_online_cluster((cl), &(tmp), true),	\
+	     (tmp) < nr_cpu_ids;)
+
+#define gic_with_each_other_online_cluster(cl, tmp)			\
+	for ((cl) = (tmp) = -1;						\
+	     (cl) = __gic_with_next_online_cluster((cl), &(tmp), false),\
+	     (tmp) < nr_cpu_ids;)
+
 static void gic_clear_pcpu_masks(unsigned int intr)
 {
 	unsigned int i;
@@ -109,8 +203,19 @@ static void gic_bind_eic_interrupt(int irq, int set)
 static void gic_send_ipi(struct irq_data *d, unsigned int cpu)
 {
 	irq_hw_number_t hwirq = GIC_HWIRQ_TO_SHARED(irqd_to_hwirq(d));
+	unsigned int cl;
 
-	write_gic_wedge(GIC_WEDGE_RW | hwirq);
+	cl = cpu_cluster(&cpu_data[cpu]);
+
+	/* Within the local cluster trivially write to the WEDGE register */
+	if (cpu_cluster(&current_cpu_data) == cl) {
+		write_gic_wedge(GIC_WEDGE_RW | hwirq);
+		return;
+	}
+
+	mips_cm_lock_other(cl, 0, 0, CM_GCR_Cx_OTHER_BLOCK_GLOBAL);
+	write_gic_redir_wedge(GIC_WEDGE_RW | hwirq);
+	mips_cm_unlock_other();
 }
 
 int gic_get_c0_compare_int(void)
@@ -177,8 +282,12 @@ static void gic_handle_shared_int(bool chained)
 static void gic_mask_irq(struct irq_data *d)
 {
 	unsigned int intr = GIC_HWIRQ_TO_SHARED(d->hwirq);
+	int cl, tmp;
 
 	write_gic_rmask(intr);
+	gic_with_each_other_online_cluster(cl, tmp)
+		write_gic_redir_rmask(intr);
+
 	gic_clear_pcpu_masks(intr);
 }
 
@@ -186,8 +295,11 @@ static void gic_unmask_irq(struct irq_data *d)
 {
 	unsigned int intr = GIC_HWIRQ_TO_SHARED(d->hwirq);
 	unsigned int cpu;
+	int cl, tmp;
 
 	write_gic_smask(intr);
+	gic_with_each_other_online_cluster(cl, tmp)
+		write_gic_redir_smask(intr);
 
 	gic_clear_pcpu_masks(intr);
 	cpu = cpumask_first(irq_data_get_effective_affinity_mask(d));
@@ -197,50 +309,66 @@ static void gic_unmask_irq(struct irq_data *d)
 static void gic_ack_irq(struct irq_data *d)
 {
 	unsigned int irq = GIC_HWIRQ_TO_SHARED(d->hwirq);
+	int cl, tmp;
 
 	write_gic_wedge(irq);
+	gic_with_each_other_online_cluster(cl, tmp)
+		write_gic_redir_wedge(irq);
+}
+
+static void gic_calc_type(unsigned int type, unsigned int *pol,
+			  unsigned int *trig, unsigned int *dual)
+{
+	switch (type & IRQ_TYPE_SENSE_MASK) {
+	case IRQ_TYPE_EDGE_FALLING:
+		*pol = GIC_POL_FALLING_EDGE;
+		*trig = GIC_TRIG_EDGE;
+		*dual = GIC_DUAL_SINGLE;
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+		*pol = GIC_POL_RISING_EDGE;
+		*trig = GIC_TRIG_EDGE;
+		*dual = GIC_DUAL_SINGLE;
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		*pol = 0; /* Doesn't matter */
+		*trig = GIC_TRIG_EDGE;
+		*dual = GIC_DUAL_DUAL;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		*pol = GIC_POL_ACTIVE_LOW;
+		*trig = GIC_TRIG_LEVEL;
+		*dual = GIC_DUAL_SINGLE;
+		break;
+	case IRQ_TYPE_LEVEL_HIGH:
+	default:
+		*pol = GIC_POL_ACTIVE_HIGH;
+		*trig = GIC_TRIG_LEVEL;
+		*dual = GIC_DUAL_SINGLE;
+		break;
+	}
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
 {
 	unsigned int irq, pol, trig, dual;
 	unsigned long flags;
+	int cl, tmp;
 
 	irq = GIC_HWIRQ_TO_SHARED(d->hwirq);
+	gic_calc_type(type, &pol, &trig, &dual);
 
 	spin_lock_irqsave(&gic_lock, flags);
-	switch (type & IRQ_TYPE_SENSE_MASK) {
-	case IRQ_TYPE_EDGE_FALLING:
-		pol = GIC_POL_FALLING_EDGE;
-		trig = GIC_TRIG_EDGE;
-		dual = GIC_DUAL_SINGLE;
-		break;
-	case IRQ_TYPE_EDGE_RISING:
-		pol = GIC_POL_RISING_EDGE;
-		trig = GIC_TRIG_EDGE;
-		dual = GIC_DUAL_SINGLE;
-		break;
-	case IRQ_TYPE_EDGE_BOTH:
-		pol = 0; /* Doesn't matter */
-		trig = GIC_TRIG_EDGE;
-		dual = GIC_DUAL_DUAL;
-		break;
-	case IRQ_TYPE_LEVEL_LOW:
-		pol = GIC_POL_ACTIVE_LOW;
-		trig = GIC_TRIG_LEVEL;
-		dual = GIC_DUAL_SINGLE;
-		break;
-	case IRQ_TYPE_LEVEL_HIGH:
-	default:
-		pol = GIC_POL_ACTIVE_HIGH;
-		trig = GIC_TRIG_LEVEL;
-		dual = GIC_DUAL_SINGLE;
-		break;
-	}
 
 	change_gic_pol(irq, pol);
 	change_gic_trig(irq, trig);
 	change_gic_dual(irq, dual);
+
+	gic_with_each_other_online_cluster(cl, tmp) {
+		change_gic_redir_pol(irq, pol);
+		change_gic_redir_trig(irq, trig);
+		change_gic_redir_dual(irq, dual);
+	}
 
 	if (trig == GIC_TRIG_EDGE)
 		irq_set_chip_handler_name_locked(d, &gic_edge_irq_controller,
@@ -251,6 +379,38 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return 0;
+}
+
+static void gic_shared_irq_map_vp_pin(unsigned int intr, unsigned int cpu)
+{
+	int tgt_cl, cl, tmp;
+
+	/*
+	 * In single cluster systems this is simple - we can just configure the
+	 * local cluster knowing it's the only one.
+	 */
+	if (!mips_cps_multicluster_cpus()) {
+		write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | shared_cpu_pin);
+		write_gic_map_vp(intr, BIT(mips_cm_vp_id(cpu)));
+		return;
+	}
+
+	/*
+	 * Otherwise in multi-cluster systems we map the interrupt in the
+	 * cluster the target CPU belongs to, and clear its map registers in
+	 * others.
+	 */
+	tgt_cl = cpu_cluster(&cpu_data[cpu]);
+	gic_with_each_online_cluster(cl, tmp) {
+		if (cl != tgt_cl) {
+			write_gic_redir_map_pin(intr, 0);
+			write_gic_redir_map_vp(intr, 0);
+			continue;
+		}
+
+		write_gic_redir_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | shared_cpu_pin);
+		write_gic_redir_map_vp(intr, BIT(mips_cm_vp_id(cpu)));
+	}
 }
 
 #ifdef CONFIG_SMP
@@ -269,7 +429,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	spin_lock_irqsave(&gic_lock, flags);
 
 	/* Re-route this IRQ */
-	write_gic_map_vp(irq, BIT(mips_cm_vp_id(cpu)));
+	gic_shared_irq_map_vp_pin(irq, cpu);
 
 	/* Update the pcpu_masks */
 	gic_clear_pcpu_masks(irq);
@@ -281,28 +441,66 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 
 	return IRQ_SET_MASK_OK;
 }
+
+static void gic_shared_irq_cpu_online(struct irq_data *d)
+{
+	unsigned int intr, pol, trig, dual, tgt_cpu, tgt_cl;
+
+	/*
+	 * We only need to configure the GIC if this is the first CPU to be
+	 * brought online in its cluster - ie. if the local GIC could have lost
+	 * state due to being powered down.
+	 */
+	if (!mips_cps_first_online_in_cluster())
+		return;
+
+	intr = GIC_HWIRQ_TO_SHARED(d->hwirq);
+
+	/* Configure the interrupt trigger type */
+	gic_calc_type(irqd_get_trigger_type(d), &pol, &trig, &dual);
+	change_gic_pol(intr, pol);
+	change_gic_trig(intr, trig);
+	change_gic_dual(intr, dual);
+
+	/* Map the interrupt if it targets a CPU in this cluster */
+	tgt_cpu = cpumask_first(irq_data_get_effective_affinity_mask(d));
+	tgt_cl = cpu_cluster(&cpu_data[tgt_cpu]);
+	if (tgt_cl == cpu_cluster(&current_cpu_data)) {
+		write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | shared_cpu_pin);
+		write_gic_map_vp(intr, BIT(mips_cm_vp_id(tgt_cpu)));
+	} else {
+		write_gic_map_pin(intr, 0);
+		write_gic_map_vp(intr, 0);
+	}
+
+	/* Set GIC mask bit (enable it) if IRQ is unmasked */
+	if (!irqd_irq_masked(d))
+		write_gic_smask(intr);
+}
 #endif
 
 static struct irq_chip gic_level_irq_controller = {
-	.name			=	"MIPS GIC",
-	.irq_mask		=	gic_mask_irq,
-	.irq_unmask		=	gic_unmask_irq,
-	.irq_set_type		=	gic_set_type,
+	.name			= "MIPS GIC",
+	.irq_mask		= gic_mask_irq,
+	.irq_unmask		= gic_unmask_irq,
+	.irq_set_type		= gic_set_type,
 #ifdef CONFIG_SMP
-	.irq_set_affinity	=	gic_set_affinity,
+	.irq_set_affinity	= gic_set_affinity,
+	.irq_cpu_online		= gic_shared_irq_cpu_online,
 #endif
 };
 
 static struct irq_chip gic_edge_irq_controller = {
-	.name			=	"MIPS GIC",
-	.irq_ack		=	gic_ack_irq,
-	.irq_mask		=	gic_mask_irq,
-	.irq_unmask		=	gic_unmask_irq,
-	.irq_set_type		=	gic_set_type,
+	.name			= "MIPS GIC",
+	.irq_ack		= gic_ack_irq,
+	.irq_mask		= gic_mask_irq,
+	.irq_unmask		= gic_unmask_irq,
+	.irq_set_type		= gic_set_type,
 #ifdef CONFIG_SMP
-	.irq_set_affinity	=	gic_set_affinity,
+	.irq_set_affinity	= gic_set_affinity,
+	.irq_cpu_online		= gic_shared_irq_cpu_online,
 #endif
-	.ipi_send_single	=	gic_send_ipi,
+	.ipi_send_single	= gic_send_ipi,
 };
 
 static void gic_handle_local_int(bool chained)
@@ -356,10 +554,8 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 	cd->mask = false;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	for_each_online_cpu(cpu) {
-		write_gic_vl_other(mips_cm_vp_id(cpu));
+	gic_with_each_online_cpu(cpu)
 		write_gic_vo_rmask(BIT(intr));
-	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 }
 
@@ -374,10 +570,8 @@ static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 	cd->mask = true;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	for_each_online_cpu(cpu) {
-		write_gic_vl_other(mips_cm_vp_id(cpu));
+	gic_with_each_online_cpu(cpu)
 		write_gic_vo_smask(BIT(intr));
-	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 }
 
@@ -427,8 +621,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	data = irq_get_irq_data(virq);
 
 	spin_lock_irqsave(&gic_lock, flags);
-	write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | shared_cpu_pin);
-	write_gic_map_vp(intr, BIT(mips_cm_vp_id(cpu)));
+	gic_shared_irq_map_vp_pin(intr, cpu);
 	irq_data_update_effective_affinity(data, cpumask_of(cpu));
 	spin_unlock_irqrestore(&gic_lock, flags);
 
@@ -520,10 +713,8 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 		return -EPERM;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	for_each_online_cpu(cpu) {
-		write_gic_vl_other(mips_cm_vp_id(cpu));
+	gic_with_each_online_cpu(cpu)
 		write_gic_vo_map(mips_gic_vx_map_reg(intr), map);
-	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return 0;
@@ -660,6 +851,21 @@ static const struct irq_domain_ops gic_ipi_domain_ops = {
 
 static int gic_cpu_startup(unsigned int cpu)
 {
+	int i;
+
+	/*
+	 * If this CPU is the first in its cluster to come online then
+	 * initialise the local cluster's GIC shared registers to sane default
+	 * values.
+	 */
+	if (mips_cps_first_online_in_cluster()) {
+		for (i = 0; i < gic_shared_intrs; i++) {
+			change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
+			change_gic_trig(i, GIC_TRIG_LEVEL);
+			write_gic_rmask(i);
+		}
+	}
+
 	/* Enable or disable EIC */
 	change_gic_vl_ctl(GIC_VX_CTL_EIC,
 			  cpu_has_veic ? GIC_VX_CTL_EIC : 0);
@@ -802,13 +1008,6 @@ static int __init gic_of_init(struct device_node *node,
 	bitmap_copy(ipi_available, ipi_resrv, GIC_MAX_INTRS);
 
 	board_bind_eic_interrupt = &gic_bind_eic_interrupt;
-
-	/* Setup defaults */
-	for (i = 0; i < gic_shared_intrs; i++) {
-		change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
-		change_gic_trig(i, GIC_TRIG_LEVEL);
-		write_gic_rmask(i);
-	}
 
 	return cpuhp_setup_state(CPUHP_AP_IRQ_MIPS_GIC_STARTING,
 				 "irqchip/mips/gic:starting",
