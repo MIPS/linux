@@ -294,15 +294,13 @@ static inline int __init relocation_addr_valid(void *loc_new)
 	return 1;
 }
 
-void *__init relocate_kernel(void)
+int __init relocate_kernel(void)
 {
 	void *loc_new;
 	unsigned long kernel_length;
 	unsigned long bss_length;
 	long offset = 0;
 	int res = 1;
-	/* Default to original kernel entry point */
-	void *kernel_entry = start_kernel;
 	void *fdt = NULL;
 
 	/* Get the command line */
@@ -359,14 +357,14 @@ void *__init relocate_kernel(void)
 		/* Perform relocations on the new kernel */
 		res = do_relocations(&_text, loc_new, offset);
 		if (res < 0)
-			goto out;
+			return 0;
 
 		/* Sync the caches ready for execution of new kernel */
 		sync_icache(loc_new, kernel_length);
 
 		res = relocate_exception_table(offset);
 		if (res < 0)
-			goto out;
+			return 0;
 
 		/*
 		 * The original .bss has already been cleared, and
@@ -390,16 +388,10 @@ void *__init relocate_kernel(void)
 		 * resident in memory and ready to be executed.
 		 */
 		if (plat_post_relocation(offset))
-			goto out;
-
-		/* The current thread is now within the relocated image */
-		__current_thread_info = RELOCATED(&init_thread_union);
-
-		/* Return the new kernel's entry point */
-		kernel_entry = RELOCATED(start_kernel);
+			return 0;
 	}
-out:
-	return kernel_entry;
+
+	return offset;
 }
 
 /*

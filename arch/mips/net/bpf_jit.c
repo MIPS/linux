@@ -234,6 +234,12 @@ static inline void emit_andi(unsigned int dst, unsigned int src,
 	}
 }
 
+static inline void emit_mfc0(unsigned int dst, unsigned int reg,
+			     unsigned int select, struct jit_ctx *ctx)
+{
+	emit_instr(ctx, mfc0, dst, reg, select);
+}
+
 static inline void emit_xor(unsigned int dst, unsigned int src1,
 			    unsigned int src2, struct jit_ctx *ctx)
 {
@@ -516,6 +522,13 @@ static inline void emit_jalr(unsigned int link, unsigned int reg,
 static inline void emit_jr(unsigned int reg, struct jit_ctx *ctx)
 {
 	emit_instr(ctx, jr, reg);
+}
+
+static inline void emit_load_cpu(unsigned int reg, struct jit_ctx *ctx)
+{
+	/* A = smp_processor_id() */
+	emit_mfc0(reg, SMP_CPUID_REG, ctx);
+	emit_srl(reg, reg, SMP_CPUID_REGSHIFT, ctx);
 }
 
 static inline u16 align_sp(unsigned int num)
@@ -1115,14 +1128,9 @@ jmp_cmp:
 			}
 #endif
 			break;
-		case BPF_ANC | SKF_AD_CPU:
-			ctx->flags |= SEEN_A | SEEN_OFF;
-			/* A = current_thread_info()->cpu */
-			BUILD_BUG_ON(FIELD_SIZEOF(struct thread_info,
-						  cpu) != 4);
-			off = offsetof(struct thread_info, cpu);
-			/* $28/gp points to the thread_info struct */
-			emit_load(r_A, 28, off, ctx);
+		case BPF_ANC |  SKF_AD_CPU:
+			ctx->flags |= SEEN_A;
+			emit_load_cpu(r_A, ctx);
 			break;
 		case BPF_ANC | SKF_AD_IFINDEX:
 			/* A = skb->dev->ifindex */

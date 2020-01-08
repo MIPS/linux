@@ -581,12 +581,10 @@ docheck:
 
 isrdhwr:
 	/* The insn is rdhwr.  No need to check CAUSE.BD here. */
-	get_saved_sp	/* k1 := current_thread_info */
+	get_saved_ti	k1, k0
 	.set	noreorder
 	MFC0	k0, CP0_EPC
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
-	ori	k1, _THREAD_MASK
-	xori	k1, _THREAD_MASK
 	LONG_L	v1, TI_TP_VALUE(k1)
 	LONG_ADDIU	k0, 4
 	jr	k0
@@ -601,8 +599,8 @@ isrdhwr:
 #endif
 	MTC0	k0, CP0_EPC
 	/* I hope three instructions between MTC0 and ERET are enough... */
-	ori	k1, _THREAD_MASK
-	xori	k1, _THREAD_MASK
+	nop
+	nop
 	LONG_L	v1, TI_TP_VALUE(k1)
 	.set	arch=r4000
 	eret
