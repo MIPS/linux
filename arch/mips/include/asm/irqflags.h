@@ -63,15 +63,14 @@ static inline void arch_local_irq_restore(unsigned long flags)
 
 	__asm__ __volatile__(
 	"	.set	push						\n"
-	"	.set	noreorder					\n"
 	"	.set	noat						\n"
 #if defined(CONFIG_IRQ_MIPS_CPU)
 	/*
 	 * Slow, but doesn't suffer from a relatively unlikely race
 	 * condition we're having since days 1.
 	 */
-	"	beqz	%[flags], 1f					\n"
 	"	di							\n"
+	"	beqz	%[flags], 1f					\n"
 	"	ei							\n"
 	"1:								\n"
 #else

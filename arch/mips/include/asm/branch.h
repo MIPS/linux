@@ -17,6 +17,7 @@ extern int __isa_exception_epc(struct pt_regs *regs);
 extern int __compute_return_epc(struct pt_regs *regs);
 extern int __compute_return_epc_for_insn(struct pt_regs *regs,
 					 union mips_instruction insn);
+extern int __nanoMIPS_compute_return_epc(struct pt_regs *regs);
 extern int __microMIPS_compute_return_epc(struct pt_regs *regs);
 extern int __MIPS16e_compute_return_epc(struct pt_regs *regs);
 
@@ -39,19 +40,25 @@ static inline int mm_isBranchInstr(struct pt_regs *regs,
 	return __mm_isBranchInstr(regs, dec_insn, contpc);
 }
 
+/* nanoMIPS doesn't have delay slots */
+
 static inline int delay_slot(struct pt_regs *regs)
 {
+	if (cpu_has_nanomips)
+		return 0;
 	return regs->cp0_cause & CAUSEF_BD;
 }
 
 static inline void clear_delay_slot(struct pt_regs *regs)
 {
-	regs->cp0_cause &= ~CAUSEF_BD;
+	if (!cpu_has_nanomips)
+		regs->cp0_cause &= ~CAUSEF_BD;
 }
 
 static inline void set_delay_slot(struct pt_regs *regs)
 {
-	regs->cp0_cause |= CAUSEF_BD;
+	if (!cpu_has_nanomips)
+		regs->cp0_cause |= CAUSEF_BD;
 }
 
 static inline unsigned long exception_epc(struct pt_regs *regs)
@@ -59,6 +66,7 @@ static inline unsigned long exception_epc(struct pt_regs *regs)
 	if (likely(!delay_slot(regs)))
 		return regs->cp0_epc;
 
+	WARN_ON(cpu_has_nanomips);
 	if (get_isa16_mode(regs->cp0_epc))
 		return __isa_exception_epc(regs);
 
@@ -70,6 +78,8 @@ static inline unsigned long exception_epc(struct pt_regs *regs)
 static inline int compute_return_epc(struct pt_regs *regs)
 {
 	if (get_isa16_mode(regs->cp0_epc)) {
+		if (cpu_has_nanomips)
+			return __nanoMIPS_compute_return_epc(regs);
 		if (cpu_has_mmips)
 			return __microMIPS_compute_return_epc(regs);
 		if (cpu_has_mips16)

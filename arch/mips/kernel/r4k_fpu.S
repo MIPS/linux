@@ -27,6 +27,7 @@
 	.macro	EX insn, reg, src
 	.set	push
 	SET_HARDFLOAT
+	.set	noreorder
 	.set	nomacro
 .ex\@:	\insn	\reg, \src
 	.set	pop
@@ -165,7 +166,8 @@ LEAF(_init_fpu)
 	mtc1	t1, $f30
 	mtc1	t1, $f31
 
-#if defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS32_R6)
+#if defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS32_R6) || \
+    defined(CONFIG_CPU_NANOMIPS32_R6)
 	.set    push
 	.set    MIPS_ISA_LEVEL_RAW
 	.set	fp=64
@@ -205,7 +207,8 @@ LEAF(_init_fpu)
 	mthc1   t1, $f30
 	mthc1   t1, $f31
 1:	.set    pop
-#endif /* CONFIG_CPU_MIPS32_R2 || CONFIG_CPU_MIPS32_R6 */
+#endif /* CONFIG_CPU_MIPS32_R2 || CONFIG_CPU_MIPS32_R6 ||
+	  CONFIG_CPU_NANOMIPS32_R6 */
 #else
 	.set	MIPS_ISA_ARCH_LEVEL_RAW
 	dmtc1	t1, $f0
@@ -229,8 +232,6 @@ LEAF(_init_fpu)
 	END(_init_fpu)
 
 	.set pop	/* SET_HARDFLOAT */
-
-	.set	noreorder
 
 /**
  * _save_fp_context() - save FP context from the FPU
@@ -256,7 +257,6 @@ LEAF(_save_fp_context)
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip storing odd if FR=0
-	 nop
 #endif
 	/* Store the 16 odd double precision registers */
 	EX	sdc1 $f1, 8(a0)
@@ -298,8 +298,8 @@ LEAF(_save_fp_context)
 	EX	sdc1 $f28, 224(a0)
 	EX	sdc1 $f30, 240(a0)
 	EX	sw t1, 0(a1)
+	li	v0, 0					# success
 	jr	ra
-	 li	v0, 0					# success
 	.set pop
 	END(_save_fp_context)
 
@@ -324,7 +324,6 @@ LEAF(_restore_fp_context)
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip loading odd if FR=0
-	 nop
 #endif
 	EX	ldc1 $f1, 8(a0)
 	EX	ldc1 $f3, 24(a0)
@@ -364,8 +363,8 @@ LEAF(_restore_fp_context)
 	EX	ldc1 $f30, 240(a0)
 	ctc1	t1, fcr31
 	.set pop
+	li	v0, 0					# success
 	jr	ra
-	 li	v0, 0					# success
 	END(_restore_fp_context)
 
 #ifdef CONFIG_CPU_HAS_MSA
@@ -385,7 +384,7 @@ LEAF(\name)
 	PTR_LA		t1, 0f
 	PTR_ADDU	t0, t0, t1
 	jr		t0
-	  nop
+	 nop
 	op_one_wr	\op, 0, a1
 	op_one_wr	\op, 1, a1
 	op_one_wr	\op, 2, a1
@@ -489,8 +488,8 @@ LEAF(_save_msa_all_upper)
 	save_msa_upper	29, 0xe8, a0
 	save_msa_upper	30, 0xf0, a0
 	save_msa_upper	31, 0xf8, a0
+	li	v0, 0
 	jr	ra
-	 li	v0, 0
 	END(_save_msa_all_upper)
 
 	.macro	restore_msa_upper	wr, off, base
@@ -546,13 +545,11 @@ LEAF(_restore_msa_all_upper)
 	restore_msa_upper	29, 0xe8, a0
 	restore_msa_upper	30, 0xf0, a0
 	restore_msa_upper	31, 0xf8, a0
+	li	v0, 0
 	jr	ra
-	 li	v0, 0
 	END(_restore_msa_all_upper)
 
 #endif /* CONFIG_CPU_HAS_MSA */
-
-	.set	reorder
 
 	.type	fault, @function
 	.ent	fault

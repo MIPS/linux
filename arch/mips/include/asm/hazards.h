@@ -16,8 +16,13 @@
 #define ___ssnop							\
 	sll	$0, $0, 1
 
+#ifdef CONFIG_CPU_NANOMIPS
+#define ___ehb								\
+	ehb
+#else
 #define ___ehb								\
 	sll	$0, $0, 3
+#endif
 
 /*
  * TLB hazards
@@ -53,6 +58,15 @@
 #define __back_to_back_c0_hazard					\
 	___ehb
 
+#ifdef CC_HAVE_ASM_GOTO
+#define instruction_hazard() do {					\
+	void *tgt = &&l_done;						\
+	asm_volatile_goto("jr.hb\t%0" :: "r"(tgt) :: l_done);		\
+	unreachable();							\
+l_done:									\
+	(void)0;							\
+} while (0)
+#else
 /*
  * gcc has a tradition of misscompiling the previous construct using the
  * address of a label as argument to inline assembler.	Gas otoh has the
@@ -66,13 +80,15 @@ do {									\
 	unsigned long tmp;						\
 									\
 	__asm__ __volatile__(						\
+	"	.set push					\n"	\
 	"	.set "MIPS_ISA_LEVEL"				\n"	\
 	"	dla	%0, 1f					\n"	\
 	"	jr.hb	%0					\n"	\
-	"	.set	mips0					\n"	\
+	"	.set	pop					\n"	\
 	"1:							\n"	\
 	: "=r" (tmp));							\
 } while (0)
+#endif
 
 #elif (defined(CONFIG_CPU_MIPSR1) && !defined(CONFIG_MIPS_ALCHEMY)) || \
 	defined(CONFIG_CPU_BMIPS)

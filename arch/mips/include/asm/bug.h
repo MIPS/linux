@@ -69,7 +69,7 @@ static inline void __noreturn BUG(void)
 
 static inline void  __BUG_ON(unsigned long condition)
 {
-	if (__builtin_constant_p(condition)) {
+	if (__builtin_constant_p(condition) || IS_ENABLED(CONFIG_CPU_NANOMIPS)) {
 		if (condition)
 			BUG();
 		else

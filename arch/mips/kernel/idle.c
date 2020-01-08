@@ -64,10 +64,10 @@ void r4k_wait_irqoff(void)
 {
 	if (!need_resched())
 		__asm__(
-		"	.set	push		\n"
-		"	.set	arch=r4000	\n"
-		"	wait			\n"
-		"	.set	pop		\n");
+		"	.set	push			\n"
+		"	.set	" MIPS_ISA_LEVEL "	\n"
+		"	wait				\n"
+		"	.set	pop			\n");
 	local_irq_enable();
 }
 
@@ -80,13 +80,13 @@ static void rm7k_wait_irqoff(void)
 	if (!need_resched())
 		__asm__(
 		"	.set	push					\n"
-		"	.set	arch=r4000				\n"
+		"	.set	" MIPS_ISA_LEVEL "			\n"
 		"	.set	noat					\n"
-		"	mfc0	$1, $12					\n"
+		"	mfc0	$at, $12				\n"
 		"	sync						\n"
-		"	mtc0	$1, $12		# stalls until W stage	\n"
+		"	mtc0	$at, $12	# stalls until W stage	\n"
 		"	wait						\n"
-		"	mtc0	$1, $12		# stalls until W stage	\n"
+		"	mtc0	$at, $12	# stalls until W stage	\n"
 		"	.set	pop					\n");
 	local_irq_enable();
 }
@@ -101,7 +101,8 @@ static void au1k_wait(void)
 	unsigned long c0status = read_c0_status() | 1;	/* irqs on */
 
 	__asm__(
-	"	.set	arch=r4000			\n"
+	"	.set	push			\n"
+	"	.set	" MIPS_ISA_LEVEL "	\n"
 	"	cache	0x14, 0(%0)		\n"
 	"	cache	0x14, 32(%0)		\n"
 	"	sync				\n"
@@ -111,7 +112,7 @@ static void au1k_wait(void)
 	"	nop				\n"
 	"	nop				\n"
 	"	nop				\n"
-	"	.set	mips0			\n"
+	"	.set	pop			\n"
 	: : "r" (au1k_wait), "r" (c0status));
 }
 

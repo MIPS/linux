@@ -9,9 +9,26 @@
 #ifndef _UAPI_ASM_ERRNO_H
 #define _UAPI_ASM_ERRNO_H
 
+#include <asm/sgidefs.h>
+
+/*
+ * P32 uses the standard generic error numbering, contrary to the older ABIs
+ * below.
+ */
+
+#if (_MIPS_SIM == _MIPS_SIM_PABI32)
+
+#include <asm-generic/errno.h>
+
+#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
+
 /*
  * These error numbers are intended to be MIPS ABI compatible
  */
+
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
 
 #include <asm-generic/errno-base.h>
 
@@ -126,5 +143,6 @@
 
 #define EDQUOT		1133	/* Quota exceeded */
 
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
 
 #endif /* _UAPI_ASM_ERRNO_H */

@@ -512,6 +512,22 @@ config MIPS_ITC
 	  Enable this to expose the Inter-Thread Communication unit provided by
 	  some MIPS systems to userland via sysfs.
 
+config MIPS_I7200_SPRAM
+	bool "MIPS I7200 SPRAM driver"
+	depends on MIPS && CPU_NANOMIPS
+	default y
+	help
+	  Enable this to expose the scratchpad RAMs found in the MIPS I7200 to
+	  userland.
+
+config MIPS_UNCACHED_MEMORY
+	bool "MIPS uncached memory passthrough driver"
+	depends on MIPS
+	default y
+	help
+	  Enable this to expose some DDR memory with an uncached CCA to
+	  userland via sysfs.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

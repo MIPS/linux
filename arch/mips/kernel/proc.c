@@ -140,6 +140,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "%s", " mips64r2");
 	if (cpu_has_mips64r6)
 		seq_printf(m, "%s", " mips64r6");
+	if (cpu_has_nanomips32r6)
+		seq_printf(m, "%s", " nanomips32r6");
 	seq_printf(m, "\n");
 
 	seq_printf(m, "ASEs implemented\t:");

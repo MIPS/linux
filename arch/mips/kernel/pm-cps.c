@@ -346,6 +346,19 @@ static void cps_gen_set_top_bit(u32 **pp, struct uasm_label **pl,
 	uasm_i_nop(pp);
 }
 
+#ifdef CONFIG_CPU_NANOMIPS
+
+extern unsigned nanomips_cps_nc_entry_fn_2(unsigned online, u32 *nc_ready_count);
+
+cps_nc_entry_fn nanomips_cps_nc_entry_fns[CPS_PM_STATE_COUNT] =
+{
+	NULL,
+	NULL,
+	nanomips_cps_nc_entry_fn_2
+};
+
+#endif
+
 static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 {
 	struct uasm_label *l = labels;
@@ -370,6 +383,11 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		lbl_secondary_cont,
 		lbl_decready,
 	};
+
+#ifdef CONFIG_CPU_NANOMIPS
+	/* Use hardcoded entry function for now */
+	return nanomips_cps_nc_entry_fns[state];
+#endif
 
 	/* Allocate a buffer to hold the generated code */
 	p = buf = kcalloc(max_instrs, sizeof(u32), GFP_KERNEL);

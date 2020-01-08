@@ -117,7 +117,7 @@ static inline bool FUNC(get_symbols)(const char *path, void *vdso)
 	ELF(Shdr) *shdr;
 	const ELF(Sym) *sym;
 	char *strtab, *name;
-	uint16_t sh_count, sh_entsize, st_count, st_entsize, i, j;
+	uint16_t sh_count, sh_entsize, st_count, st_entsize, i, j, mach;
 	uint64_t offset;
 	uint32_t flags;
 
@@ -139,8 +139,11 @@ static inline bool FUNC(get_symbols)(const char *path, void *vdso)
 	}
 
 	/* Get flags */
+	mach = swap_uint16(ehdr->e_machine);
 	flags = swap_uint32(ehdr->e_flags);
-	if (elf_class == ELFCLASS64)
+	if (mach == EM_NANOMIPS)
+		elf_abi = ABI_P32;
+	else if (elf_class == ELFCLASS64)
 		elf_abi = ABI_N64;
 	else if (flags & EF_MIPS_ABI2)
 		elf_abi = ABI_N32;

@@ -47,6 +47,7 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 {
 	unsigned long sp = regs->regs[29];
 #ifdef CONFIG_KALLSYMS
+	unsigned long fp = regs->regs[30];
 	unsigned long ra = regs->regs[31];
 	unsigned long pc = regs->cp0_epc;
 
@@ -62,7 +63,7 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 		perf_callchain_store(entry, pc);
 		if (entry->nr >= entry->max_stack)
 			break;
-		pc = unwind_stack(current, &sp, pc, &ra);
+		pc = unwind_stack(current, &sp, &fp, pc, &ra);
 	} while (pc);
 #else
 	save_raw_perf_callchain(entry, sp);

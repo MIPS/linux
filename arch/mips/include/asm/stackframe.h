@@ -17,6 +17,7 @@
 #include <asm/asmmacro.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
+#include <asm/sgidefs.h>
 #include <asm/thread_info.h>
 
 /* Make the addition of cfi info a little easier. */
@@ -123,7 +124,9 @@
 #elif !defined(CONFIG_CPU_MIPSR6)
 		mfhi	v1
 #endif
-#ifdef CONFIG_32BIT
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+		cfi_st	$3, PT_R3, \docfi
+#elif defined(CONFIG_32BIT)
 		cfi_st	$8, PT_R8, \docfi
 		cfi_st	$9, PT_R9, \docfi
 #endif
@@ -188,7 +191,12 @@
 		.macro	set_saved_ti ti temp
 		ASM_CPUID_MFC0	\temp, ASM_SMP_CPUID_REG
 		LONG_SRL	\temp, SMP_CPUID_PTRSHIFT
+#ifdef __nanomips__
+		addiu		\temp, \temp, thread_info_ptr
+		LONG_S		\ti, 0(\temp)
+#else
 		LONG_S		\ti, thread_info_ptr(\temp)
+#endif
 		.endm
 #else /* !CONFIG_SMP */
 		.macro	get_saved_ti out temp	/* Uniprocessor variation */
@@ -269,25 +277,27 @@
 		.endif
 		cfi_st	k0, PT_R29, \docfi
 		cfi_rel_offset  sp, PT_R29, \docfi
+#if _MIPS_SIM != _MIPS_SIM_PABI32
 		cfi_st	v1, PT_R3, \docfi
+#endif
 		/*
 		 * You might think that you don't need to save $0,
 		 * but the FPU emulator and gdb remote debug stub
 		 * need it to operate correctly
 		 */
 		LONG_S	$0, PT_R0(sp)
-		mfc0	v1, CP0_STATUS
-		cfi_st	v0, PT_R2, \docfi
-		LONG_S	v1, PT_STATUS(sp)
+		mfc0	k0, CP0_STATUS
+		cfi_st	$2, PT_R2, \docfi
+		LONG_S	k0, PT_STATUS(sp)
 		cfi_st	$4, PT_R4, \docfi
-		mfc0	v1, CP0_CAUSE
+		mfc0	k0, CP0_CAUSE
 		cfi_st	$5, PT_R5, \docfi
-		LONG_S	v1, PT_CAUSE(sp)
+		LONG_S	k0, PT_CAUSE(sp)
 		cfi_st	$6, PT_R6, \docfi
 		cfi_st	ra, PT_R31, \docfi
 		MFC0	ra, CP0_EPC
 		cfi_st	$7, PT_R7, \docfi
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) || (_MIPS_SIM == _MIPS_SIM_PABI32)
 		cfi_st	$8, PT_R8, \docfi
 		cfi_st	$9, PT_R9, \docfi
 #endif
@@ -340,7 +350,9 @@
 		LONG_L	$24, PT_HI(sp)
 		mthi	$24
 #endif
-#ifdef CONFIG_32BIT
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+		cfi_ld	$3, PT_R3, \docfi
+#elif defined(CONFIG_32BIT)
 		cfi_ld	$8, PT_R8, \docfi
 		cfi_ld	$9, PT_R9, \docfi
 #endif
@@ -406,6 +418,40 @@
 		jr	k0
 		 rfe
 		.set	pop
+		.endm
+
+#elif _MIPS_SIM == _MIPS_SIM_PABI32
+
+		.macro	RESTORE_SOME docfi=0
+		.set	push
+		.set	reorder
+		.set	noat
+		LONG_L	a2, PT_STATUS(sp)
+		mfc0	a0, CP0_STATUS
+		li	a1, ST0_CU1 | ST0_FR | ST0_IM
+		and	a0, a0, a1
+		or	a2, a2, a1
+		xor	a2, a2, a1
+		LONG_L	a1, PT_EPC(sp)
+		or	a2, a0
+		mtc0	a2, CP0_STATUS
+		MTC0	a1, CP0_EPC
+		cfi_ld	$31, PT_R31, \docfi
+		cfi_ld	$28, PT_R28, \docfi
+		cfi_ld	$25, PT_R25, \docfi
+		cfi_ld	$9,  PT_R9, \docfi
+		cfi_ld	$8,  PT_R8, \docfi
+		cfi_ld	$7,  PT_R7, \docfi
+		cfi_ld	$6,  PT_R6, \docfi
+		cfi_ld	$5,  PT_R5, \docfi
+		cfi_ld	$4,  PT_R4, \docfi
+		cfi_ld	$2,  PT_R2, \docfi
+		.set	pop
+		.endm
+
+		.macro	RESTORE_SP_AND_RET docfi=0
+		RESTORE_SP \docfi
+		eretnc
 		.endm
 
 #else

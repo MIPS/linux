@@ -38,6 +38,7 @@ static void save_context_stack(struct stack_trace *trace,
 {
 	unsigned long sp = regs->regs[29];
 #ifdef CONFIG_KALLSYMS
+	unsigned long fp = regs->regs[30];
 	unsigned long ra = regs->regs[31];
 	unsigned long pc = regs->cp0_epc;
 
@@ -58,7 +59,7 @@ static void save_context_stack(struct stack_trace *trace,
 			if (trace->nr_entries >= trace->max_entries)
 				break;
 		}
-		pc = unwind_stack(tsk, &sp, pc, &ra);
+		pc = unwind_stack(tsk, &sp, &fp, pc, &ra);
 	} while (pc);
 #else
 	save_raw_context_stack(trace, sp, savesched);
@@ -86,6 +87,7 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 
 	if (tsk != current) {
 		regs->regs[29] = tsk->thread.reg29;
+		regs->regs[30] = tsk->thread.reg30;
 		regs->regs[31] = 0;
 		regs->cp0_epc = tsk->thread.reg31;
 	} else

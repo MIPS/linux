@@ -49,6 +49,9 @@
 #define EF_MIPS_ABI		0x0000f000
 #define EF_MIPS_ARCH		0xf0000000
 
+#define EF_NANOMIPS_ABI		0x0000f000
+#define EF_NANOMIPS_ABI_P32	0x00001000
+
 #define DT_MIPS_RLD_VERSION	0x70000001
 #define DT_MIPS_TIME_STAMP	0x70000002
 #define DT_MIPS_ICHECKSUM	0x70000003
@@ -94,6 +97,17 @@
 #define R_MIPS_GOT_DISP		19
 #define R_MIPS_GOT_PAGE		20
 #define R_MIPS_GOT_OFST		21
+#define R_NANOMIPS_32		1
+#define R_NANOMIPS_PC21_S1	14
+#define R_NANOMIPS_PC14_S1	15
+#define R_NANOMIPS_PC11_S1	16
+#define R_NANOMIPS_PC10_S1	17
+#define R_NANOMIPS_PC7_S1	18
+#define R_NANOMIPS_PC4_S1	19
+#define R_NANOMIPS_PC_HI20	27
+#define R_NANOMIPS_LO12		29
+#define R_NANOMIPS_PC_I32	31
+#define R_NANOMIPS_ALIGN	64
 /*
  * The following two relocation types are specified in the MIPS ABI
  * conformance guide version 1.2 but not yet in the psABI.
@@ -219,7 +233,11 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch elfo32_check_arch
+# ifdef CONFIG_CPU_NANOMIPS
+#  define elf_check_arch elfp32_check_arch
+# else
+#  define elf_check_arch elfo32_check_arch
+# endif
 
 /*
  * These are used to set parameters in the core dumps.
@@ -255,7 +273,11 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 #elif defined(__MIPSEL__)
 #define ELF_DATA	ELFDATA2LSB
 #endif
+#ifdef CONFIG_CPU_NANOMIPS
+#define ELF_ARCH	EM_NANOMIPS
+#else
 #define ELF_ARCH	EM_MIPS
+#endif
 
 #endif /* !defined(ELF_ARCH) */
 
@@ -271,7 +293,7 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 # define __MIPS_O32_FP64_MUST_BE_ZERO	EF_MIPS_FP64
 #endif
 
-#define mips_elf_check_machine(x) ((x)->e_machine == EM_MIPS)
+#define mips_elf_check_machine(x) ((x)->e_machine == ELF_ARCH)
 
 #define vmcore_elf32_check_arch mips_elf_check_machine
 #define vmcore_elf64_check_arch mips_elf_check_machine
@@ -329,6 +351,22 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 		__res = 0;						\
 	if (((__h->e_flags & EF_MIPS_ABI2) == 0) ||			\
 	    ((__h->e_flags & EF_MIPS_ABI) != 0))			\
+		__res = 0;						\
+									\
+	__res;								\
+})
+
+/*
+ * Return non-zero if HDR identifies a p32 ELF binary.
+ */
+#define elfp32_check_arch(hdr)						\
+({									\
+	int __res = 1;							\
+	struct elfhdr *__h = (hdr);					\
+									\
+	if (!mips_elf_check_machine(__h))				\
+		__res = 0;						\
+	if (__h->e_ident[EI_CLASS] != ELFCLASS32)			\
 		__res = 0;						\
 									\
 	__res;								\

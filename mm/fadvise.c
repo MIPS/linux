@@ -185,3 +185,17 @@ SYSCALL_DEFINE4(fadvise64, int, fd, loff_t, offset, size_t, len, int, advice)
 }
 
 #endif
+
+#ifdef __ARCH_WANT_SYS_FADVISE64_64_2
+
+/*
+ * Put advice before offset so it doesn't leave a register hole due to unaligned
+ * 64-bit arguments.
+ */
+SYSCALL_DEFINE4(fadvise64_64_2, int, fd, int, advice,
+		loff_t, offset, loff_t, len)
+{
+	return sys_fadvise64_64(fd, offset, len, advice);
+}
+
+#endif

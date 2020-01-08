@@ -10,7 +10,8 @@
  * Changed system calls macros _syscall5 - _syscall7 to push args 5 to 7 onto
  * the stack. Robin Farine for ACN S.A, Copyright (C) 1996 by ACN S.A
  */
-#ifndef _UAPI_ASM_UNISTD_H
+/* Enable inclusion twice when defining syscall table */
+#if !defined(_UAPI_ASM_UNISTD_H) || defined(__SYSCALL)
 #define _UAPI_ASM_UNISTD_H
 
 #include <asm/sgidefs.h>
@@ -1091,5 +1092,24 @@
 
 #define __NR_N32_Linux			6000
 #define __NR_N32_Linux_syscalls		330
+
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+
+#define sys_mmap2 sys_mmap_4koff
+
+/* Rearrange arguments to avoid register hole */
+#define __ARCH_WANT_SYNC_FILE_RANGE2
+#define __ARCH_WANT_SYS_FADVISE64_64_2
+
+/* P32 has completely separate syscall numbering */
+#include <asm-generic/unistd.h>
+
+/* architecture specific syscalls. */
+#define __NR_set_thread_area		(__NR_arch_specific_syscall + 0)
+__SYSCALL(__NR_set_thread_area, sys_set_thread_area)
+
+#define NR_syscalls __NR_syscalls
+
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #endif /* _UAPI_ASM_UNISTD_H */

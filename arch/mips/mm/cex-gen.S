@@ -20,7 +20,6 @@
 	LEAF(except_vec2_generic)
 	.set	noreorder
 	.set	noat
-	.set	mips0
 	/*
 	 * This is a very bad place to be.  Our cache error
 	 * detection has triggered.  If we have write-back data

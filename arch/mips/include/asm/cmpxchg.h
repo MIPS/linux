@@ -44,18 +44,17 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 	__typeof(*(m)) __ret;						\
 									\
 	if (kernel_uses_llsc) {						\
+		__typeof(*(m)) __tmp;					\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
-		"	.set	noat				\n"	\
 		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
-		"1:	" ld "	%0, %2		# __xchg_asm	\n"	\
-		"	.set	mips0				\n"	\
-		"	move	$1, %z3				\n"	\
-		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
-		"	" st "	$1, %1				\n"	\
-		"\t" __scbeqz "	$1, 1b				\n"	\
+		"1:	" ld "	%0, %3		# __xchg_asm	\n"	\
+		"	move	%2, %z4				\n"	\
+		"	" st "	%2, %1				\n"	\
+		"\t" __scbeqz "	%2, 1b				\n"	\
 		"	.set	pop				\n"	\
-		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
+		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m),		\
+		  "=&r" (__tmp)						\
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (val)			\
 		: "memory");						\
 	} else {							\
@@ -114,20 +113,19 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 	__typeof(*(m)) __ret;						\
 									\
 	if (kernel_uses_llsc) {						\
+		__typeof(*(m)) __tmp;					\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
-		"	.set	noat				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
-		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
-		"	bne	%0, %z3, 2f			\n"	\
-		"	.set	mips0				\n"	\
-		"	move	$1, %z4				\n"	\
-		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
-		"	" st "	$1, %1				\n"	\
-		"\t" __scbeqz "	$1, 1b				\n"	\
+		"1:	" ld "	%0, %3		# __cmpxchg_asm \n"	\
+		"	bne	%0, %z4, 2f			\n"	\
+		"	move	%2, %z5				\n"	\
+		"	" st "	%2, %1				\n"	\
+		"\t" __scbeqz "	%2, 1b				\n"	\
 		"	.set	pop				\n"	\
 		"2:						\n"	\
-		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
+		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m),		\
+		  "=&r" (__tmp)						\
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (old), "Jr" (new)		\
 		: "memory");						\
 	} else {							\

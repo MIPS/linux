@@ -14,6 +14,8 @@
 
 #define NR_syscalls			326 /* length of syscall table */
 
+#define __ARCH_WANT_SYSCALL_UNXSTAT
+
 /*
  * The following defines stop scripts/checksyscalls.sh from complaining about
  * unimplemented system calls.  Glibc provides for each of these by using

@@ -45,6 +45,10 @@ tool-archpref		= $(64bit-tool-archpref)
 UTS_MACHINE		:= mips64
 endif
 
+ifdef CONFIG_CPU_NANOMIPS
+LD			= $(CROSS_COMPILE)ld.gold
+endif
+
 ifneq ($(SUBARCH),$(ARCH))
   ifeq ($(CROSS_COMPILE),)
     CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-linux-gnu-  $(tool-archpref)-unknown-linux-gnu-)
@@ -65,7 +69,9 @@ ld-emul			= $(32bit-emul)
 vmlinux-32		= vmlinux
 vmlinux-64		= vmlinux.64
 
-cflags-y		+= -mabi=32
+abi-y				:= -mabi=32
+abi-$(CONFIG_CPU_NANOMIPS)	:= -m32
+cflags-y			+= $(abi-y)
 endif
 
 ifdef CONFIG_64BIT
@@ -90,12 +96,21 @@ all-$(CONFIG_SYS_SUPPORTS_ZBOOT)+= vmlinuz
 # machines may also.  Since BFD is incredibly buggy with respect to
 # crossformat linking we rely on the elf2ecoff tool for format conversion.
 #
-cflags-y			+= -G 0 -mno-abicalls -fno-pic -pipe
+abicalls-y			:= -mno-abicalls
+abicalls-$(CONFIG_CPU_NANOMIPS)	:=
+cflags-y			+= -G 0 $(abicalls-y) -fno-pic -pipe
 cflags-y			+= -msoft-float
-LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
+ifndef CONFIG_CPU_NANOMIPS
+LDFLAGS_vmlinux			+= -G 0
+endif
+LDFLAGS_vmlinux			+= -static -n -nostdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
+ifeq ($(CONFIG_CPU_NANOMIPS),y)
+KBUILD_CFLAGS_MODULE		+= -mcmodel=medium
+KBUILD_LDFLAGS_MODULE		+= --finalize-relocs --finalize-pcrel-relocs
+endif
 ifeq ($(CONFIG_RELOCATABLE),y)
 LDFLAGS_vmlinux			+= --emit-relocs
 endif
@@ -165,6 +180,7 @@ cflags-$(CONFIG_CPU_MIPS64_R1)	+= $(call cc-option,-march=mips64,-mips64 -U_MIPS
 cflags-$(CONFIG_CPU_MIPS64_R2)	+= $(call cc-option,-march=mips64r2,-mips64r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64) \
 			-Wa,-mips64r2 -Wa,--trap
 cflags-$(CONFIG_CPU_MIPS64_R6)	+= -march=mips64r6 -Wa,--trap
+cflags-$(CONFIG_CPU_NANOMIPS32_R6)	+= -march=32r6 -Wa,--trap
 cflags-$(CONFIG_CPU_R5000)	+= -march=r5000 -Wa,--trap
 cflags-$(CONFIG_CPU_R5432)	+= $(call cc-option,-march=r5400,-march=r5000) \
 			-Wa,--trap
@@ -226,6 +242,8 @@ xpa-cflags-y				:= $(mips-cflags)
 xpa-cflags-$(micromips-ase)		+= -mmicromips -Wa$(comma)-fatal-warnings
 toolchain-xpa				:= $(call cc-option-yn,$(xpa-cflags-y) -mxpa)
 cflags-$(toolchain-xpa)			+= -DTOOLCHAIN_SUPPORTS_XPA
+toolchain-dsp				:= $(call cc-option-yn,$(mips-cflags) -Wa$(comma)-mdsp)
+cflags-$(toolchain-dsp)			+= -DTOOLCHAIN_SUPPORTS_DSP
 
 #
 # Firmware support
@@ -335,7 +353,7 @@ OBJCOPYFLAGS		+= --remove-section=.reginfo
 head-y := arch/mips/kernel/head.o
 
 libs-y			+= arch/mips/lib/
-libs-y			+= arch/mips/math-emu/
+libs-$(CONFIG_FP_SUPPORT)	+= arch/mips/math-emu/
 
 # See arch/mips/Kbuild for content of core part of the kernel
 core-y += arch/mips/
@@ -482,7 +500,7 @@ define archhelp
 	echo '  If you are targeting a system supported by generic kernels you may'
 	echo '  configure the kernel for a given architecture target like so:'
 	echo
-	echo '  {micro32,32,64}{r1,r2,r6}{el,}_defconfig <BOARDS="list of boards">'
+	echo '  {nano32,micro32,32,64}{r1,r2,r6}{el,}_defconfig <BOARDS="list of boards">'
 	echo
 	echo '  Otherwise, the following default configurations are available:'
 endef
@@ -517,6 +535,7 @@ endef
 
 $(eval $(call gen_generic_defconfigs,32 64,r1 r2 r6,eb el))
 $(eval $(call gen_generic_defconfigs,micro32,r2,eb el))
+$(eval $(call gen_generic_defconfigs,nano32,r6,eb el))
 
 .PHONY: $(generic_defconfigs)
 $(generic_defconfigs):

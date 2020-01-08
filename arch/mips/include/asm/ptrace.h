@@ -26,7 +26,7 @@
  * arch/mips/kernel/ptrace.c.
  */
 struct pt_regs {
-#ifdef CONFIG_32BIT
+#if _MIPS_SIM == _MIPS_SIM_ABI32
 	/* Pad bytes for argument save space on the stack. */
 	unsigned long pad0[8];
 #endif
@@ -147,15 +147,23 @@ extern int ptrace_set_watch_regs(struct task_struct *child,
 
 static inline int is_syscall_success(struct pt_regs *regs)
 {
+#ifdef CONFIG_CPU_NANOMIPS
+	return (unsigned long)regs->regs[4] >= (unsigned long)-4095;
+#else
 	return !regs->regs[7];
+#endif
 }
 
 static inline long regs_return_value(struct pt_regs *regs)
 {
+#ifdef CONFIG_CPU_NANOMIPS
+	return regs->regs[4];
+#else
 	if (is_syscall_success(regs) || !user_mode(regs))
 		return regs->regs[2];
 	else
 		return -regs->regs[2];
+#endif
 }
 
 #define instruction_pointer(regs) ((regs)->cp0_epc)

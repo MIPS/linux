@@ -11,6 +11,8 @@
 #  define __SYSCALL_MASK (~0)
 # endif
 
+#define __ARCH_WANT_SYSCALL_UNXSTAT
+
 # ifdef CONFIG_X86_32
 
 #  include <asm/unistd_32.h>

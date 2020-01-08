@@ -9,6 +9,7 @@
 #define __ASM_BARRIER_H
 
 #include <asm/addrspace.h>
+#include <asm/compiler.h>
 
 /*
  * Sync types defined by the MIPS architecture (document MD00087 table 6.5)
@@ -111,7 +112,7 @@
 	__asm__ __volatile__(			\
 		".set	push\n\t"		\
 		".set	noreorder\n\t"		\
-		".set	mips2\n\t"		\
+		".set	" MIPS_ISA_LEVEL "\n\t"	\
 		"sync\n\t"			\
 		".set	pop"			\
 		: /* no output */		\
@@ -125,7 +126,7 @@
 	__asm__ __volatile__(			\
 		".set	push\n\t"		\
 		".set	noreorder\n\t"		\
-		"lw	$0,%0\n\t"		\
+		"lw	$zero,%0\n\t"		\
 		"nop\n\t"			\
 		".set	pop"			\
 		: /* no output */		\
@@ -148,9 +149,9 @@
 	__asm__ __volatile__(			\
 		".set	push\n\t"		\
 		".set	noreorder\n\t"		\
-		"lw	$0,%0\n\t"		\
+		"lw	$zero,%0\n\t"		\
 		"sync\n\t"			\
-		"lw	$0,%0\n\t"		\
+		"lw	$zero,%0\n\t"		\
 		".set	pop"			\
 		: /* no output */		\
 		: "m" (*(int *)CKSEG1ADDR(0x1fa00004)) \
@@ -251,9 +252,10 @@
 static inline void ehb(void)
 {
 	__asm__ __volatile__(
-	"	.set	mips32r2				\n"
+	"	.set	push					\n"
+	"	.set	" MIPS_ISA_LEVEL "			\n"
 	"	ehb						\n"
-	"	.set	mips0					\n");
+	"	.set	pop					\n");
 }
 
 #include <asm-generic/barrier.h>

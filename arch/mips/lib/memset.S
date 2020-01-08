@@ -60,13 +60,13 @@
 	EX(LONG_S, \val, (\offset +  1 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  2 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  3 * STORSIZE)(\dst), \fixup)
-#if ((defined(CONFIG_CPU_MICROMIPS) && (LONGSIZE == 4)) || !defined(CONFIG_CPU_MICROMIPS))
+#if STORSIZE <= 8
 	EX(LONG_S, \val, (\offset +  4 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  5 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  6 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  7 * STORSIZE)(\dst), \fixup)
 #endif
-#if (!defined(CONFIG_CPU_MICROMIPS) && (LONGSIZE == 4))
+#if STORSIZE <= 4
 	EX(LONG_S, \val, (\offset +  8 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset +  9 * STORSIZE)(\dst), \fixup)
 	EX(LONG_S, \val, (\offset + 10 * STORSIZE)(\dst), \fixup)
@@ -78,7 +78,6 @@
 #endif
 	.endm
 
-	.set	noreorder
 	.align	5
 
 	/*
@@ -112,7 +111,7 @@
 	.set		at
 #endif
 
-#ifndef CONFIG_CPU_MIPSR6
+#if !defined(__mips_isa_rev) || (__mips_isa_rev < 6)
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
@@ -122,7 +121,7 @@
 	PTR_SUBU	a0, t0			/* long align ptr */
 	PTR_ADDU	a2, t0			/* correct size */
 
-#else /* CONFIG_CPU_MIPSR6 */
+#else /* __mips_isa_rev >= 6 */
 #define STORE_BYTE(N)				\
 	EX(sb, a1, N(a0), .Lbyte_fixup\@);	\
 	beqz		t0, 0f;			\
@@ -132,7 +131,7 @@
 	PTR_ADDU	t0, 1
 	STORE_BYTE(0)
 	STORE_BYTE(1)
-#if LONGSIZE == 4
+#if STORSIZE == 4
 	EX(sb, a1, 2(a0), .Lbyte_fixup\@)
 #else
 	STORE_BYTE(2)
@@ -145,19 +144,17 @@
 	ori		a0, STORMASK
 	xori		a0, STORMASK
 	PTR_ADDIU	a0, STORSIZE
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* __mips_isa_rev >= 6 */
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
-	beqz		t1, .Lmemset_partial\@	/* no block to fill */
 	andi		t0, a2, 0x40-STORSIZE
+	beqz		t1, .Lmemset_partial\@	/* no block to fill */
 
 	PTR_ADDU	t1, a0			/* end address */
-	.set		reorder
 1:	PTR_ADDIU	a0, 64
 	R10KCBARRIER(0(ra))
 	f_fill64 a0, -64, FILL64RG, .Lfwd_fixup\@, \mode
 	bne		t1, a0, 1b
-	.set		noreorder
 
 .Lmemset_partial\@:
 	R10KCBARRIER(0(ra))
@@ -173,19 +170,15 @@
 	PTR_SUBU	t1, AT
 	.set		at
 #endif
-	jr		t1
 	PTR_ADDU	a0, t0			/* dest ptr */
+	jr		t1
 
-	.set		push
-	.set		noreorder
-	.set		nomacro
 	/* ... but first do longs ... */
 	f_fill64 a0, -64, FILL64RG, .Lpartial_fixup\@, \mode
-2:	.set		pop
-	andi		a2, STORMASK		/* At most one long to go */
+2:	andi		a2, STORMASK		/* At most one long to go */
 
 	beqz		a2, 1f
-#ifndef CONFIG_CPU_MIPSR6
+#if __mips_isa_rev < 6
 	PTR_ADDU	a0, a2			/* What's left */
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
@@ -193,12 +186,12 @@
 #else
 	EX(LONG_S_L, a1, -1(a0), .Llast_fixup\@)
 #endif
-#else
+#else /* __mips_isa_rev >= 6 */
 	PTR_SUBU	t0, $0, a2
 	PTR_ADDIU	t0, 1
 	STORE_BYTE(0)
 	STORE_BYTE(1)
-#if LONGSIZE == 4
+#if STORSIZE == 4
 	EX(sb, a1, 2(a0), .Lbyte_fixup\@)
 #else
 	STORE_BYTE(2)
@@ -208,9 +201,9 @@
 	EX(sb, a1, 6(a0), .Lbyte_fixup\@)
 #endif
 0:
-#endif
-1:	jr		ra
-	move		a2, zero
+#endif /* __mips_isa_rev >= 6 */
+1:	move		v0, zero
+	jr		ra
 
 .Lsmall_memset\@:
 	beqz		a2, 2f
@@ -218,45 +211,45 @@
 
 1:	PTR_ADDIU	a0, 1			/* fill bytewise */
 	R10KCBARRIER(0(ra))
-	bne		t1, a0, 1b
 	sb		a1, -1(a0)
+	bne		t1, a0, 1b
 
-2:	jr		ra			/* done */
-	move		a2, zero
+2:	move		v0, zero
+	jr		ra			/* done */
 	.if __memset == 1
 	END(memset)
 	.set __memset, 0
 	.hidden __memset
 	.endif
 
-#ifdef CONFIG_CPU_MIPSR6
+#if __mips_isa_rev >= 6
 .Lbyte_fixup\@:
-	PTR_SUBU	a2, $0, t0
+	PTR_SUBU	v0, $0, t0
+	PTR_ADDIU	v0, 1
 	jr		ra
-	 PTR_ADDIU	a2, 1
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* __mips_isa_rev >= 6 */
 
 .Lfirst_fixup\@:
 	jr	ra
-	nop
 
 .Lfwd_fixup\@:
 	andi		a2, 0x3f
 	LONG_L		t0, THREAD_BUADDR($28)
 	LONG_ADDU	a2, t1
+	LONG_SUBU	v0, a2, t0
 	jr		ra
-	LONG_SUBU	a2, t0
 
 .Lpartial_fixup\@:
 	andi		a2, STORMASK
 	LONG_L		t0, THREAD_BUADDR($28)
 	LONG_ADDU	a2, t1
+	LONG_SUBU	v0, a2, t0
 	jr		ra
-	LONG_SUBU	a2, t0
 
 .Llast_fixup\@:
-	jr		ra
+	move		v0, a2
 	andi		v1, a2, STORMASK
+	jr		ra
 
 	.endm
 
@@ -270,8 +263,8 @@
 
 LEAF(memset)
 EXPORT_SYMBOL(memset)
-	beqz		a1, 1f
 	move		v0, a0			/* result */
+	beqz		a1, 1f
 
 	andi		a1, 0xff		/* spread fillword */
 	LONG_SLL		t1, a1, 8

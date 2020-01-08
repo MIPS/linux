@@ -393,6 +393,22 @@ int __MIPS16e_compute_return_epc(struct pt_regs *regs)
 	return 0;
 }
 
+/*
+ * Compute return address in nanoMIPS after an exception only.
+ * nanoMIPS has no branch delay slots so there is no need to emulate branches,
+ * we only need to jump over the current instruction.
+ */
+int __nanoMIPS_compute_return_epc(struct pt_regs *regs)
+{
+	u16 __user *addr;
+	u16 opcode;
+
+	addr = (u16 __user *)msk_isa16_mode(regs->cp0_epc);
+	__get_user(opcode, addr);
+	regs->cp0_epc += nanomips_insn_len(opcode);
+	return 0;
+}
+
 /**
  * __compute_return_epc_for_insn - Computes the return address and do emulate
  *				    branch simulation, if required.

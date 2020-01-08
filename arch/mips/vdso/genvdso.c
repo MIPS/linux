@@ -45,13 +45,20 @@
 #ifndef SHT_MIPS_ABIFLAGS
 # define SHT_MIPS_ABIFLAGS	0x7000002a
 #endif
+#ifndef EM_NANOMIPS
+# define EM_NANOMIPS		249
+#endif
+#ifndef EF_MIPS_ABI
+# define EF_MIPS_ABI		0xf000
+#endif
 
 enum {
 	ABI_O32 = (1 << 0),
 	ABI_N32 = (1 << 1),
 	ABI_N64 = (1 << 2),
+	ABI_P32 = (1 << 3),
 
-	ABI_ALL = ABI_O32 | ABI_N32 | ABI_N64,
+	ABI_ALL = ABI_O32 | ABI_N32 | ABI_N64 | ABI_P32,
 };
 
 /* Symbols the kernel requires offsets for. */
@@ -168,7 +175,8 @@ static void *map_vdso(const char *path, size_t *_size)
 		return NULL;
 	}
 
-	if (swap_uint16(ehdr->e_machine) != EM_MIPS) {
+	if (swap_uint16(ehdr->e_machine) != EM_MIPS &&
+	    swap_uint16(ehdr->e_machine) != EM_NANOMIPS) {
 		fprintf(stderr,
 			"%s: '%s' has invalid ELF machine (expected EM_MIPS)\n",
 			program_name, path);

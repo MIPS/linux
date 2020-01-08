@@ -2,6 +2,11 @@
 #ifndef __ASM_GENERIC_STAT_H
 #define __ASM_GENERIC_STAT_H
 
+#include <asm/unistd.h>
+
+/* statx deprecates the un-extended stat syscalls which use struct stat[64] */
+#ifdef __ARCH_WANT_SYSCALL_UNXSTAT
+
 /*
  * Everybody gets this wrong and has to stick with it for all
  * eternity. Hopefully, this version gets used by new architectures
@@ -69,5 +74,7 @@ struct stat64 {
 	unsigned int	__unused5;
 };
 #endif
+
+#endif /* __ARCH_WANT_SYSCALL_UNXSTAT */
 
 #endif /* __ASM_GENERIC_STAT_H */

@@ -34,7 +34,7 @@ static inline unsigned int rdhwr_count(void)
 
 	__asm__ __volatile__(
 	"	.set push\n"
-	"	.set mips32r2\n"
+	"	.set " MIPS_ISA_LEVEL "\n"
 	"	rdhwr	%0, $2\n"
 	"	.set pop\n"
 	: "=r" (count));

@@ -34,6 +34,7 @@ static inline int arch_within_stack_frames(const void *const stack,
 	extern unsigned long unwind_stack_by_address(
 						unsigned long stack_page,
 						unsigned long *sp,
+						unsigned long *fp,
 						unsigned long pc,
 						unsigned long *ra);
 	unsigned long sp, lastsp, ra, pc;
@@ -52,7 +53,7 @@ static inline int arch_within_stack_frames(const void *const stack,
 	 *   copy_{to,from}_user() (inlined into do_usercopy_stack)
 	 */
 	for (skip_frames = 0; skip_frames < 2; skip_frames++) {
-		pc = unwind_stack_by_address((unsigned long)stack, &sp, pc, &ra);
+		pc = unwind_stack_by_address((unsigned long)stack, &sp, NULL, pc, &ra);
 		if (!pc)
 			return BAD_STACK;
 	}
@@ -72,7 +73,7 @@ static inline int arch_within_stack_frames(const void *const stack,
 	 */
 	do {
 		lastsp = sp;
-		pc = unwind_stack_by_address((unsigned long)stack, &sp, pc, &ra);
+		pc = unwind_stack_by_address((unsigned long)stack, &sp, NULL, pc, &ra);
 		if ((((unsigned long)obj) >= lastsp) &&
 		    (((unsigned long)obj + len) <= (sp - sizeof(void *)))) {
 			/* obj is entirely within this stack frame */

@@ -76,10 +76,15 @@
 #endif
 /* Don't override `cpu_has_fpu' to 1 or the "nofpu" option won't work.  */
 #ifndef cpu_has_fpu
-#define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
-#define raw_cpu_has_fpu		(raw_current_cpu_data.options & MIPS_CPU_FPU)
+# ifdef CONFIG_FP_SUPPORT
+#  define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
+#  define raw_cpu_has_fpu	(raw_current_cpu_data.options & MIPS_CPU_FPU)
+# else
+#  define cpu_has_fpu		0
+#  define raw_cpu_has_fpu	0
+# endif
 #else
-#define raw_cpu_has_fpu		cpu_has_fpu
+# define raw_cpu_has_fpu	cpu_has_fpu
 #endif
 #ifndef cpu_has_32fpr
 #define cpu_has_32fpr		(cpu_data[0].options & MIPS_CPU_32FPR)
@@ -94,7 +99,11 @@
 #define cpu_has_divec		(cpu_data[0].options & MIPS_CPU_DIVEC)
 #endif
 #ifndef cpu_has_vce
-#define cpu_has_vce		(cpu_data[0].options & MIPS_CPU_VCE)
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 6)
+#  define cpu_has_vce		0
+# else
+#  define cpu_has_vce		(cpu_data[0].options & MIPS_CPU_VCE)
+# endif
 #endif
 #ifndef cpu_has_cache_cdex_p
 #define cpu_has_cache_cdex_p	(cpu_data[0].options & MIPS_CPU_CACHE_CDEX_P)
@@ -293,6 +302,9 @@
 #ifndef cpu_has_mips64r6
 # define cpu_has_mips64r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R6)
 #endif
+#ifndef cpu_has_nanomips32r6
+# define cpu_has_nanomips32r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_NANO32R6)
+#endif
 
 /*
  * Shortcuts ...
@@ -312,14 +324,12 @@
 				(cpu_has_mips_4_5 | cpu_has_mips64r1 |	\
 				 cpu_has_mips_r2 | cpu_has_mips_r6)
 
-#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | cpu_has_mips32r6)
+#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | cpu_has_mips32r6 | cpu_has_nanomips32r6)
 #define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2 | cpu_has_mips64r6)
 #define cpu_has_mips_r1 (cpu_has_mips32r1 | cpu_has_mips64r1)
 #define cpu_has_mips_r2 (cpu_has_mips32r2 | cpu_has_mips64r2)
-#define cpu_has_mips_r6	(cpu_has_mips32r6 | cpu_has_mips64r6)
-#define cpu_has_mips_r	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
-			 cpu_has_mips32r6 | cpu_has_mips64r1 | \
-			 cpu_has_mips64r2 | cpu_has_mips64r6)
+#define cpu_has_mips_r6	(cpu_has_mips32r6 | cpu_has_mips64r6 | cpu_has_nanomips32r6)
+#define cpu_has_mips_r	(cpu_has_mips_r1 | cpu_has_mips_r2 | cpu_has_mips_r6)
 
 /* MIPSR2 and MIPSR6 have a lot of similarities */
 #define cpu_has_mips_r2_r6	(cpu_has_mips_r2 | cpu_has_mips_r6)
@@ -376,7 +386,11 @@
  * DSBH and DSHD.
  */
 #ifndef cpu_has_wsbh
-#define cpu_has_wsbh		cpu_has_mips_r2
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
+#  define cpu_has_wsbh		1
+# else
+#  define cpu_has_wsbh		cpu_has_mips_r2
+# endif
 #endif
 
 #ifndef cpu_has_dsp
@@ -392,7 +406,7 @@
 #endif
 
 #ifndef cpu_has_mipsmt
-#define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
+# define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
 #endif
 
 #ifndef cpu_has_vp
@@ -408,7 +422,11 @@
 # define cpu_has_nofpuex	(cpu_data[0].options & MIPS_CPU_NOFPUEX)
 # endif
 # ifndef cpu_has_64bits
-# define cpu_has_64bits		(cpu_data[0].isa_level & MIPS_CPU_ISA_64BIT)
+#  ifdef CONFIG_CPU_NANOMIPS
+#   define cpu_has_64bits	0
+#  else
+#   define cpu_has_64bits	(cpu_data[0].isa_level & MIPS_CPU_ISA_64BIT)
+#  endif
 # endif
 # ifndef cpu_has_64bit_zero_reg
 # define cpu_has_64bit_zero_reg	(cpu_data[0].isa_level & MIPS_CPU_ISA_64BIT)
@@ -484,7 +502,11 @@
 #endif
 
 #ifndef cpu_has_vz
-#define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
+# ifdef CONFIG_CPU_NANOMIPS
+#  define cpu_has_vz		0
+# else
+#  define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
+# endif
 #endif
 
 #if defined(CONFIG_CPU_HAS_MSA) && !defined(cpu_has_msa)
@@ -598,6 +620,14 @@
 #  define cpu_has_ginvi		(cpu_data[0].options & MIPS_CPU_GINVI)
 # else
 #  define cpu_has_ginvi		0
+# endif
+#endif
+
+#ifndef cpu_has_nanomips
+# ifdef CONFIG_CPU_NANOMIPS
+#  define cpu_has_nanomips	1
+# else
+#  define cpu_has_nanomips	0
 # endif
 #endif
 

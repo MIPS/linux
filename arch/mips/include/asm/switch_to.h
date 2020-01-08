@@ -17,6 +17,7 @@
 #include <asm/dsp.h>
 #include <asm/cop2.h>
 #include <asm/fpu.h>
+#include <asm/mips_mt.h>
 
 struct task_struct;
 
@@ -151,6 +152,7 @@ do {									\
 	if (cpu_has_userlocal)						\
 		write_c0_userlocal(task_thread_info(next)->tp_value);	\
 	__restore_watch(next);						\
+	mips_mt_randomize_sched_policy();				\
 	update_curr_info(next);						\
 	(last) = resume(prev, next);					\
 } while (0)

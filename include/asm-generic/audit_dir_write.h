@@ -27,9 +27,11 @@ __NR_mknod,
 __NR_mkdirat,
 __NR_mknodat,
 __NR_unlinkat,
-__NR_renameat,
 __NR_linkat,
 __NR_symlinkat,
+#endif
+#ifdef __NR_renameat
+__NR_renameat,
 #endif
 #ifdef __NR_renameat2
 __NR_renameat2,

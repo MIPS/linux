@@ -126,7 +126,7 @@ symbol		=	value
 
 #define TEXT(msg)					\
 		.pushsection .data;			\
-8:		.asciiz msg;				\
+8:		.asciz msg;				\
 		.popsection;
 
 /*
@@ -137,7 +137,7 @@ symbol		=	value
 		.word	1f;				\
 		.popsection				\
 		.pushsection .data;			\
-1:		.asciiz string;				\
+1:		.asciz string;				\
 		.popsection
 
 /*
@@ -151,20 +151,20 @@ symbol		=	value
 
 #define PREF(hint,addr)					\
 		.set	push;				\
-		.set	arch=r5000;			\
+		.set	MIPS_ISA_LEVEL_RAW;		\
 		pref	hint, addr;			\
 		.set	pop
 
 #define PREFE(hint, addr)				\
 		.set	push;				\
-		.set	mips0;				\
+		.set	MIPS_ISA_LEVEL_RAW;		\
 		.set	eva;				\
 		prefe	hint, addr;			\
 		.set	pop
 
 #define PREFX(hint,addr)				\
 		.set	push;				\
-		.set	arch=r5000;			\
+		.set	MIPS_ISA_LEVEL_RAW;		\
 		prefx	hint, addr;			\
 		.set	pop
 
@@ -226,7 +226,9 @@ symbol		=	value
 #define ALSZ	7
 #define ALMASK	~7
 #endif
-#if (_MIPS_SIM == _MIPS_SIM_NABI32) || (_MIPS_SIM == _MIPS_SIM_ABI64)
+#if (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64) || \
+    (_MIPS_SIM == _MIPS_SIM_PABI32)
 #define ALSZ	15
 #define ALMASK	~15
 #endif
@@ -248,7 +250,7 @@ symbol		=	value
  * Use the following macros in assemblercode to load/store registers,
  * pointers etc.
  */
-#if (_MIPS_SIM == _MIPS_SIM_ABI32)
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || (_MIPS_SIM == _MIPS_SIM_PABI32)
 #define REG_S		sw
 #define REG_L		lw
 #define REG_SUBU	subu
@@ -272,6 +274,7 @@ symbol		=	value
 #define INT_SUB		sub
 #define INT_SUBU	subu
 #define INT_L		lw
+#define INT_LXS		lwxs
 #define INT_S		sw
 #define INT_SLL		sll
 #define INT_SLLV	sllv
@@ -289,6 +292,7 @@ symbol		=	value
 #define INT_SUB		dsub
 #define INT_SUBU	dsubu
 #define INT_L		ld
+#define INT_LXS		ldxs
 #define INT_S		sd
 #define INT_SLL		dsll
 #define INT_SLLV	dsllv
@@ -309,6 +313,7 @@ symbol		=	value
 #define LONG_SUB	sub
 #define LONG_SUBU	subu
 #define LONG_L		lw
+#define LONG_LXS	lwxs
 #define LONG_S		sw
 #define LONG_SP		swp
 #define LONG_SLL	sll
@@ -332,6 +337,7 @@ symbol		=	value
 #define LONG_SUB	dsub
 #define LONG_SUBU	dsubu
 #define LONG_L		ld
+#define LONG_LXS	ldxs
 #define LONG_S		sd
 #define LONG_SP		sdp
 #define LONG_SLL	dsll
@@ -358,6 +364,7 @@ symbol		=	value
 #define PTR_SUB		sub
 #define PTR_SUBU	subu
 #define PTR_L		lw
+#define PTR_LXS		lwxs
 #define PTR_S		sw
 #define PTR_LA		la
 #define PTR_LI		li
@@ -383,6 +390,7 @@ symbol		=	value
 #define PTR_SUB		dsub
 #define PTR_SUBU	dsubu
 #define PTR_L		ld
+#define PTR_LXS		ldxs
 #define PTR_S		sd
 #define PTR_LA		dla
 #define PTR_LI		dli
@@ -403,7 +411,7 @@ symbol		=	value
 /*
  * Some cp0 registers were extended to 64bit for MIPS III.
  */
-#if (_MIPS_SIM == _MIPS_SIM_ABI32)
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || (_MIPS_SIM == _MIPS_SIM_PABI32)
 #define MFC0		mfc0
 #define MTC0		mtc0
 #endif

@@ -15,7 +15,7 @@
  * Most of the inline functions are rather naive implementations so I just
  * didn't bother updating them for 64-bit ...
  */
-#ifdef CONFIG_32BIT
+#if defined(CONFIG_32BIT) && !defined(CONFIG_CPU_NANOMIPS)
 
 #ifndef IN_STRING_C
 

@@ -151,8 +151,12 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 
 	/* user thread */
 	*childregs = *regs;
+#ifdef CONFIG_CPU_NANOMIPS
+	childregs->regs[4] = 0; /* Child gets zero as return value */
+#else
 	childregs->regs[7] = 0; /* Clear error flag */
 	childregs->regs[2] = 0; /* Child gets zero as return value */
+#endif
 	if (usp)
 		childregs->regs[29] = usp;
 	ti->addr_limit = USER_DS;
@@ -506,6 +510,7 @@ static unsigned long thread_saved_pc(struct task_struct *tsk)
 /* generic stack unwinding function */
 unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 					      unsigned long *sp,
+					      unsigned long *fp,
 					      unsigned long pc,
 					      unsigned long *ra)
 {
@@ -514,6 +519,14 @@ unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 	unsigned long size, ofs;
 	struct pt_regs *regs;
 	int leaf;
+#if defined(CONFIG_FRAME_POINTER)
+	/*
+	 * NanoMIPS gcc uses a 4096 byte bias between the fp register value
+	 * and the logical fp. This allows greater stack coverage using 12 bit
+	 * offsets from the fp register
+	 */
+	unsigned long lfp = *fp + 4096;
+#endif
 
 	if (!stack_page)
 		return 0;
@@ -553,6 +566,7 @@ unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 		pc = regs->cp0_epc;
 		if (!user_mode(regs) && __kernel_text_address(pc)) {
 			*sp = regs->regs[29];
+			*fp = regs->regs[30];
 			*ra = regs->regs[31];
 			return pc;
 		}
@@ -569,6 +583,27 @@ unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 		return pc;
 	}
 
+#ifdef CONFIG_FRAME_POINTER
+	/* Is the frame pointer in the right ball park? */
+	if ((lfp >= low) && (lfp <= high)) {
+		if (unlikely(lfp == irq_stack_high)) {
+			/*
+			 * This frame is at the top of the IRQ stack. Set SP
+			 * so that the next iteration will detect the top of
+			 * IRQ stack and jump to the interrupted task stack.
+			 */
+			*sp = irq_stack_high;
+		}
+
+		/* Retrieve pc / fp from save location */
+		pc = ((unsigned long *)(lfp))[-2];
+		*fp = ((unsigned long *)(lfp))[-1];
+
+		return __kernel_text_address(pc) ? pc : 0;
+	} else {
+		return 0;
+	}
+#endif /* CONFIG_ARCH_WANT_FRAME_POINTERS */
 	info.func = (void *)(pc - ofs);
 	info.func_size = ofs;	/* analyze from start to ofs */
 	leaf = get_frame_info(&info);
@@ -597,7 +632,8 @@ EXPORT_SYMBOL(unwind_stack_by_address);
 
 /* used by show_backtrace() */
 unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
-			   unsigned long pc, unsigned long *ra)
+			   unsigned long *fp, unsigned long pc,
+			   unsigned long *ra)
 {
 	unsigned long stack_page = 0;
 	int cpu;
@@ -612,7 +648,7 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 	if (!stack_page)
 		stack_page = (unsigned long)task_stack_page(task);
 
-	return unwind_stack_by_address(stack_page, sp, pc, ra);
+	return unwind_stack_by_address(stack_page, sp, fp, pc, ra);
 }
 #endif
 
@@ -623,7 +659,7 @@ unsigned long get_wchan(struct task_struct *task)
 {
 	unsigned long pc = 0;
 #ifdef CONFIG_KALLSYMS
-	unsigned long sp;
+	unsigned long sp, fp;
 	unsigned long ra = 0;
 #endif
 
@@ -636,9 +672,10 @@ unsigned long get_wchan(struct task_struct *task)
 
 #ifdef CONFIG_KALLSYMS
 	sp = task->thread.reg29 + schedule_mfi.frame_size;
+	fp = task->thread.reg30;
 
 	while (in_sched_functions(pc))
-		pc = unwind_stack(task, &sp, pc, &ra);
+		pc = unwind_stack(task, &sp, &fp, pc, &ra);
 #endif
 
 	put_task_stack(task);
@@ -679,6 +716,10 @@ int mips_get_process_fp_mode(struct task_struct *task)
 {
 	int value = 0;
 
+	/* We can do nothing sensible if we have no FP support */
+	if (!IS_ENABLED(CONFIG_FP_SUPPORT))
+		return -EOPNOTSUPP;
+
 	if (!test_tsk_thread_flag(task, TIF_32BIT_FPREGS))
 		value |= PR_FP_MODE_FR;
 	if (test_tsk_thread_flag(task, TIF_HYBRID_FPREGS))
@@ -706,6 +747,10 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	struct task_struct *t;
 	struct cpumask process_cpus;
 	int cpu;
+
+	/* We can do nothing sensible if we have no FP support */
+	if (!IS_ENABLED(CONFIG_FP_SUPPORT))
+		return -EOPNOTSUPP;
 
 	/* If nothing to change, return right away, successfully.  */
 	if (value == mips_get_process_fp_mode(task))

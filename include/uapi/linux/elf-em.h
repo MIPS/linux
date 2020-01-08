@@ -42,6 +42,7 @@
 #define EM_MICROBLAZE	189	/* Xilinx MicroBlaze */
 #define EM_TILEGX	191	/* Tilera TILE-Gx */
 #define EM_BPF		247	/* Linux BPF - in-kernel virtual machine */
+#define EM_NANOMIPS	249	/* nanoMIPS */
 #define EM_FRV		0x5441	/* Fujitsu FR-V */
 
 /*

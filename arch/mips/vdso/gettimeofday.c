@@ -106,7 +106,7 @@ static __always_inline u64 read_r4k_count(void)
 
 	__asm__ __volatile__(
 	"	.set push\n"
-	"	.set mips32r2\n"
+	"	.set " MIPS_ISA_LEVEL "\n"
 	"	rdhwr	%0, $2\n"
 	"	.set pop\n"
 	: "=r" (count));

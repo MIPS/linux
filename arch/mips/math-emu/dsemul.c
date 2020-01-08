@@ -225,6 +225,8 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 	if (isa16) {
 		union mips_instruction insn = { .word = ir };
 
+		WARN_ON(cpu_has_nanomips);
+
 		/* NOP16 aka MOVE16 $0, $0 */
 		if ((ir >> 16) == MM_NOP16)
 			return -1;

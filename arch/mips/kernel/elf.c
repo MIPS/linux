@@ -156,7 +156,9 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 	 * Determine the NaN personality, reject the binary if not allowed.
 	 * Also ensure that any interpreter matches the executable.
 	 */
-	if (flags & EF_MIPS_NAN2008) {
+	if (IS_ENABLED(CONFIG_CPU_NANOMIPS)) {
+		state->nan_2008 = 1;
+	} else if (flags & EF_MIPS_NAN2008) {
 		if (mips_use_nan_2008)
 			state->nan_2008 = 1;
 		else
@@ -192,7 +194,7 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 		abi0 = abi1 = fp_abi;
 	}
 
-	if (elf32 && !(flags & EF_MIPS_ABI2)) {
+	if (elf32 && !(flags & EF_MIPS_ABI2) && !IS_ENABLED(CONFIG_CPU_NANOMIPS)) {
 		/* Default to a mode capable of running code expecting FR=0 */
 		state->overall_fp_mode = cpu_has_mips_r6 ? FP_FRE : FP_FR0;
 

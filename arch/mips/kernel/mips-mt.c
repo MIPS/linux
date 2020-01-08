@@ -9,6 +9,8 @@
 #include <linux/sched.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
+#include <linux/random.h>
+#include <linux/sched/task_stack.h>
 #include <linux/security.h>
 
 #include <asm/cpu.h>
@@ -227,6 +229,51 @@ void mips_mt_set_cpuoptions(void)
 			((itcblkgrn & 0x7fe00000) >> 20), itc_base);
 	}
 }
+
+#ifdef CONFIG_MIPS_MT_RAND_SCHED_POLICY
+
+static bool __mips_mt_randomize_sched_policy;
+
+void mips_mt_randomize_sched_policy(void)
+{
+	unsigned int ctl;
+
+	/* Optimize code out for kernels that will never run on I7200 */
+	if (__builtin_constant_p(boot_cpu_type() != CPU_I7200) &&
+	    (boot_cpu_type() != CPU_I7200))
+		return;
+
+	/* Only randomize policy if the user asks for it */
+	if (!__mips_mt_randomize_sched_policy)
+		return;
+
+	/* Enable PM_Prio pins */
+	write_c0_tcschedule(I7200_TCSCHEDULE_PRIO_EN);
+
+	/* Toggle greedy/QoS mode */
+	ctl = read_c0_mvpcontrol();
+	ctl ^= BIT(16);
+	write_c0_mvpcontrol(ctl);
+}
+
+static int __init parse_mt_random_policy(char *arg)
+{
+	switch (boot_cpu_type()) {
+	case CPU_I7200:
+		pr_info("MIPS: Enabling randomized MT scheduling policy\n");
+		__mips_mt_randomize_sched_policy = true;
+		break;
+
+	default:
+		pr_warn("MIPS: Randomized MT scheduling policy unsupported\n");
+		break;
+	}
+
+	return 0;
+}
+early_param("mt_random_policy", parse_mt_random_policy);
+
+#endif /* CONFIG_MIPS_MT_RAND_SCHED_POLICY */
 
 struct class *mt_class;
 

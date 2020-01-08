@@ -10,6 +10,7 @@
  */
 #include <linux/init.h>
 
+#include <asm/addrspace.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/cacheops.h>
@@ -40,10 +41,19 @@ NESTED(except_vec3_generic, 0, sp)
 #ifdef CONFIG_64BIT
 	dsll	k1, k1, 1
 #endif
+#ifdef CONFIG_CPU_NANOMIPS
+	PTR_LA  k0, exception_handlers
+	PTR_ADDU \
+		k0, k0, k1
+	PTR_L	k0, 0(k0)
+#else
 	PTR_L	k0, exception_handlers(k1)
+#endif
 	jr	k0
 	.set	pop
 	END(except_vec3_generic)
+
+#if __mips_isa_rev < 6
 
 /*
  * General exception handler for CPUs with virtual coherency exception.
@@ -105,33 +115,24 @@ handle_vcei:
 	.set	pop
 	END(except_vec3_r4000)
 
+#endif /* __mips_isa_rev < 6 */
+
 	__FINIT
 
 	.align	5	/* 32 byte rollback region */
 LEAF(__r4k_wait)
-	.set	push
-	.set	noreorder
 	/* start of rollback region */
 	LONG_L	t0, TI_FLAGS($28)
 	nop
 	andi	t0, _TIF_NEED_RESCHED
 	bnez	t0, 1f
-	 nop
-	nop
-	nop
-#ifdef CONFIG_CPU_MICROMIPS
-	nop
-	nop
-	nop
-	nop
-#endif
+	.set	push
 	.set	MIPS_ISA_ARCH_LEVEL_RAW
 	wait
+	.set	pop
 	/* end of rollback region (the region size must be power of two) */
 1:
 	jr	ra
-	 nop
-	.set	pop
 	END(__r4k_wait)
 
 	.macro	BUILD_ROLLBACK_PROLOGUE handler
@@ -272,15 +273,20 @@ BUILD_ROLLBACK_PROLOGUE except_vec_vi
 NESTED(except_vec_vi, 0, sp)
 	SAVE_SOME docfi=1
 	SAVE_AT docfi=1
+	PTR_LA	v1, except_vec_vi_handler
 	.set	push
 	.set	noreorder
-	PTR_LA	v1, except_vec_vi_handler
+#ifdef CONFIG_CPU_NANOMIPS
+FEXPORT(except_vec_vi_li48)
+	li48	v0, 0		/* Patched */
+#else
 FEXPORT(except_vec_vi_lui)
 	lui	v0, 0		/* Patched */
-	jr	v1
 FEXPORT(except_vec_vi_ori)
-	 ori	v0, 0		/* Patched */
+	ori	v0, 0		/* Patched */
+#endif
 	.set	pop
+	jr	v1
 	END(except_vec_vi)
 EXPORT(except_vec_vi_end)
 
@@ -365,7 +371,7 @@ NESTED(ejtag_debug_handler, PT_SIZE, sp)
 
 ejtag_return:
 	MFC0	k0, CP0_DESAVE
-	.set	mips32
+	.set	MIPS_ISA_LEVEL_RAW
 	deret
 	.set	pop
 	END(ejtag_debug_handler)
@@ -433,7 +439,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.macro	__build_clear_fpe
 	.set	push
 	/* gas fails to assemble cfc1 for some archs (octeon).*/ \
-	.set	mips1
+	.set	MIPS_ISA_LEVEL_RAW
 	SET_HARDFLOAT
 	cfc1	a1, fcr31
 	.set	pop
@@ -451,6 +457,18 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	MFC0	t0, CP0_BADVADDR
 	PTR_S	t0, PT_BVADDR(sp)
 	KMODE
+	.endm
+
+	.macro	__build_clear_bp
+#ifdef __nanomips__
+	mfc0	t0, CP0_BADINSTR
+	li	t1, 0x001001ff		/* break 511 */
+	bnec	t0, t1, 1f
+	li	t2, CKSEG1ADDR(0x1fc00000)
+	sw	zero, 0(t2)
+1:
+#endif
+	__build_clear_sti
 	.endm
 
 	.macro	__BUILD_silent exception
@@ -501,7 +519,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER ades ade ade silent		/* #5  */
 	BUILD_HANDLER ibe be cli silent			/* #6  */
 	BUILD_HANDLER dbe be cli silent			/* #7  */
-	BUILD_HANDLER bp bp sti silent			/* #9  */
+	BUILD_HANDLER bp bp bp silent			/* #9  */
 	BUILD_HANDLER ri ri sti silent			/* #10 */
 	BUILD_HANDLER cpu cpu sti silent		/* #11 */
 	BUILD_HANDLER ov ov sti silent			/* #12 */
@@ -524,6 +542,8 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER mt mt sti silent			/* #25 */
 	BUILD_HANDLER dsp dsp sti silent		/* #26 */
 	BUILD_HANDLER reserved reserved sti verbose	/* others */
+
+#ifndef CONFIG_CPU_NANOMIPS
 
 	.align	5
 	LEAF(handle_ri_rdhwr_tlbp)
@@ -550,20 +570,19 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	LEAF(handle_ri_rdhwr)
 	.set	push
 	.set	noat
-	.set	noreorder
 	/* MIPS32:    0x7c03e83b: rdhwr v1,$29 */
 	/* microMIPS: 0x007d6b3c: rdhwr v1,$29 */
 	MFC0	k1, CP0_EPC
 #if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS64_R2)
 	and	k0, k1, 1
+	xor	k1, k0
 	beqz	k0, 1f
-	 xor	k1, k0
 	lhu	k0, (k1)
 	lhu	k1, 2(k1)
 	ins	k1, k0, 16, 16
 	lui	k0, 0x007d
+	ori	k0, 0x6b3c
 	b	docheck
-	 ori	k0, 0x6b3c
 1:
 	lui	k0, 0x7c03
 	lw	k1, (k1)
@@ -575,7 +594,6 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	lw	k1, (k1)
 	ori	k0, 0xe83b
 #endif
-	.set	reorder
 docheck:
 	bne	k0, k1, handle_ri	/* if not ours */
 
@@ -608,6 +626,8 @@ isrdhwr:
 #endif
 	.set	pop
 	END(handle_ri_rdhwr)
+
+#endif /* !CONFIG_CPU_NANOMIPS */
 
 #ifdef CONFIG_64BIT
 /* A temporary overflow handler used by check_daddi(). */

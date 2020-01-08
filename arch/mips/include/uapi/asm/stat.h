@@ -85,6 +85,8 @@ struct stat64 {
 	long long	st_blocks;
 };
 
+#define STAT_HAVE_NSEC 1
+
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
@@ -126,8 +128,15 @@ struct stat {
 	unsigned long		st_blocks;
 };
 
+#define STAT_HAVE_NSEC 1
+
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
-#define STAT_HAVE_NSEC 1
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+
+/* Use the generic struct stat */
+#include <asm-generic/stat.h>
+
+#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
 
 #endif /* _ASM_STAT_H */

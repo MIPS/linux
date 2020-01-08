@@ -18,27 +18,33 @@
 void mips_install_watch_registers(struct task_struct *t)
 {
 	struct mips3264_watch_reg_state *watches = &t->thread.watch.mips3264;
+	unsigned int watchhi = MIPS_WATCHHI_G |		/* Trap all ASIDs */
+			       MIPS_WATCHHI_IRW;	/* Clear result bits */
+	unsigned int vpe;
+
+	if (boot_cpu_type() == CPU_I7200) {
+		vpe = cpu_vpe_id(&current_cpu_data);
+		watchhi = MIPS_WATCHHI_U |		/* Match user mode */
+			  MIPS_WATCHHI_MTEN_ID_VPE |	/* Match all TCs  */
+			  (vpe << MIPS_WATCHHI_MTEN_ID_S) | /* of this VPE  */
+			  MIPS_WATCHHI_IRW_RSLT;	/* Clear result bits */
+	}
+
 	switch (current_cpu_data.watch_reg_use_cnt) {
 	default:
 		BUG();
 	case 4:
 		write_c0_watchlo3(watches->watchlo[3]);
-		/* Write 1 to the I, R, and W bits to clear them, and
-		   1 to G so all ASIDs are trapped. */
-		write_c0_watchhi3(MIPS_WATCHHI_G | MIPS_WATCHHI_IRW |
-				  watches->watchhi[3]);
+		write_c0_watchhi3(watchhi | watches->watchhi[3]);
 	case 3:
 		write_c0_watchlo2(watches->watchlo[2]);
-		write_c0_watchhi2(MIPS_WATCHHI_G | MIPS_WATCHHI_IRW |
-				  watches->watchhi[2]);
+		write_c0_watchhi2(watchhi | watches->watchhi[2]);
 	case 2:
 		write_c0_watchlo1(watches->watchlo[1]);
-		write_c0_watchhi1(MIPS_WATCHHI_G | MIPS_WATCHHI_IRW |
-				  watches->watchhi[1]);
+		write_c0_watchhi1(watchhi | watches->watchhi[1]);
 	case 1:
 		write_c0_watchlo0(watches->watchlo[0]);
-		write_c0_watchhi0(MIPS_WATCHHI_G | MIPS_WATCHHI_IRW |
-				  watches->watchhi[0]);
+		write_c0_watchhi0(watchhi | watches->watchhi[0]);
 	}
 }
 
@@ -51,21 +57,24 @@ void mips_read_watch_registers(void)
 {
 	struct mips3264_watch_reg_state *watches =
 		&current->thread.watch.mips3264;
+	unsigned int watchhi_mask = MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW;
+
+	if (boot_cpu_type() == CPU_I7200) {
+		/* Return only result & enable bits to userspace */
+		watchhi_mask = MIPS_WATCHHI_IRW_RSLT | MIPS_WATCHHI_IRW;
+	}
+
 	switch (current_cpu_data.watch_reg_use_cnt) {
 	default:
 		BUG();
 	case 4:
-		watches->watchhi[3] = (read_c0_watchhi3() &
-				       (MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW));
+		watches->watchhi[3] = (read_c0_watchhi3() & watchhi_mask);
 	case 3:
-		watches->watchhi[2] = (read_c0_watchhi2() &
-				       (MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW));
+		watches->watchhi[2] = (read_c0_watchhi2() & watchhi_mask);
 	case 2:
-		watches->watchhi[1] = (read_c0_watchhi1() &
-				       (MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW));
+		watches->watchhi[1] = (read_c0_watchhi1() & watchhi_mask);
 	case 1:
-		watches->watchhi[0] = (read_c0_watchhi0() &
-				       (MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW));
+		watches->watchhi[0] = (read_c0_watchhi0() & watchhi_mask);
 	}
 	if (current_cpu_data.watch_reg_use_cnt == 1 &&
 	    (watches->watchhi[0] & MIPS_WATCHHI_IRW) == 0) {
@@ -90,26 +99,118 @@ void mips_clear_watch_registers(void)
 		BUG();
 	case 8:
 		write_c0_watchlo7(0);
+		write_c0_watchhi7(0);
 	case 7:
 		write_c0_watchlo6(0);
+		write_c0_watchhi6(0);
 	case 6:
 		write_c0_watchlo5(0);
+		write_c0_watchhi5(0);
 	case 5:
 		write_c0_watchlo4(0);
+		write_c0_watchhi4(0);
 	case 4:
 		write_c0_watchlo3(0);
+		write_c0_watchhi3(0);
 	case 3:
 		write_c0_watchlo2(0);
+		write_c0_watchhi2(0);
 	case 2:
 		write_c0_watchlo1(0);
+		write_c0_watchhi1(0);
 	case 1:
 		write_c0_watchlo0(0);
+		write_c0_watchhi0(0);
 	}
 }
+
+
+void mips_probe_i7200_watch_registers(struct cpuinfo_mips *c)
+{
+	unsigned int t;
+
+	/* All capability bits are in watchhi - set and read back */
+	write_c0_watchhi0(MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW);
+	back_to_back_c0_hazard();
+	t = read_c0_watchhi0();
+	write_c0_watchhi0(0);
+
+	if (!(t & MIPS_WATCHHI_IRW)) {
+		/* No watch registers */
+		return;
+	}
+
+	/* Config1.WR = 0, but watch registers are indeed present */
+	c->options |= MIPS_CPU_WATCH;
+
+	c->watch_reg_masks[0] = t;
+	c->watch_reg_count = 1;
+	c->watch_reg_use_cnt = 1;
+	if ((t & MIPS_WATCHHI_M) == 0)
+		return;
+
+	write_c0_watchhi1(MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW);
+	back_to_back_c0_hazard();
+	t = read_c0_watchhi1();
+	write_c0_watchhi1(0);
+
+	c->watch_reg_masks[1] = t;
+	c->watch_reg_count = 2;
+	c->watch_reg_use_cnt = 2;
+	if ((t & MIPS_WATCHHI_M) == 0)
+		return;
+
+	write_c0_watchhi2(MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW);
+	back_to_back_c0_hazard();
+	t = read_c0_watchhi2();
+	write_c0_watchhi2(0);
+
+	c->watch_reg_masks[2] = t;
+	c->watch_reg_count = 3;
+	c->watch_reg_use_cnt = 3;
+	if ((t & MIPS_WATCHHI_M) == 0)
+		return;
+
+	write_c0_watchhi3(MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW);
+	back_to_back_c0_hazard();
+	t = read_c0_watchhi3();
+	write_c0_watchhi3(0);
+
+	c->watch_reg_masks[3] = t;
+	c->watch_reg_count = 4;
+	c->watch_reg_use_cnt = 4;
+	if ((t & MIPS_WATCHHI_M) == 0)
+		return;
+
+	/* We use at most 4, but probe and report up to 8. */
+	c->watch_reg_count = 5;
+	t = read_c0_watchhi4();
+	if ((t & MIPS_WATCHHI_M) == 0)
+		return;
+
+	c->watch_reg_count = 6;
+	t = read_c0_watchhi5();
+	if ((t & MIPS_WATCHHI_M) == 0)
+		return;
+
+	c->watch_reg_count = 7;
+	t = read_c0_watchhi6();
+	if ((t & MIPS_WATCHHI_M) == 0)
+		return;
+
+	c->watch_reg_count = 8;
+}
+
 
 void mips_probe_watch_registers(struct cpuinfo_mips *c)
 {
 	unsigned int t;
+
+	switch (boot_cpu_type()) {
+	case CPU_I7200:
+		/* I7200 has non-standard watch registers */
+		return mips_probe_i7200_watch_registers(c);
+	}
 
 	if ((c->options & MIPS_CPU_WATCH) == 0)
 		return;

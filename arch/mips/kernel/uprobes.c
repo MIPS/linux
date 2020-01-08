@@ -27,6 +27,15 @@ static inline int insn_has_delay_slot(const union mips_instruction insn)
 int arch_uprobe_analyze_insn(struct arch_uprobe *aup,
 	struct mm_struct *mm, unsigned long addr)
 {
+#ifdef __nanomips__
+	if (addr & 0x1)
+		return -EINVAL;
+
+	aup->ixol[0] = aup->insn[0];
+	aup->ixol[1] = UPROBE_XOLBREAK_INSN;
+
+	return 0;
+#else
 	union mips_instruction inst;
 
 	/*
@@ -44,9 +53,10 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *aup,
 	}
 
 	aup->ixol[0] = aup->insn[insn_has_delay_slot(inst)];
-	aup->ixol[1] = UPROBE_BRK_UPROBE_XOL;		/* NOP  */
+	aup->ixol[1] = UPROBE_XOLBREAK_INSN;
 
 	return 0;
+#endif
 }
 
 /**
@@ -61,6 +71,19 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *aup,
  */
 bool is_trap_insn(uprobe_opcode_t *insn)
 {
+#ifdef __nanomips__
+	switch (insn->h[0] >> 10) {
+	case 0x00: /* P.ADDIU (BREAK[32]) */
+	case 0x04: /* P16.MV  (BREAK[16]) */
+		return ((insn->h[0] & GENMASK(9, 3)) >> 3) == 0x2;
+
+	case 0x08: /* P32A (TEQ & TNE) */
+		return (insn->h[1] & GENMASK(9, 0)) == 0;
+
+	default:
+		return false;
+	}
+#else
 	union mips_instruction inst;
 
 	inst.word = *insn;
@@ -93,6 +116,7 @@ bool is_trap_insn(uprobe_opcode_t *insn)
 	}
 
 	return 0;
+#endif
 }
 
 #define UPROBE_TRAP_NR	ULONG_MAX
@@ -110,6 +134,9 @@ int arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs)
 	 * Now find the EPC where to resume after the breakpoint has been
 	 * dealt with.  This may require emulation of a branch.
 	 */
+#ifdef __nanomips__
+	aup->resume_epc = regs->cp0_epc + nanomips_insn_len(aup->insn[0].h[0]);
+#else
 	aup->resume_epc = regs->cp0_epc + 4;
 	if (insn_has_delay_slot((union mips_instruction) aup->insn[0])) {
 		unsigned long epc;
@@ -119,6 +146,7 @@ int arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs)
 			(union mips_instruction) aup->insn[0]);
 		aup->resume_epc = regs->cp0_epc;
 	}
+#endif
 	utask->autask.saved_trap_nr = current->thread.trap_nr;
 	current->thread.trap_nr = UPROBE_TRAP_NR;
 	regs->cp0_epc = current->utask->xol_vaddr;
@@ -231,6 +259,19 @@ void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 				  void *src, unsigned long len)
 {
 	unsigned long kaddr, kstart;
+#ifdef __nanomips__
+	u16 buf[sizeof(((struct arch_uprobe *)NULL)->ixol)];
+	uprobe_opcode_t *ops = src;
+	unsigned int d, i, j;
+
+	for (d = i = 0; i < ARRAY_SIZE(((struct arch_uprobe *)NULL)->ixol); i++) {
+		for (j = 0; j < (nanomips_insn_len(ops[i].h[0]) / 2); j++)
+			buf[d++] = ops[i].h[j];
+	}
+
+	src = buf;
+	len = d * sizeof(buf[0]);
+#endif /* __nanomips__ */
 
 	/* Initialize the slot */
 	kaddr = (unsigned long)kmap_atomic(page);
@@ -261,5 +302,36 @@ unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
  */
 bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	return 0;
+#ifdef __nanomips__
+	uprobe_opcode_t *i = &auprobe->insn[0];
+	unsigned long next_pc;
+	long offset;
+
+	pr_debug("%s: %0*llx\n", __func__,
+		 nanomips_insn_len(i->h[0]) * 2,
+		 ((u64)i->h[0] << ((nanomips_insn_len(i->h[0]) - 2) * 8)) |
+		 ((nanomips_insn_len(i->h[0]) >= 4) ?
+		   ((u64)i->h[1] << ((nanomips_insn_len(i->h[0]) - 4) * 8)) : 0) |
+		 ((nanomips_insn_len(i->h[0]) >= 6) ?
+		   ((u64)i->h[2] << ((nanomips_insn_len(i->h[0]) - 6) * 8)) : 0));
+
+	next_pc = regs->cp0_epc + nanomips_insn_len(i->h[0]);
+
+	switch (i->h[0] >> 10) {
+	case 0x0a: /* P.BAL */
+		offset = (u32)(i->h[0] & GENMASK(8, 0)) << 16;
+		offset |= i->h[1] & GENMASK(15, 1);
+		offset |= (u32)(i->h[1] & BIT(0)) << 25;
+		offset = sign_extend64(offset, 25);
+
+		if (i->h[0] & BIT(9))
+			regs->regs[31] = next_pc;
+		regs->cp0_epc = next_pc + offset;
+		return true;
+
+	default:
+		return false;
+	}
+#endif
+	return false;
 }

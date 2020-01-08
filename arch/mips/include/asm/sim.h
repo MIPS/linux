@@ -25,21 +25,19 @@ __asm__(								\
 	".type\t__" #symbol ", @function\n\t"				\
 	".ent\t__" #symbol ", 0\n__"					\
 	#symbol":\n\t"							\
-	".frame\t$29, 0, $31\n\t"					\
-	"sw\t$16,"__str(PT_R16)"($29)\t\t\t# save_static_function\n\t"	\
-	"sw\t$17,"__str(PT_R17)"($29)\n\t"				\
-	"sw\t$18,"__str(PT_R18)"($29)\n\t"				\
-	"sw\t$19,"__str(PT_R19)"($29)\n\t"				\
-	"sw\t$20,"__str(PT_R20)"($29)\n\t"				\
-	"sw\t$21,"__str(PT_R21)"($29)\n\t"				\
-	"sw\t$22,"__str(PT_R22)"($29)\n\t"				\
-	"sw\t$23,"__str(PT_R23)"($29)\n\t"				\
-	"sw\t$30,"__str(PT_R30)"($29)\n\t"				\
+	".frame\t$sp, 0, $ra\n\t"					\
+	"sw\t$s0,"__str(PT_R16)"($sp)\t\t\t# save_static_function\n\t"	\
+	"sw\t$s1,"__str(PT_R17)"($sp)\n\t"				\
+	"sw\t$s2,"__str(PT_R18)"($sp)\n\t"				\
+	"sw\t$s3,"__str(PT_R19)"($sp)\n\t"				\
+	"sw\t$s4,"__str(PT_R20)"($sp)\n\t"				\
+	"sw\t$s5,"__str(PT_R21)"($sp)\n\t"				\
+	"sw\t$s6,"__str(PT_R22)"($sp)\n\t"				\
+	"sw\t$s7,"__str(PT_R23)"($sp)\n\t"				\
+	"sw\t$fp,"__str(PT_R30)"($sp)\n\t"				\
 	"j\t" #symbol "\n\t"						\
 	".end\t__" #symbol "\n\t"					\
 	".size\t__" #symbol",. - __" #symbol)
-
-#define nabi_no_regargs
 
 #endif /* CONFIG_32BIT */
 
@@ -53,29 +51,19 @@ __asm__(								\
 	".type\t__" #symbol ", @function\n\t"				\
 	".ent\t__" #symbol ", 0\n__"					\
 	#symbol":\n\t"							\
-	".frame\t$29, 0, $31\n\t"					\
-	"sd\t$16,"__str(PT_R16)"($29)\t\t\t# save_static_function\n\t"	\
-	"sd\t$17,"__str(PT_R17)"($29)\n\t"				\
-	"sd\t$18,"__str(PT_R18)"($29)\n\t"				\
-	"sd\t$19,"__str(PT_R19)"($29)\n\t"				\
-	"sd\t$20,"__str(PT_R20)"($29)\n\t"				\
-	"sd\t$21,"__str(PT_R21)"($29)\n\t"				\
-	"sd\t$22,"__str(PT_R22)"($29)\n\t"				\
-	"sd\t$23,"__str(PT_R23)"($29)\n\t"				\
-	"sd\t$30,"__str(PT_R30)"($29)\n\t"				\
+	".frame\t$sp, 0, $ra\n\t"					\
+	"sd\t$s0,"__str(PT_R16)"($sp)\t\t\t# save_static_function\n\t"	\
+	"sd\t$s1,"__str(PT_R17)"($sp)\n\t"				\
+	"sd\t$s2,"__str(PT_R18)"($sp)\n\t"				\
+	"sd\t$s3,"__str(PT_R19)"($sp)\n\t"				\
+	"sd\t$s4,"__str(PT_R20)"($sp)\n\t"				\
+	"sd\t$s5,"__str(PT_R21)"($sp)\n\t"				\
+	"sd\t$s6,"__str(PT_R22)"($sp)\n\t"				\
+	"sd\t$s7,"__str(PT_R23)"($sp)\n\t"				\
+	"sd\t$fp,"__str(PT_R30)"($sp)\n\t"				\
 	"j\t" #symbol "\n\t"						\
 	".end\t__" #symbol "\n\t"					\
 	".size\t__" #symbol",. - __" #symbol)
-
-#define nabi_no_regargs							\
-	unsigned long __dummy0,						\
-	unsigned long __dummy1,						\
-	unsigned long __dummy2,						\
-	unsigned long __dummy3,						\
-	unsigned long __dummy4,						\
-	unsigned long __dummy5,						\
-	unsigned long __dummy6,						\
-	unsigned long __dummy7,
 
 #endif /* CONFIG_64BIT */
 

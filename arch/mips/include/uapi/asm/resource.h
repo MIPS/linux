@@ -10,6 +10,11 @@
 #ifndef _ASM_RESOURCE_H
 #define _ASM_RESOURCE_H
 
+#include <asm/sgidefs.h>
+
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
 
 /*
  * These five resource limit IDs have a MIPS/Linux-specific ordering,
@@ -30,6 +35,8 @@
 #ifndef __mips64
 # define RLIM_INFINITY		0x7fffffffUL
 #endif
+
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
 
 #include <asm-generic/resource.h>
 

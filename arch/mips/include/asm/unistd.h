@@ -9,10 +9,15 @@
  * Changed system calls macros _syscall5 - _syscall7 to push args 5 to 7 onto
  * the stack. Robin Farine for ACN S.A, Copyright (C) 1996 by ACN S.A
  */
-#ifndef _ASM_UNISTD_H
+/* Enable inclusion twice when defining syscall table */
+#if !defined(_ASM_UNISTD_H) || defined(__SYSCALL)
 #define _ASM_UNISTD_H
 
 #include <uapi/asm/unistd.h>
+
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
 
 #ifdef CONFIG_MIPS32_N32
 #define NR_syscalls  (__NR_N32_Linux + __NR_N32_Linux_syscalls)
@@ -25,6 +30,7 @@
 #ifndef __ASSEMBLY__
 
 #define __ARCH_WANT_OLD_READDIR
+#define __ARCH_WANT_SYSCALL_UNXSTAT
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_IPC
@@ -66,5 +72,14 @@
 #endif
 
 #endif /* !__ASSEMBLY__ */
+
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
+
+#if (_MIPS_SIM == _MIPS_SIM_PABI32)
+
+#define __ARCH_WANT_SYS_CLONE
+#define __ARCH_WANT_SYS_MMAP_4KOFF
+
+#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
 
 #endif /* _ASM_UNISTD_H */

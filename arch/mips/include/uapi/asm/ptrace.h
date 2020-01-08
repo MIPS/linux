@@ -70,7 +70,8 @@ struct pt_regs {
 /* Read and write watchpoint registers.	 */
 enum pt_watch_style {
 	pt_watch_style_mips32,
-	pt_watch_style_mips64
+	pt_watch_style_mips64,
+	pt_watch_style_i7200,
 };
 struct mips32_watch_regs {
 	unsigned int watchlo[8];

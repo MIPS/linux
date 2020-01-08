@@ -10,9 +10,20 @@
 #ifndef _UAPI_ASM_SIGNAL_H
 #define _UAPI_ASM_SIGNAL_H
 
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+
+#include <asm-generic/signal.h>
+
+#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
+
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
+
 #include <linux/types.h>
 
 #define _NSIG		128
+
 #define _NSIG_BPW	(sizeof(unsigned long) * 8)
 #define _NSIG_WORDS	(_NSIG / _NSIG_BPW)
 
@@ -116,5 +127,6 @@ typedef struct sigaltstack {
 	int ss_flags;
 } stack_t;
 
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
 
 #endif /* _UAPI_ASM_SIGNAL_H */

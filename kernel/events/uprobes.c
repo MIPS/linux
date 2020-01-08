@@ -223,7 +223,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
  */
 bool __weak is_swbp_insn(uprobe_opcode_t *insn)
 {
-	return *insn == UPROBE_SWBP_INSN;
+	return uprobe_opcode_equal(*insn, UPROBE_SWBP_INSN);
 }
 
 /**
@@ -1711,7 +1711,12 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	int result;
 
 	pagefault_disable();
+#ifdef uprobe_opcode_equal
+	result = copy_from_user(&opcode, (uprobe_opcode_t __user *)vaddr,
+				sizeof(opcode));
+#else
 	result = __get_user(opcode, (uprobe_opcode_t __user *)vaddr);
+#endif
 	pagefault_enable();
 
 	if (likely(result == 0))
@@ -1728,7 +1733,7 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	if (result < 0)
 		return result;
 
-	copy_from_page(page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
+	copy_from_page(page, vaddr, &opcode, sizeof(opcode));
 	put_page(page);
  out:
 	/* This needs to return true for any variant of the trap insn */

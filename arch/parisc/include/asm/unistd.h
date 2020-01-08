@@ -143,6 +143,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5)	\
 
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_STAT64
+#define __ARCH_WANT_SYSCALL_UNXSTAT
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_PAUSE

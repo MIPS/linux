@@ -38,6 +38,15 @@ cat << EOF
 #define __IGNORE_lstat64	/* fstatat64 */
 #endif
 
+/* statx */
+#if BITS_PER_LONG == 64
+#define __IGNORE_newfstatat	/* statx */
+#define __IGNORE_newfstat	/* statx */
+#else
+#define __IGNORE_fstatat64	/* statx */
+#define __IGNORE_fstat64	/* statx */
+#endif
+
 /* Missing flags argument */
 #define __IGNORE_renameat	/* renameat2 */
 
@@ -179,9 +188,11 @@ cat << EOF
 #define __IGNORE_futimesat	/* utimensat */
 #define __IGNORE_getpgrp	/* getpgid */
 #define __IGNORE_getdents	/* getdents64 */
+#define __IGNORE_getrlimit	/* prlimit64 */
 #define __IGNORE_pause		/* sigsuspend */
 #define __IGNORE_poll		/* ppoll */
 #define __IGNORE_select		/* pselect6 */
+#define __IGNORE_setrlimit	/* prlimit64 */
 #define __IGNORE_epoll_wait	/* epoll_pwait */
 #define __IGNORE_time		/* gettimeofday */
 #define __IGNORE_uname		/* newuname */

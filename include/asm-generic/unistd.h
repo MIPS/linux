@@ -8,6 +8,8 @@
  * be selected by default.
  */
 #if __BITS_PER_LONG == 32
+#ifdef __ARCH_WANT_SYSCALL_UNXSTAT
 #define __ARCH_WANT_STAT64
+#endif
 #define __ARCH_WANT_SYS_LLSEEK
 #endif

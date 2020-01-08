@@ -204,4 +204,9 @@ static inline void uprobe_clear_state(struct mm_struct *mm)
 {
 }
 #endif /* !CONFIG_UPROBES */
+
+#ifndef uprobe_opcode_equal
+# define uprobe_opcode_equal(a, b)	((a) == (b))
+#endif
+
 #endif	/* _LINUX_UPROBES_H */

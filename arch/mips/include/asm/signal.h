@@ -27,7 +27,13 @@ extern struct mips_abi mips_abi_32;
 #include <asm/sigcontext.h>
 #include <asm/siginfo.h>
 
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
+
 #define __ARCH_HAS_IRIX_SIGACTION
+
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
 
 extern int protected_save_fp_context(void __user *sc);
 extern int protected_restore_fp_context(void __user *sc);

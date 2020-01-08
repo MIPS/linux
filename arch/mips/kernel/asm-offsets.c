@@ -100,6 +100,7 @@ void output_thread_info_defines(void)
 	OFFSET(TI_REGS, thread_info, regs);
 	DEFINE(_THREAD_SIZE, THREAD_SIZE);
 	DEFINE(_THREAD_MASK, THREAD_MASK);
+	DEFINE(_THREAD_MASK_BITS, PAGE_SHIFT + THREAD_SIZE_ORDER);
 	DEFINE(_IRQ_STACK_SIZE, IRQ_STACK_SIZE);
 	DEFINE(_IRQ_STACK_START, IRQ_STACK_START);
 	BLANK();
@@ -209,9 +210,25 @@ void output_mm_defines(void)
 	DEFINE(_PAGE_SHIFT, PAGE_SHIFT);
 	DEFINE(_PAGE_SIZE, PAGE_SIZE);
 	BLANK();
+	DEFINE(__PAGE_GLOBAL_SHIFT, _PAGE_GLOBAL_SHIFT);
+#if defined(CONFIG_XPA) || defined(CONFIG_CPU_HAS_RIXI)
+	DEFINE(__PAGE_NO_EXEC_SHIFT, _PAGE_NO_EXEC_SHIFT);
+#endif
+	BLANK();
+	DEFINE(__PAGE_ACCESSED, _PAGE_ACCESSED);
+	DEFINE(__PAGE_MODIFIED, _PAGE_MODIFIED);
+	DEFINE(__PAGE_VALID, _PAGE_VALID);
+	DEFINE(__PAGE_DIRTY, _PAGE_DIRTY);
+	DEFINE(__PAGE_PRESENT, _PAGE_PRESENT);
+	DEFINE(__PAGE_WRITE, _PAGE_WRITE);
+	BLANK();
 }
 
-#ifdef CONFIG_32BIT
+#if (_MIPS_SIM == _MIPS_SIM_ABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_NABI32) || \
+    (_MIPS_SIM == _MIPS_SIM_ABI64)
+
+#if defined(CONFIG_32BIT)
 void output_sc_defines(void)
 {
 	COMMENT("Linux sigcontext offsets.");
@@ -233,7 +250,7 @@ void output_sc_defines(void)
 }
 #endif
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT)
 void output_sc_defines(void)
 {
 	COMMENT("Linux sigcontext offsets.");
@@ -247,6 +264,20 @@ void output_sc_defines(void)
 }
 #endif
 
+#endif /* _MIPS_SIM == _MIPS_SIM_ABI32 or _MIPS_SIM_NABI32 or _MIPS_SIM_ABI64 */
+
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+
+void output_sc_defines(void)
+{
+	COMMENT("Linux sigcontext offsets.");
+	OFFSET(SC_REGS, sigcontext, sc_regs);
+	OFFSET(SC_PC, sigcontext, sc_pc);
+	BLANK();
+}
+
+#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
+
 void output_signal_defined(void)
 {
 	COMMENT("Linux signal numbers.");
@@ -257,7 +288,9 @@ void output_signal_defined(void)
 	DEFINE(_SIGTRAP, SIGTRAP);
 	DEFINE(_SIGIOT, SIGIOT);
 	DEFINE(_SIGABRT, SIGABRT);
+#ifdef SIGEMT
 	DEFINE(_SIGEMT, SIGEMT);
+#endif
 	DEFINE(_SIGFPE, SIGFPE);
 	DEFINE(_SIGKILL, SIGKILL);
 	DEFINE(_SIGBUS, SIGBUS);

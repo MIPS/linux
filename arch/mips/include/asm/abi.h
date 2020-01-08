@@ -11,6 +11,7 @@
 
 #include <linux/signal_types.h>
 
+#include <asm/sigcontext.h>
 #include <asm/signal.h>
 #include <asm/siginfo.h>
 #include <asm/vdso.h>
@@ -22,8 +23,10 @@ struct mips_abi {
 				     struct pt_regs *regs, sigset_t *set);
 	const unsigned long	restart;
 
+#ifndef __MIPS_REDUCED_SIGCONTEXT
 	unsigned	off_sc_fpregs;
 	unsigned	off_sc_fpc_csr;
+#endif
 	unsigned	off_sc_used_math;
 
 	struct mips_vdso_image *vdso;

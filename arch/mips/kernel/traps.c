@@ -145,6 +145,7 @@ __setup("raw_show_trace", set_raw_show_trace);
 static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
 {
 	unsigned long sp = regs->regs[29];
+	unsigned long fp = regs->regs[30];
 	unsigned long ra = regs->regs[31];
 	unsigned long pc = regs->cp0_epc;
 
@@ -158,7 +159,7 @@ static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
 	printk("Call Trace:\n");
 	do {
 		print_ip_sym(pc);
-		pc = unwind_stack(task, &sp, pc, &ra);
+		pc = unwind_stack(task, &sp, &fp, pc, &ra);
 	} while (pc);
 	pr_cont("\n");
 }
@@ -207,11 +208,13 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	regs.cp0_status = KSU_KERNEL;
 	if (sp) {
 		regs.regs[29] = (unsigned long)sp;
+		regs.regs[30] = 0;
 		regs.regs[31] = 0;
 		regs.cp0_epc = 0;
 	} else {
 		if (task && task != current) {
 			regs.regs[29] = task->thread.reg29;
+			regs.regs[30] = task->thread.reg30;
 			regs.regs[31] = 0;
 			regs.cp0_epc = task->thread.reg31;
 #ifdef CONFIG_KGDB_KDB
@@ -239,8 +242,9 @@ static void show_code(unsigned int __user *pc)
 
 	printk("Code:");
 
-	if ((unsigned long)pc & 1)
-		pc16 = (unsigned short __user *)((unsigned long)pc & ~1);
+	if (get_isa16_mode((unsigned long)pc))
+		pc16 = (unsigned short __user *)msk_isa16_mode(
+							(unsigned long)pc);
 	for(i = -3 ; i < 6 ; i++) {
 		unsigned int insn;
 		if (pc16 ? __get_user(insn, pc16 + i) : __get_user(insn, pc + i)) {
@@ -1017,7 +1021,18 @@ asmlinkage void do_bp(struct pt_regs *regs)
 		if (__get_user(instr[0], (u16 __user *)epc))
 			goto out_sigsegv;
 
-		if (!cpu_has_mmips) {
+		if (cpu_has_nanomips) {
+			if (nanomips_insn_len(instr[0]) == 2) {
+				/* 16-bit nanoMIPS BREAK[16] */
+				bcode = instr[0] & 0x7;
+			} else {
+				/* 32-bit nanoMIPS BREAK[32] */
+				if (__get_user(instr[1], (u16 __user *)(epc + 2)))
+					goto out_sigsegv;
+				opcode = (instr[0] << 16) | instr[1];
+				bcode = opcode & ((1 << 19) - 1);
+			}
+		} else if (!cpu_has_mmips) {
 			/* MIPS16e mode */
 			bcode = (instr[0] >> 5) & 0x3f;
 		} else if (mm_insn_16bit(instr[0])) {
@@ -1108,10 +1123,15 @@ asmlinkage void do_tr(struct pt_regs *regs)
 		if (__get_user(instr[0], (u16 __user *)(epc + 0)) ||
 		    __get_user(instr[1], (u16 __user *)(epc + 2)))
 			goto out_sigsegv;
-		opcode = (instr[0] << 16) | instr[1];
-		/* Immediate versions don't provide a code.  */
-		if (!(opcode & OPCODE))
-			tcode = (opcode >> 12) & ((1 << 4) - 1);
+
+		if (cpu_has_nanomips) {
+			tcode = (instr[1] >> 11) & ((1 << 5) - 1);
+		} else {
+			opcode = (instr[0] << 16) | instr[1];
+			/* Immediate versions don't provide a code.  */
+			if (!(opcode & OPCODE))
+				tcode = (opcode >> 12) & ((1 << 4) - 1);
+		}
 	} else {
 		if (__get_user(opcode, (u32 __user *)epc))
 			goto out_sigsegv;
@@ -1153,7 +1173,9 @@ asmlinkage void do_ri(struct pt_regs *regs)
 		status = mipsr2_decoder(regs, opcode, &fcr31);
 		switch (status) {
 		case 0:
+#ifdef SIGEMT
 		case SIGEMT:
+#endif
 			return;
 		case SIGILL:
 			goto no_r2_instr;
@@ -1180,6 +1202,8 @@ no_r2_instr:
 		goto out;
 
 	if (!get_isa16_mode(regs->cp0_epc)) {
+		WARN_ON(cpu_has_nanomips);
+
 		if (unlikely(get_user(opcode, epc) < 0))
 			status = SIGSEGV;
 
@@ -1486,14 +1510,17 @@ asmlinkage void do_msa_fpe(struct pt_regs *regs, unsigned int msacsr)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
-	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
-	if (notify_die(DIE_MSAFP, "MSA FP exception", regs, 0,
-		       current->thread.trap_nr, SIGFPE) == NOTIFY_STOP)
-		goto out;
 
-	/* Clear MSACSR.Cause before enabling interrupts */
-	write_msa_csr(msacsr & ~MSA_CSR_CAUSEF);
-	local_irq_enable();
+	if (IS_ENABLED(CONFIG_CPU_HAS_MSA)) {
+		current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
+		if (notify_die(DIE_MSAFP, "MSA FP exception", regs, 0,
+			       current->thread.trap_nr, SIGFPE) == NOTIFY_STOP)
+			goto out;
+
+		/* Clear MSACSR.Cause before enabling interrupts */
+		write_msa_csr(msacsr & ~MSA_CSR_CAUSEF);
+		local_irq_enable();
+	}
 
 	die_if_kernel("do_msa_fpe invoked from kernel context!", regs);
 	force_sig(SIGFPE, current);
@@ -1596,6 +1623,11 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 asmlinkage void do_mt(struct pt_regs *regs)
 {
 	int subcode;
+
+	if (WARN_ON(!cpu_has_mipsmt)) {
+		force_sig(SIGILL, current);
+		return;
+	}
 
 	if (IS_ENABLED(CONFIG_MIPS_MT)) {
 		subcode = (read_vpe_c0_vpecontrol() & VPECONTROL_EXCPT)
@@ -1743,6 +1775,7 @@ static inline void parity_protection_init(void)
 	case CPU_P5600:
 	case CPU_QEMU_GENERIC:
 	case CPU_P6600:
+	case CPU_I7200:
 		{
 			unsigned long errctl;
 			unsigned int l1parity_present, l2parity_present;
@@ -1983,13 +2016,33 @@ void __init *set_except_vector(int n, void *addr)
 	old_handler = xchg(&exception_handlers[n], handler);
 
 	if (n == 0 && cpu_has_divec) {
+		unsigned int k0 = 26;
+#ifdef CONFIG_CPU_NANOMIPS
+		u16 *buf = (u16 *)(ebase + 0x200);
+		long offs = handler - (ebase + 0x204);
+		/* FIXME convert to uasm of some sort */
+		if (offs < (1l << 25) && offs >= -(1l << 25)) {
+			/* BC[32] handler */
+			u32 insn32 = (0x28000000 |
+				      (offs < 0) |
+				      (offs & ((1l << 25) - 1)));
+			*(buf++) = insn32 >> 16;
+			*(buf++) = insn32 & 0xffff;
+		} else {
+			/* LI[48] k0, handler */
+			*(buf++) = 0x6000 | k0 << 5;
+			*(buf++) = handler & 0xffff;
+			*(buf++) = handler >> 16;
+			/* JRC k0 */
+			*(buf++) = 0xd800 | k0 << 5;
+		}
+#else
 #ifdef CONFIG_CPU_MICROMIPS
 		unsigned long jump_mask = ~((1 << 27) - 1);
 #else
 		unsigned long jump_mask = ~((1 << 28) - 1);
 #endif
 		u32 *buf = (u32 *)(ebase + 0x200);
-		unsigned int k0 = 26;
 		if ((handler & jump_mask) == ((ebase + 0x200) & jump_mask)) {
 			uasm_i_j(&buf, handler & ~jump_mask);
 			uasm_i_nop(&buf);
@@ -1998,6 +2051,7 @@ void __init *set_except_vector(int n, void *addr)
 			uasm_i_jr(&buf, k0);
 			uasm_i_nop(&buf);
 		}
+#endif
 		local_flush_icache_range(ebase + 0x200, (unsigned long)buf);
 	}
 	return (void *)old_handler;
@@ -2046,17 +2100,22 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		 * If no shadow set is selected then use the default handler
 		 * that does normal register saving and standard interrupt exit
 		 */
-		extern char except_vec_vi, except_vec_vi_lui;
-		extern char except_vec_vi_ori, except_vec_vi_end;
+		extern char except_vec_vi, except_vec_vi_end;
 		extern char rollback_except_vec_vi;
 		char *vec_start = using_rollback_handler() ?
 			&rollback_except_vec_vi : &except_vec_vi;
-#if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_BIG_ENDIAN)
+#if defined(CONFIG_CPU_NANOMIPS)
+		extern char except_vec_vi_li48;
+		const int li48_offset = &except_vec_vi_li48 - vec_start;
+#else
+		extern char except_vec_vi_lui, except_vec_vi_ori;
+# if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_BIG_ENDIAN)
 		const int lui_offset = &except_vec_vi_lui - vec_start + 2;
 		const int ori_offset = &except_vec_vi_ori - vec_start + 2;
-#else
+# else
 		const int lui_offset = &except_vec_vi_lui - vec_start;
 		const int ori_offset = &except_vec_vi_ori - vec_start;
+# endif
 #endif
 		const int handler_len = &except_vec_vi_end - vec_start;
 
@@ -2074,10 +2133,16 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 #else
 				handler_len);
 #endif
+#ifdef CONFIG_CPU_NANOMIPS
+		h = (u16 *)(b + li48_offset);
+		h[1] = handler;
+		h[2] = handler >> 16;
+#else
 		h = (u16 *)(b + lui_offset);
 		*h = (handler >> 16) & 0xffff;
 		h = (u16 *)(b + ori_offset);
 		*h = (handler & 0xffff);
+#endif
 		local_flush_icache_range((unsigned long)b,
 					 (unsigned long)(b+handler_len));
 	}
@@ -2442,7 +2507,7 @@ void __init trap_init(void)
 	set_except_vector(EXCCODE_SYS, handle_sys);
 	set_except_vector(EXCCODE_BP, handle_bp);
 
-	if (rdhwr_noopt)
+	if (rdhwr_noopt || IS_ENABLED(CONFIG_CPU_NANOMIPS))
 		set_except_vector(EXCCODE_RI, handle_ri);
 	else {
 		if (cpu_has_vtag_icache)

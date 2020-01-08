@@ -2826,6 +2826,8 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		prevepc = xcp->cp0_epc;
 
 		if (get_isa16_mode(prevepc) && cpu_has_mmips) {
+			WARN_ON(cpu_has_nanomips);
+
 			/*
 			 * Get next 2 microMIPS instructions and convert them
 			 * into 32-bit instructions.

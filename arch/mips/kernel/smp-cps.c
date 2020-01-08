@@ -161,7 +161,11 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	 * s0 = kseg0 CCA
 	 */
 	entry_code = (u32 *)&mips_cps_core_entry;
+#ifdef __nanomips__
+	*entry_code++ = 0x9008d000 | cca;
+#else
 	uasm_i_addiu(&entry_code, 16, 0, cca);
+#endif
 	blast_dcache_range((unsigned long)&mips_cps_core_entry,
 			   (unsigned long)entry_code);
 	bc_wback_inv((unsigned long)&mips_cps_core_entry,
@@ -515,7 +519,8 @@ static void cps_init_secondary(void)
 	if (cpu_has_mipsmt)
 		dmt();
 
-	if (mips_cm_revision() >= CM_REV_CM3) {
+	if ((mips_cm_revision() >= CM_REV_CM3) ||
+	    mips_cm_is_2_6()) {
 		unsigned int ident = read_gic_vl_ident();
 
 		/*

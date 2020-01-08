@@ -37,7 +37,7 @@ config MIPS
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
-	select HAVE_ARCH_WITHIN_STACK_FRAMES if KALLSYMS
+	select HAVE_ARCH_WITHIN_STACK_FRAMES if KALLSYMS && !CPU_NANOMIPS
 	select HAVE_CBPF_JIT if (!64BIT && !CPU_MICROMIPS)
 	select HAVE_EBPF_JIT if (64BIT && !CPU_MICROMIPS)
 	select HAVE_CC_STACKPROTECTOR
@@ -69,7 +69,7 @@ config MIPS
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN if 64BIT || !SMP
 	select IRQ_FORCED_THREADING
-	select MODULES_USE_ELF_RELA if MODULES && 64BIT
+	select MODULES_USE_ELF_RELA if MODULES && (64BIT || CPU_NANOMIPS)
 	select MODULES_USE_ELF_REL if MODULES
 	select PERF_USE_VMALLOC
 	select RTC_LIB if !MACH_LOONGSON64
@@ -111,6 +111,7 @@ config MIPS_GENERIC
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_CPU_MIPS64_R2
 	select SYS_HAS_CPU_MIPS64_R6
+	select SYS_HAS_CPU_NANOMIPS32_R6
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -508,6 +509,7 @@ config MIPS_MALTA
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_CPU_MIPS64_R2
 	select SYS_HAS_CPU_MIPS64_R6
+	select SYS_HAS_CPU_NANOMIPS32_R6
 	select SYS_HAS_CPU_NEVADA
 	select SYS_HAS_CPU_RM7000
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -1531,6 +1533,19 @@ config CPU_MIPS64_R6
 	  family, are based on a MIPS64r6 processor. If you own an older
 	  processor, you probably need to select MIPS64r1 or MIPS64r2 instead.
 
+config CPU_NANOMIPS32_R6
+	bool "nanoMIPS32 Release 6"
+	depends on SYS_HAS_CPU_NANOMIPS32_R6
+	select CPU_HAS_PREFETCH
+	select CPU_NANOMIPS
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select GENERIC_CSUM
+	select MIPS_O32_FP64_SUPPORT
+	help
+	  Choose this option to build a kernel for release 6 or later of the
+	  nanoMIPS32 architecture.
+
 config CPU_R3000
 	bool "R3000"
 	depends on SYS_HAS_CPU_R3000
@@ -1729,7 +1744,7 @@ endchoice
 config CPU_MIPS32_3_5_FEATURES
 	bool "MIPS32 Release 3.5 Features"
 	depends on SYS_HAS_CPU_MIPS32_R3_5
-	depends on CPU_MIPS32_R2 || CPU_MIPS32_R6
+	depends on CPU_MIPS32_R2 || CPU_MIPS32_R6 || CPU_NANOMIPS32_R6
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture including features from the 3.5 release such as
@@ -1901,6 +1916,9 @@ config SYS_HAS_CPU_MIPS64_R2
 config SYS_HAS_CPU_MIPS64_R6
 	bool
 
+config SYS_HAS_CPU_NANOMIPS32_R6
+	bool
+
 config SYS_HAS_CPU_R3000
 	bool
 
@@ -1991,7 +2009,8 @@ endmenu
 #
 config CPU_MIPS32
 	bool
-	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2 || CPU_MIPS32_R6
+	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2 || CPU_MIPS32_R6 || \
+		     CPU_NANOMIPS32_R6
 
 config CPU_MIPS64
 	bool
@@ -2012,7 +2031,7 @@ config CPU_MIPSR2
 
 config CPU_MIPSR6
 	bool
-	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6
+	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6 || CPU_NANOMIPS32_R6
 	select CPU_HAS_RIXI
 	select HAVE_ARCH_BITREVERSE
 	select MIPS_ASID_BITS_VARIABLE
@@ -2066,7 +2085,7 @@ choice
 config 32BIT
 	bool "32-bit kernel"
 	depends on CPU_SUPPORTS_32BIT_KERNEL && SYS_SUPPORTS_32BIT_KERNEL
-	select TRAD_SIGNALS
+	select TRAD_SIGNALS if !CPU_NANOMIPS
 	help
 	  Select this option if you want to build a 32-bit kernel.
 
@@ -2221,9 +2240,30 @@ config CPU_GENERIC_DUMP_TLB
 	bool
 	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
 
+config FP_SUPPORT
+	bool "Floating Point Support"
+	depends on !CPU_NANOMIPS
+	default y
+	help
+	  Select this to enable support for programs which make use of floating
+	  point instructions. This allows the kernel to support initialising, context
+	  switching & emulating the Floating Point Unit (FPU) in order to allow such
+	  programs to execute correctly.
+
+	  If you disable this then any program which attempts to execute a floating
+	  point instruction will receive a SIGILL signal & is likely to fail.
+
+	  If in doubt, say Y.
+
+config CPU_R2300_FPU
+	bool
+	depends on FP_SUPPORT
+	default y if CPU_R3000 || CPU_TX39XX
+
 config CPU_R4K_FPU
 	bool
-	default y if !(CPU_R3000 || CPU_TX39XX)
+	depends on FP_SUPPORT
+	default y if !CPU_R2300_FPU
 
 config CPU_R4K_CACHE_TLB
 	bool
@@ -2232,7 +2272,7 @@ config CPU_R4K_CACHE_TLB
 config MIPS_MT_SMP
 	bool "MIPS MT SMP support (1 TC on each available VPE)"
 	default y
-	depends on SYS_SUPPORTS_MULTITHREADING && !CPU_MIPSR6 && !CPU_MICROMIPS
+	depends on SYS_SUPPORTS_MULTITHREADING && !CPU_MICROMIPS
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select SYNC_R4K
@@ -2274,7 +2314,7 @@ config MIPS_MT_FPAFF
 
 config MIPSR2_TO_R6_EMULATOR
 	bool "MIPS R2-to-R6 emulator"
-	depends on CPU_MIPSR6
+	depends on CPU_MIPSR6 && FP_SUPPORT
 	default y
 	help
 	  Choose this option if you want to run non-R6 MIPS userland code.
@@ -2395,16 +2435,19 @@ config SB1_PASS_2_1_WORKAROUNDS
 config ARCH_PHYS_ADDR_T_64BIT
        bool
 
-choice
-	prompt "SmartMIPS or microMIPS ASE support"
-
-config CPU_NEEDS_NO_SMARTMIPS_OR_MICROMIPS
-	bool "None"
+config CPU_MICROMIPS
+	depends on 32BIT && SYS_SUPPORTS_MICROMIPS && !CPU_MIPSR6
+	bool "Compile targeting microMIPS"
 	help
-	  Select this if you want neither microMIPS nor SmartMIPS support
+	  When this option is enabled the kernel will be built using the
+	  microMIPS ISA.
+
+config CPU_NANOMIPS
+	bool
+	select ARCH_WANT_FRAME_POINTERS
 
 config CPU_HAS_SMARTMIPS
-	depends on SYS_SUPPORTS_SMARTMIPS
+	depends on SYS_SUPPORTS_SMARTMIPS && !CPU_MICROMIPS && !CPU_NANOMIPS
 	bool "SmartMIPS"
 	help
 	  SmartMIPS is a extension of the MIPS32 architecture aimed at
@@ -2415,19 +2458,11 @@ config CPU_HAS_SMARTMIPS
 	  you don't know you probably don't have SmartMIPS and should say N
 	  here.
 
-config CPU_MICROMIPS
-	depends on 32BIT && SYS_SUPPORTS_MICROMIPS && !CPU_MIPSR6
-	bool "microMIPS"
-	help
-	  When this option is enabled the kernel will be built using the
-	  microMIPS ISA
-
-endchoice
-
 config CPU_HAS_MSA
 	bool "Support for the MIPS SIMD Architecture"
-	depends on CPU_SUPPORTS_MSA
+	depends on CPU_SUPPORTS_MSA && FP_SUPPORT
 	depends on 64BIT || MIPS_O32_FP64_SUPPORT
+	depends on !CPU_NANOMIPS
 	help
 	  MIPS SIMD Architecture (MSA) introduces 128 bit wide vector registers
 	  and a set of SIMD instructions to operate on them. When this option

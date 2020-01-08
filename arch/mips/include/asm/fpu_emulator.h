@@ -176,9 +176,25 @@ do {									\
 #define MIPS_FPU_EMU_INC_STATS(M) do { } while (0)
 #endif /* CONFIG_DEBUG_FS */
 
+#ifdef CONFIG_FP_SUPPORT
+
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
 				    struct mips_fpu_struct *ctx, int has_fpu,
 				    void __user **fault_addr);
+
+#else /* !CONFIG_FP_SUPPORT */
+
+static inline int fpu_emulator_cop1Handler(struct pt_regs *xcp,
+					   struct mips_fpu_struct *ctx,
+					   int has_fpu,
+					   void __user **fault_addr)
+{
+	*fault_addr = NULL;
+	return SIGILL;
+}
+
+#endif /* !CONFIG_FP_SUPPORT */
+
 void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
 		     struct task_struct *tsk);
 int process_fpemu_return(int sig, void __user *fault_addr,

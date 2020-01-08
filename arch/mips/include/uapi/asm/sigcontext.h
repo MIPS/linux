@@ -88,4 +88,21 @@ struct sigcontext {
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32 */
 
+#if _MIPS_SIM == _MIPS_SIM_PABI32
+
+/*
+ * nanoMIPS makes the sigcontext a bit more minimal, with all optional ASE
+ * context (DSP, FPU and MSA) represented as extended context entries.
+ */
+struct sigcontext {
+	__u64		sc_regs[32];
+	__u64		sc_pc;
+	__u32		sc_used_math;
+	__u32		sc_reserved;
+};
+
+#define __MIPS_REDUCED_SIGCONTEXT
+
+#endif /* _MIPS_SIM == _MIPS_SIM_PABI32 */
+
 #endif /* _UAPI_ASM_SIGCONTEXT_H */
