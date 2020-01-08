@@ -38,6 +38,7 @@
 #include <linux/kdb.h>
 #include <linux/irq.h>
 #include <linux/perf_event.h>
+#include <linux/debugfs.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -68,6 +69,8 @@
 #include <asm/types.h>
 #include <asm/stacktrace.h>
 #include <asm/uasm.h>
+#include <asm/debug.h>
+#include <asm/switch_to.h>
 
 extern void check_wait(void);
 extern asmlinkage void rollback_handle_int(void);
@@ -392,6 +395,8 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 	if (notify_die(DIE_OOPS, str, regs, 0, current->thread.trap_nr,
 		       SIGSEGV) == NOTIFY_STOP)
 		sig = 0;
+
+	mips_hwtrigger(regs, SIGSEGV, "kernel die() called");
 
 	console_verbose();
 	raw_spin_lock_irq(&die_lock);
@@ -941,6 +946,14 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 		die_if_kernel("Math emu break/trap", regs);
 		force_sig(SIGTRAP, current);
 		break;
+	case BRK_HWTRIGGER:
+		if (IS_ENABLED(CONFIG_MIPS_HARDWARE_TRIGGERS) && user_mode(regs)) {
+			mips_hwtrigger_write(0);
+			pr_info("Performed HWTRIGGER for %u '%.16s'\n",
+				current->pid, current->comm);
+			mips_hwtrigger_dump_curr();
+		}
+		/* fall-through */
 	default:
 		scnprintf(b, sizeof(b), "%s instruction in kernel code", str);
 		die_if_kernel(b, regs);
@@ -1607,6 +1620,7 @@ asmlinkage void do_reserved(struct pt_regs *regs)
 	 * caused by a new unknown cpu type or after another deadly
 	 * hard/software error.
 	 */
+	mips_hwtrigger(regs, regs->cp0_cause, "unhandled exception");
 	show_regs(regs);
 	panic("Caught reserved exception %ld - should not happen.",
 	      (regs->cp0_cause & 0x7f) >> 2);
@@ -1908,6 +1922,7 @@ void __noreturn nmi_exception_handler(struct pt_regs *regs)
 
 	nmi_enter();
 	raw_notifier_call_chain(&nmi_chain, 0, regs);
+	mips_hwtrigger_write(0);
 	bust_spinlocks(1);
 	snprintf(str, 100, "CPU%d NMI taken, CP0_EPC=%lx\n",
 		 smp_processor_id(), regs->cp0_epc);
@@ -1964,6 +1979,7 @@ void __init *set_except_vector(int n, void *addr)
 
 static void do_default_vi(void)
 {
+	mips_hwtrigger(get_irq_regs(), 0, "unhandled vectored interrupt");
 	show_regs(get_irq_regs());
 	panic("Caught unexpected vectored interrupt.");
 }
@@ -2484,3 +2500,84 @@ static int __init trap_pm_init(void)
 	return cpu_pm_register_notifier(&trap_pm_notifier_block);
 }
 arch_initcall(trap_pm_init);
+
+#ifdef CONFIG_MIPS_HARDWARE_TRIGGERS
+
+DEFINE_PER_CPU(struct cpu_curr_info, curr_info);
+
+void __mips_hwtrigger_dump_curr(void)
+{
+	struct cpu_curr_info *i;
+	int cpu;
+
+	pr_info("Approximated scheduling info:\n");
+
+	for_each_present_cpu(cpu) {
+		pr_info("  c%u", cpu_core(&cpu_data[cpu]));
+
+		if (cpu_has_mipsmt || cpu_has_vp)
+			pr_cont("v%u", cpu_vpe_id(&cpu_data[cpu]));
+
+		if (!cpu_online(cpu)) {
+			pr_cont(": offline\n");
+			continue;
+		}
+
+		i = per_cpu_ptr(&curr_info, cpu);
+		pr_cont(": pid=%u tgid=%u comm='%.16s'\n",
+			i->pid, i->tgid, i->comm);
+	}
+}
+
+void mips_hwtrigger_info(const char *file, unsigned long line,
+			 struct pt_regs *regs,
+			 unsigned long code, const char *why)
+{
+	char *who;
+
+	who = (regs && user_mode(regs)) ? current->comm : "kernel";
+
+	pr_info("%s:%lu: HWTRIGGER(%lu) for %s%s%s\n",
+		file, line, code, who, why ? ": " : "", why);
+
+	if (regs)
+		show_registers(regs);
+	else
+		dump_stack();
+
+	mips_hwtrigger_dump_curr();
+}
+
+#ifdef CONFIG_DEBUG_FS
+static ssize_t hwtrigger_write(struct file *file,
+			       const char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	mips_hwtrigger_write(0);
+	return count;
+}
+
+static const struct file_operations hwtrigger_fops = {
+	.open = simple_open,
+	.llseek = default_llseek,
+	.write = hwtrigger_write,
+};
+
+static int __init hwtrigger_debugfs_init(void)
+{
+	struct dentry *file;
+
+	if (!mips_debugfs_dir)
+		return -ENODEV;
+
+	file = debugfs_create_file("hw_trigger", S_IWUSR,
+				   mips_debugfs_dir,
+				   NULL, &hwtrigger_fops);
+	if (!file)
+		return -ENOMEM;
+
+	return 0;
+}
+late_initcall(hwtrigger_debugfs_init);
+#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_MIPS_HARDWARE_TRACE */

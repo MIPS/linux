@@ -1,0 +1,9 @@
+generic_nano32r6el_page4k		nano32r6el	page-4k smp
+generic_nano32r6el_page4k_up		nano32r6el	page-4k up
+generic_nano32r6el_page4k_dbg		nano32r6el	page-4k smp dbg
+generic_nano32r6el_page16k		nano32r6el	page-16k smp
+generic_nano32r6el_page16k_up		nano32r6el	page-16k up
+generic_nano32r6el_page16k_dbg		nano32r6el	page-16k smp dbg
+generic_nano32r6el_page64k		nano32r6el	page-64k smp
+generic_nano32r6el_page64k_up		nano32r6el	page-64k up
+generic_nano32r6el_page64k_dbg		nano32r6el	page-64k smp dbg

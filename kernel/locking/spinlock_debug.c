@@ -53,6 +53,8 @@ static void spin_dump(raw_spinlock_t *lock, const char *msg)
 {
 	struct task_struct *owner = NULL;
 
+	mips_hwtrigger_write(0);
+
 	if (lock->owner && lock->owner != SPINLOCK_OWNER_INIT)
 		owner = lock->owner;
 	printk(KERN_EMERG "BUG: spinlock %s on CPU#%d, %s/%d\n",
@@ -139,6 +141,8 @@ static void rwlock_bug(rwlock_t *lock, const char *msg)
 {
 	if (!debug_locks_off())
 		return;
+
+	mips_hwtrigger_write(0);
 
 	printk(KERN_EMERG "BUG: rwlock %s on CPU#%d, %s/%d, %p\n",
 		msg, raw_smp_processor_id(), current->comm,
