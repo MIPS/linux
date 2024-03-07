@@ -67,6 +67,13 @@ config PCI_QUIRKS
 	  Disable this only if your target machine is unaffected by PCI
 	  quirks.
 
+config PCI_BRIDGE_MEM_ALIGN
+	hex "PCI bridge memory alignment"
+	default 0X100000
+	help
+	  PCI memory space will be aligned to be a multiple of this value
+	  whenever a PCI-to-PCI bridge is encountered.
+
 config PCI_DEBUG
 	bool "PCI Debugging"
 	depends on DEBUG_KERNEL
