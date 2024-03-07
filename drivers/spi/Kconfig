@@ -1153,7 +1153,7 @@ config SPI_THUNDERX
 
 config SPI_TOPCLIFF_PCH
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) SPI"
-	depends on PCI && (X86_32 || MIPS || COMPILE_TEST)
+	depends on PCI && (X86_32 || MIPS || RISCV || COMPILE_TEST)
 	help
 	  SPI driver for the Topcliff PCH (Platform Controller Hub) SPI bus
 	  used in some x86 embedded processors.
