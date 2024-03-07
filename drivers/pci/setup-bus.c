@@ -1031,7 +1031,7 @@ resource_size_t __weak pcibios_window_alignment(struct pci_bus *bus,
 	return 1;
 }
 
-#define PCI_P2P_DEFAULT_MEM_ALIGN	SZ_1M
+#define PCI_P2P_DEFAULT_MEM_ALIGN	CONFIG_PCI_BRIDGE_MEM_ALIGN	/* default 1MiB */
 #define PCI_P2P_DEFAULT_IO_ALIGN	SZ_4K
 #define PCI_P2P_DEFAULT_IO_ALIGN_1K	SZ_1K
 
@@ -1156,7 +1156,7 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
 	for (order = 0; order <= max_order; order++) {
 		resource_size_t align1 = 1;
 
-		align1 <<= order + __ffs(SZ_1M);
+		align1 <<= (order + __ffs(PCI_P2P_DEFAULT_MEM_ALIGN));
 
 		if (!align)
 			min_align = align1;
@@ -1317,7 +1317,7 @@ static void pbus_size_mem(struct pci_bus *bus, struct resource *b_res,
 			 * keep "order" from being negative for smaller
 			 * resources.
 			 */
-			order = max_t(int, __ffs(align) - __ffs(SZ_1M), 0);
+			order = max_t(int, __ffs(align) - __ffs(PCI_P2P_DEFAULT_MEM_ALIGN), 0);
 			if (order >= ARRAY_SIZE(aligns)) {
 				pci_warn(dev, "%s %pR: disabling; bad alignment %#llx\n",
 					 r_name, r, (unsigned long long) align);
