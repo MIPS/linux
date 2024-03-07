@@ -41,7 +41,7 @@ void __init time_init(void)
 		acpi_put_table((struct acpi_table_header *)rhct);
 	}
 
-	lpj_fine = riscv_timebase / HZ;
+	lpj_fine = riscv_timebase / 2 / HZ;
 
 	timer_probe();
 
