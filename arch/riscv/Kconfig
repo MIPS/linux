@@ -1345,7 +1345,7 @@ endmenu # "Boot options"
 config PORTABLE
 	bool
 	default !NONPORTABLE
-	select EFI
+	#select EFI
 	select MMU
 	select OF
 
