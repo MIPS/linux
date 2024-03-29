@@ -2529,17 +2529,14 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))
-		|| dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		ret = dma_set_coherent_mask(&pdev->dev,
+					    DMA_BIT_MASK(32));
 		if (ret) {
-			ret = dma_set_coherent_mask(&pdev->dev,
-							  DMA_BIT_MASK(32));
-			if (ret) {
-				dev_err(&pdev->dev, "ERR: No usable DMA "
-					"configuration, aborting\n");
-				return ret;
-			}
+			dev_err(&pdev->dev, "ERR: No usable DMA "
+				"configuration, aborting\n");
+			return ret;
 		}
 	}
 
