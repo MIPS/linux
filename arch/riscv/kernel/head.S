@@ -249,7 +249,15 @@ SYM_CODE_START(_start_kernel)
 	/* Pick one hart to run the main boot sequence */
 	la a3, hart_lottery
 	li a2, 1
+#ifndef CONFIG_RISCV_ISA_ZALRSC_ONLY
 	amoadd.w a3, a2, (a3)
+#else
+1:	lr.w t0, (a3)
+	addw t1, t0, a2
+	sc.w t1, t1, (a3)
+	bnez t1, 1b
+	mv a3, t0
+#endif
 	bnez a3, .Lsecondary_start
 
 #else
@@ -259,7 +267,13 @@ SYM_CODE_START(_start_kernel)
 	XIP_FIXUP_OFFSET a2
 	XIP_FIXUP_FLASH_OFFSET a3
 	lw t1, (a3)
+#ifndef CONFIG_RISCV_ISA_ZALRSC_ONLY
 	amoswap.w t0, t1, (a2)
+#else
+1:	lr.w t0, (a2)
+	sc.w t2, t1, (a2)
+	bnez t2, 1b
+#endif
 	/* first time here if hart_lottery in RAM is not set */
 	beq t0, t1, .Lsecondary_start
 
