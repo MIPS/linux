@@ -473,6 +473,7 @@ static inline void emit_kcfi(u32 hash, struct rv_jit_context *ctx)
 		emit(hash, ctx);
 }
 
+#ifndef CONFIG_RISCV_ISA_ZALRSC_ONLY
 static void emit_atomic(u8 rd, u8 rs, s16 off, s32 imm, bool is64,
 			struct rv_jit_context *ctx)
 {
@@ -558,6 +559,131 @@ static void emit_atomic(u8 rd, u8 rs, s16 off, s32 imm, bool is64,
 		break;
 	}
 }
+#else
+
+#define DO_AMO(SZ, INSN, RS, RD, TEMP0, TEMP1, AQ, RL)		\
+	int start_insn = ctx->ninsns;				\
+	emit(rv_lr_ ## SZ(TEMP0, 0, RD, AQ, RL), ctx);		\
+	emit(rv_ ## INSN (TEMP1, TEMP0, RS), ctx);		\
+	emit(rv_sc_ ## SZ (TEMP1, TEMP1, RD, AQ, RL), ctx);	\
+	jmp_offset = ninsns_rvoff(start_insn - ctx->ninsns);	\
+	emit(rv_bne(TEMP1, 0, jmp_offset >> 1), ctx);
+
+static void emit_atomic(u8 rd, u8 rs, s16 off, s32 imm, bool is64,
+			struct rv_jit_context *ctx)
+{
+	u8 r0;
+	u8 temp0 = RV_REG_T2;
+	u8 temp1 = RV_REG_T3;
+	int jmp_offset;
+
+	if (off) {
+		if (is_12b_int(off)) {
+			emit_addi(RV_REG_T1, rd, off, ctx);
+		} else {
+			emit_imm(RV_REG_T1, off, ctx);
+			emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
+		}
+		rd = RV_REG_T1;
+	}
+
+	switch (imm) {
+	/* lock *(u32/u64 *)(dst_reg + off16) <op>= src_reg */
+	case BPF_ADD:
+		if (is64) {
+			DO_AMO(d, add, rs, rd, temp0, temp1, 0, 0);
+		} else {
+			DO_AMO(w, addw, rs, rd, temp0, temp1, 0, 0);
+		}
+		break;
+	case BPF_AND:
+		if (is64) {
+			DO_AMO(d, and, rs, rd, temp0, temp1, 0, 0);
+		} else {
+			DO_AMO(w, and, rs, rd, temp0, temp1, 0, 0);
+		}
+		break;
+	case BPF_OR:
+		if (is64) {
+			DO_AMO(d, or, rs, rd, temp0, temp1, 0, 0);
+		} else {
+			DO_AMO(w, or, rs, rd, temp0, temp1, 0, 0);
+		}
+		break;
+	case BPF_XOR:
+		if (is64) {
+			DO_AMO(d, xor, rs, rd, temp0, temp1, 0, 0);
+		} else {
+			DO_AMO(w, xor, rs, rd, temp0, temp1, 0, 0);
+		}
+		break;
+	/* src_reg = atomic_fetch_<op>(dst_reg + off16, src_reg) */
+	case BPF_ADD | BPF_FETCH:
+		if (is64) {
+			DO_AMO(d, add, rs, rd, temp0, temp1, 1, 1);
+			emit_mv(rs, temp0, ctx);
+		} else {
+			DO_AMO(w, addw, rs, rd, temp0, temp1, 1, 1);
+			emit_zextw(rs, temp0, ctx);
+		}
+		break;
+	case BPF_AND | BPF_FETCH:
+		if (is64) {
+			DO_AMO(d, and, rs, rd, temp0, temp1, 1, 1);
+			emit_mv(rs, temp0, ctx);
+		} else {
+			DO_AMO(w, and, rs, rd, temp0, temp1, 1, 1);
+			emit_zextw(rs, temp0, ctx);
+		}
+		break;
+	case BPF_OR | BPF_FETCH:
+		if (is64) {
+			DO_AMO(d, or, rs, rd, temp0, temp1, 1, 1);
+			emit_mv(rs, temp0, ctx);
+		} else {
+			DO_AMO(w, or, rs, rd, temp0, temp1, 1, 1);
+			emit_zextw(rs, temp0, ctx);
+		}
+		break;
+	case BPF_XOR | BPF_FETCH:
+		if (is64) {
+			DO_AMO(d, xor, rs, rd, temp0, temp1, 1, 1);
+			emit_mv(rs, temp0, ctx);
+		} else {
+			DO_AMO(w, xor, rs, rd, temp0, temp1, 1, 1);
+			emit_zextw(rs, temp0, ctx);
+		}
+		break;
+	/* src_reg = atomic_xchg(dst_reg + off16, src_reg); */
+	case BPF_XCHG:
+		if (is64) {
+			DO_AMO(d, add, RV_REG_ZERO, rd, temp0, temp1, 1, 1);
+			emit_mv(rs, temp0, ctx);
+		} else {
+			DO_AMO(w, addw, RV_REG_ZERO, rd, temp0, temp1, 1, 1);
+			emit_zextw(rs, temp0, ctx);
+		}
+		break;
+	/* r0 = atomic_cmpxchg(dst_reg + off16, r0, src_reg); */
+	case BPF_CMPXCHG:
+		r0 = bpf_to_rv_reg(BPF_REG_0, ctx);
+		if (is64)
+			emit_mv(RV_REG_T2, r0, ctx);
+		else
+			emit_addiw(RV_REG_T2, r0, 0, ctx);
+		emit(is64 ? rv_lr_d(r0, 0, rd, 0, 0) :
+		     rv_lr_w(r0, 0, rd, 0, 0), ctx);
+		jmp_offset = ninsns_rvoff(8);
+		emit(rv_bne(RV_REG_T2, r0, jmp_offset >> 1), ctx);
+		emit(is64 ? rv_sc_d(RV_REG_T3, rs, rd, 0, 0) :
+		     rv_sc_w(RV_REG_T3, rs, rd, 0, 0), ctx);
+		jmp_offset = ninsns_rvoff(-6);
+		emit(rv_bne(RV_REG_T3, 0, jmp_offset >> 1), ctx);
+		emit(rv_fence(0x3, 0x3), ctx);
+		break;
+	}
+}
+#endif
 
 #define BPF_FIXUP_OFFSET_MASK   GENMASK(26, 0)
 #define BPF_FIXUP_REG_MASK      GENMASK(31, 27)
