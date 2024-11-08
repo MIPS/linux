@@ -17,6 +17,12 @@ choice
 	 per second.
 
 
+	config HZ_15
+		bool "15 HZ"
+	help
+	  15 Hz is for experiments on FPGA boards that may show reduced
+	  performance if too many timer interrupts are occurring.
+
 	config HZ_100
 		bool "100 HZ"
 	help
@@ -50,6 +56,7 @@ endchoice
 
 config HZ
 	int
+	default 15 if HZ_15
 	default 100 if HZ_100
 	default 250 if HZ_250
 	default 300 if HZ_300
