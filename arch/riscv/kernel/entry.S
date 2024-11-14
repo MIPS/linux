@@ -72,7 +72,14 @@ _new_vmalloc_kernel_address:
 	beq	a2, zero, _new_vmalloc_restore_context
 
 	/* Atomically reset the current cpu bit in new_vmalloc */
+#ifndef CONFIG_RISCV_ISA_ZALRSC_ONLY
 	amoxor.d	a0, a1, (a0)
+#else
+1:	lr.d	a2, (a0)
+	xor	a2, a1, a2
+	sc.d	a2, a2, (a0)
+	bnez	a2, 1b
+#endif
 
 	/* Only emit a sfence.vma if the uarch caches invalid entries */
 	ALTERNATIVE("sfence.vma", "nop", 0, RISCV_ISA_EXT_SVVPTC, 1)
