@@ -7,31 +7,24 @@
 #define _ASM_RISCV_TIMEX_H
 
 #include <asm/csr.h>
+#include <asm/mmio.h>
+
+#include <linux/jump_label.h>
 
 typedef unsigned long cycles_t;
+
+extern u64 __iomem *riscv_time_val;
+DECLARE_STATIC_KEY_FALSE(riscv_time_mmio_available);
+
+#define riscv_time_val riscv_time_val
 
 #ifdef CONFIG_RISCV_M_MODE
 
 #include <asm/clint.h>
 
-#ifdef CONFIG_64BIT
-static inline cycles_t get_cycles(void)
-{
-	return readq_relaxed(clint_time_val);
-}
-#else /* !CONFIG_64BIT */
-static inline u32 get_cycles(void)
-{
-	return readl_relaxed(((u32 *)clint_time_val));
-}
-#define get_cycles get_cycles
+#undef riscv_time_val
 
-static inline u32 get_cycles_hi(void)
-{
-	return readl_relaxed(((u32 *)clint_time_val) + 1);
-}
-#define get_cycles_hi get_cycles_hi
-#endif /* CONFIG_64BIT */
+#define riscv_time_val clint_time_val
 
 /*
  * Much like MIPS, we may not have a viable counter to use at an early point
@@ -46,21 +39,47 @@ static inline unsigned long random_get_entropy(void)
 }
 #define random_get_entropy()	random_get_entropy()
 
-#else /* CONFIG_RISCV_M_MODE */
+#endif
+
+static inline long use_riscv_time_mmio(void)
+{
+	return IS_ENABLED(CONFIG_RISCV_M_MODE) ||
+		(IS_ENABLED(CONFIG_RISCV_TIME_MMIO) &&
+		 static_branch_unlikely(&riscv_time_mmio_available));
+}
+
+#ifdef CONFIG_64BIT
+static inline cycles_t mmio_get_cycles(void)
+{
+	return readq_relaxed(riscv_time_val);
+}
+#else /* !CONFIG_64BIT */
+static inline cycles_t mmio_get_cycles(void)
+{
+	return readl_relaxed(((u32 *)riscv_time_val));
+}
+#endif /* CONFIG_64BIT */
+
+static inline u32 mmio_get_cycles_hi(void)
+{
+	return readl_relaxed(((u32 *)riscv_time_val) + 1);
+}
 
 static inline cycles_t get_cycles(void)
 {
+	if (use_riscv_time_mmio())
+		return mmio_get_cycles();
 	return csr_read(CSR_TIME);
 }
 #define get_cycles get_cycles
 
 static inline u32 get_cycles_hi(void)
 {
+	if (use_riscv_time_mmio())
+		return mmio_get_cycles_hi();
 	return csr_read(CSR_TIMEH);
 }
 #define get_cycles_hi get_cycles_hi
-
-#endif /* !CONFIG_RISCV_M_MODE */
 
 #ifdef CONFIG_64BIT
 static inline u64 get_cycles64(void)
