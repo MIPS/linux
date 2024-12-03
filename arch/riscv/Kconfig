@@ -644,6 +644,16 @@ config RISCV_ISA_ZALRSC_ONLY
 
 	   If you don't know what to do here, say n.
 
+config RISCV_TIME_MMIO
+	bool "Time mmio support"
+	depends on !RISCV_M_MODE
+	default n
+	help
+	   Access time mmio instead of rdtime.
+	   Some CPUs trap on rdtime or reading the time CSR register.
+
+	   If you don't know what to do here, say n.
+
 config TOOLCHAIN_HAS_ZBB
 	bool
 	default y

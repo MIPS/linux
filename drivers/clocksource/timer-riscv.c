@@ -32,6 +32,13 @@
 static DEFINE_STATIC_KEY_FALSE(riscv_sstc_available);
 static bool riscv_timer_cannot_wake_cpu;
 
+#if defined(CONFIG_RISCV_TIME_MMIO)
+DEFINE_STATIC_KEY_FALSE_RO(riscv_time_mmio_available);
+EXPORT_SYMBOL(riscv_time_mmio_available);
+u64 __iomem *riscv_time_val __ro_after_init;
+EXPORT_SYMBOL(riscv_time_val);
+#endif
+
 static void riscv_clock_event_stop(void)
 {
 	if (static_branch_likely(&riscv_sstc_available)) {
@@ -203,6 +210,9 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 	int cpuid, error;
 	unsigned long hartid;
 	struct device_node *child;
+#if defined(CONFIG_RISCV_TIME_MMIO)
+	u64 mmio_addr;
+#endif
 
 	error = riscv_of_processor_hartid(n, &hartid);
 	if (error < 0) {
@@ -219,6 +229,18 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 
 	if (cpuid != smp_processor_id())
 		return 0;
+
+#if defined(CONFIG_RISCV_TIME_MMIO)
+	if (!of_property_read_u64(n, "clock-reg", &mmio_addr)) {
+		riscv_time_val = ioremap((long)mmio_addr, 8);
+		if (riscv_time_val) {
+			pr_info("Using mmio time register at 0x%llx\n", mmio_addr);
+			static_branch_enable(&riscv_time_mmio_available);
+		}
+		else
+			pr_warn("Unable to use mmio time at 0x%llx\n", mmio_addr);
+	}
+#endif
 
 	child = of_find_compatible_node(NULL, NULL, "riscv,timer");
 	if (child) {
