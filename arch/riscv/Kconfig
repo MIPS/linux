@@ -644,6 +644,17 @@ config RISCV_ISA_ZALRSC_ONLY
 
 	   If you don't know what to do here, say n.
 
+config RISCV_MIPS_P8700_PAUSE_OPCODE_FIX
+	bool "Fix the PAUSE Opcode for P8700"
+	default n
+	help
+	   The P8700 uses a different opcode for PAUSE. It is a ‘hint’
+	   encoding of the SLLI instruction, with rd=0, rs1=0 and imm=5.
+	   It will behave as a NOP instruction if no additional behavior
+	   beyond that of SLLI is implemented.
+
+	   If you are not using the P8700 processor, say n.
+
 config RISCV_TIME_MMIO
 	bool "Time mmio support"
 	depends on !RISCV_M_MODE
