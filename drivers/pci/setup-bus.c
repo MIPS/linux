@@ -938,10 +938,9 @@ resource_size_t __weak pcibios_window_alignment(struct pci_bus *bus,
 	return 1;
 }
 
-#define PCI_P2P_DEFAULT_MEM_ALIGN	SZ_1M
+#define PCI_P2P_DEFAULT_MEM_ALIGN	CONFIG_PCI_BRIDGE_MEM_ALIGN	/* default 1MiB */
 #define PCI_P2P_DEFAULT_IO_ALIGN	SZ_4K
 #define PCI_P2P_DEFAULT_IO_ALIGN_1K	SZ_1K
-#define PCI_P2P_DEFAULT_MEM_ALIGN	CONFIG_PCI_BRIDGE_MEM_ALIGN	/* default 1MiB */
 
 static resource_size_t window_alignment(struct pci_bus *bus, unsigned long type)
 {
