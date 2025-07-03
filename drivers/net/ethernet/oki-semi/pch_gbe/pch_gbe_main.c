@@ -306,7 +306,7 @@ static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
 	while ((ioread32(reg) & bit) && --tmp)
 		cpu_relax();
 	if (!tmp)
-		pr_err("Error: busy bit is not cleared\n");
+		pr_err("Error: busy bit 0x%x is not cleared\n", bit);
 }
 
 /**
@@ -359,6 +359,7 @@ static void pch_gbe_phy_set_reset(struct pch_gbe_hw *hw, int value)
  */
 static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 {
+#if 0
 	/* Read the MAC address. and store to the private data */
 	pch_gbe_mac_read_mac_addr(hw);
 	pch_gbe_phy_set_reset(hw, 1);
@@ -369,6 +370,7 @@ static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 	pch_gbe_wait_clr_bit(&hw->reg->RESET, PCH_GBE_ALL_RST);
 	/* Setup the receive addresses */
 	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
+#endif
 	return;
 }
 
