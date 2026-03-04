@@ -176,7 +176,14 @@ extern unsigned long __get_wchan(struct task_struct *p);
 
 static inline void wait_for_interrupt(void)
 {
-	__asm__ __volatile__ ("wfi");
+	__asm__ __volatile__ (".insn 0x00501013");
+	__asm__ __volatile__ (".insn 0x00501013");
+	__asm__ __volatile__ (".insn 0x00501013");
+	__asm__ __volatile__ (".insn 0x00501013");
+	__asm__ __volatile__ (".insn 0x00501013");
+	__asm__ __volatile__ (".insn 0x00501013");
+	__asm__ __volatile__ (".insn 0x00501013");
+	__asm__ __volatile__ (".insn 0x00501013");
 }
 
 extern phys_addr_t dma32_phys_limit;
