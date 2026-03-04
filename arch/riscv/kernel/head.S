@@ -196,7 +196,7 @@ secondary_start_sbi:
 	 *  - receive an early trap, before setup_trap_vector finished
 	 *  - fail in smp_callin(), as a successful one wouldn't return
 	 */
-	wfi
+	.insn 0x00501013
 	j .Lsecondary_park
 
 .align 2
