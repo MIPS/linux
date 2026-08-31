@@ -17,6 +17,7 @@
 #include <linux/ptp_classify.h>
 #include <linux/ptp_pch.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/legacy.h>
 
 #define PCH_GBE_MAR_ENTRIES		16
 #define PCH_GBE_SHORT_PKT		64
